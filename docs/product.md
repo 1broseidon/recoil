@@ -66,7 +66,6 @@ product truths into ordinary docs or direct Recoil memories:
 - `decision-3`: CLI default is current initialized project scope.
 - `decision-4`: Hooks and skills before MCP.
 - `decision-1`: Freshness model, supersession rather than deletion.
-- `research-1`: MemPalace comparison takeaways.
 - `decision-5`: Brainfile inspiration, optional typed source not a dependency.
 - `research-2`: Brainfile protocol takeaways for Recoil.
 

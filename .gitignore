@@ -27,3 +27,6 @@ coverage.html
 *.swp
 *.swo
 *~
+
+# Local tooling
+.claude/

@@ -1,149 +1,330 @@
 # recoil
 
-Fast local memory recall for agents and humans.
+Fast local memory recall for coding agents and the humans who work with them.
 
-Recoil is a local-first CLI memory tool: a single Go binary, SQLite FTS5,
-deterministic writes, scoped recall, and agent-readable output by default.
+recoil is a single Go binary backed by SQLite FTS5. It gives agents a sourced,
+lifecycle-aware memory store that lives next to your code — no cloud, no
+daemon, no LLM in the write path. The thesis is short: **make the right local
+evidence cheaper to retrieve than guessing.**
 
-Recoil exists because agents forget in the exact moments when remembering would
-save the most time. It makes the right local evidence cheaper to retrieve than
-to guess.
+Use it when you need:
 
-For the product story, settled decisions, and active Brainfile task sequence,
-see [docs/product.md](docs/product.md).
+- An agent-facing memory CLI that survives session boundaries, with
+  deterministic writes and sourced provenance on every retrieved chunk.
+- A way to capture durable project decisions (ADRs, preferences, constraints)
+  and let stale ones be demoted rather than deleted.
+- A local search layer over your project's markdown — README, docs, design
+  notes — with hash-tracked freshness so changed files supersede old chunks.
 
-## Build
+## Contents
 
-Recoil uses SQLite FTS5 through CGO. Build and test it the same way as Cymbal:
+- [Install](#install)
+- [Quick Start](#quick-start)
+- [Why recoil](#why-recoil)
+- [Commands at a Glance](#commands-at-a-glance)
+- [How It Works](#how-it-works)
+- [Lifecycle Model](#lifecycle-model)
+- [Mining Project Files](#mining-project-files)
+- [Agent Hooks](#agent-hooks)
+- [Eval Harness](#eval-harness)
+- [Optional Embeddings Sidecar](#optional-embeddings-sidecar)
+- [Status](#status)
+- [License](#license)
+
+## Install
+
+**Go** (requires CGO for SQLite FTS5):
 
 ```sh
-make test
-make build
-make install
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go install github.com/1broseidon/recoil@latest
 ```
 
-If you call Go directly, enable FTS5:
+**From source**:
 
 ```sh
-CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go test ./...
-CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go build .
+git clone https://github.com/1broseidon/recoil
+cd recoil
+make build       # produces ./recoil
+make install     # installs to $GOPATH/bin
 ```
 
-## V0 Commands
+The Makefile sets `CGO_ENABLED=1` and `CGO_CFLAGS+=-DSQLITE_ENABLE_FTS5`
+automatically. FTS5 is required — there is no degraded fallback.
+
+## Quick Start
+
+Initialize recoil inside a project:
 
 ```sh
+cd my-project
+recoil init
+recoil status
+```
+
+Wake an agent session with bounded layered context:
+
+```sh
+recoil wake --max-chars 1600
+```
+
+Record a durable decision before compaction or handoff:
+
+```sh
+recoil decide --claim-key dependency.http-client \
+  "We use net/http with a 5s default timeout, not a third-party client."
+```
+
+Search before assuming prior context:
+
+```sh
+recoil search "why http client"
+recoil search "auth" --role adr --current
+recoil list --claim-key dependency.http-client --current
+```
+
+Mine project markdown so it becomes searchable with provenance:
+
+```sh
+recoil mine --dry-run
+recoil mine
+```
+
+When something changes, supersede the old memory rather than deleting it:
+
+```sh
+recoil supersede mem_abc... \
+  "We switched to a 10s timeout after the gateway slowdown on 2026-04-12."
+```
+
+## Why recoil
+
+Coding agents have a recall problem at the moments where remembering would
+save the most time: after compaction, at session boundaries, when switching
+branches, when picking work back up days later. The usual fix is to dump
+context into a fresh conversation; the usual cost is paraphrase-drift, fabric-
+ated history, and slow startups.
+
+recoil solves a narrower problem cheaply:
+
+- **Single primitive.** A Go binary you can run from any shell, an agent hook,
+  or a CI job. No service, no daemon, no API key.
+- **Sourced answers.** Every retrieved chunk carries `source_path`,
+  `source_ref`, file hash, and lifecycle state. Agents can show where evidence
+  came from.
+- **Lifecycle, not deletion.** Old decisions are superseded with links, not
+  removed. Retrieval demotes stale guidance rather than burying it.
+- **Eval-gated retrieval.** Ranking and filter behavior are pinned by a
+  fixture suite that runs offline.
+- **Agent-readable by default.** Output is frontmatter-plus-content; `--json`
+  uses a stable `{version, kind, data}` envelope; `--minimal` gives TSV rows.
+
+If you've used [cymbal](https://github.com/1broseidon/cymbal) for code
+navigation, recoil sits in the same lane for project memory: a fast,
+deterministic local CLI primitive that agents call instead of guessing.
+
+## Commands at a Glance
+
+```sh
+# Bootstrap
 recoil init
 recoil status
 recoil config
 
+# Write
 recoil add "Prefers vim keybindings"
-recoil add "We moved auth tokens into the keyring" --agent codex --role decision
-recoil add --validity active --claim-key auth.token-storage "Auth tokens live in the keyring"
-recoil decide --claim-key dependency.sqlite-driver "Recoil uses mattn/go-sqlite3 with FTS5"
+recoil add "Auth tokens live in the keyring" --agent codex --role decision
+recoil decide --claim-key auth.token-storage "Auth tokens live in the keyring"
 
-recoil search "why did we change auth?"
+# Read
+recoil search "why did we change auth"
 recoil search "dependency.sqlite-driver"
 recoil wake --max-chars 1600
-recoil mine --dry-run
-recoil mine
-recoil eval
-recoil eval eval/embeddings.jsonl --retrieval hybrid
-recoil embed index
-recoil embed search "background remote sync"
-
-recoil show <memory-id>
-recoil list --since 7d
 recoil list --role adr --validity active
-recoil list --claim-key dependency.sqlite-driver --current
+recoil list --claim-key auth.token-storage --current
+recoil show <memory-id>
+
+# Lifecycle
 recoil mark <memory-id> --validity rejected
 recoil supersede <old-memory-id> "Replacement memory text"
-recoil forget <memory-id>
+recoil forget <memory-id>          # tombstone (recoverable)
 recoil forget <memory-id> --destroy
 
-recoil instructions codex
+# Mining
+recoil mine --dry-run
+recoil mine docs/
+
+# Agent integration
 recoil hook remind
-recoil hook remind --format=claude-code
-recoil hook install claude-code --scope project
-recoil hook install opencode --scope project
-recoil hook install codex --scope project
+recoil hook install claude-code
+recoil hook install opencode
+recoil hook install codex
+
+# Optional sidecars
+recoil embed index
+recoil embed search "background sync"
+
+# Quality gates
+recoil eval
+recoil eval eval/fixtures.jsonl
 recoil repair
 ```
 
-Default output is frontmatter plus content. Use `--json` for a stable
-versioned envelope shaped as `version`, `kind`, and `data`; use `--minimal` on
-scan commands for tab-separated rows.
+All commands support `--json` for programmatic use; scan commands also support
+`--minimal` for tab-separated rows.
 
-Brainfile is used for this repo's task board, but product truths should also be
-kept in ordinary docs and direct Recoil memories so the core loop stays
-brainfile-less.
+## How It Works
+
+**Storage.** SQLite with FTS5 through `github.com/mattn/go-sqlite3` (CGO).
+WAL, busy timeout, foreign keys on, deterministic public IDs, deterministic
+redaction before hashing/persistence. No daemon — the binary opens the DB,
+does its work, and exits.
+
+**Scope.** Three explicit scopes:
+
+| Scope | Selection | Use for |
+|---|---|---|
+| project | default (inside an initialized project) | Project-specific decisions, ADRs, notes |
+| user | `--user` | Cross-project preferences and personal facts |
+| session | `--session <id>` | One-session scratch memory |
+
+Inside an initialized project (`.recoil/project.json` present), the common
+path needs no flags: `recoil wake`, `recoil search "..."`, `recoil add "..."`.
+If the current directory is not inside an initialized project, commands warn
+on stderr and use a local fallback scope.
+
+**Retrieval.** `search` uses FTS5 over content plus role, claim_key, source
+agent, source path, and source_ref, with conservative ranking boosts for
+exact metadata matches and decision-like roles. Filters: `--role`,
+`--claim-key`, `--validity`, `--current`, `--historical`, `--since`,
+`--before`, `--source`, `--agent`. `wake` returns a layered startup view —
+current context, durable decisions/constraints, recent supporting evidence —
+bounded by `--max-chars`.
+
+**Output.** Default is agent-readable frontmatter (the fields an agent needs
+to cite) followed by content. `--json` returns a stable envelope:
+
+```json
+{ "version": "0.1", "kind": "search_result", "data": { ... } }
+```
+
+`--minimal` returns TSV rows for shell pipelines.
+
+## Lifecycle Model
+
+The hard problem with memory isn't storing it — it's making sure stale
+evidence doesn't masquerade as current truth. recoil's answer is structured
+lifecycle on every memory:
+
+- **`validity`**: `active`, `historical`, `rejected`, `superseded`, `stale`,
+  or `unknown`.
+- **`claim_key`**: a stable handle for a claim family (e.g.
+  `dependency.sqlite-driver`, `auth.token-storage`). Multiple memories can
+  share a key over time; one is current.
+- **`supersedes` / `superseded_by`**: explicit links between an old memory
+  and its replacement.
+
+`search` partitions results: active and unknown memories surface as current
+guidance; rejected, superseded, stale, and historical matches appear in a
+labeled history section. `wake` excludes historical states entirely so
+startup context never presents old evidence as current.
+
+```sh
+# Mark a memory as rejected — keep the evidence, demote it
+recoil mark mem_abc... --validity rejected
+
+# Or supersede with a replacement and link both sides
+recoil supersede mem_abc... "We switched back to net/http on 2026-04-12."
+```
+
+Old evidence is not automatically bad. It becomes dangerous when it looks
+like current truth. recoil preserves history; retrieval makes the current
+answer unmistakable.
+
+## Mining Project Files
+
+`recoil mine` ingests project markdown and text files as sourced memory
+chunks with `source_path` and `source_ref` line ranges. It skips hidden and
+tooling directories (`.git`, `.recoil`, `node_modules`, `vendor`) by default,
+and honors a `.recoilignore` file with gitignore-shaped patterns for
+per-project skips.
+
+```sh
+recoil mine --dry-run
+recoil mine
+recoil mine docs/
+```
+
+Mined memories track file hashes in the `sources` table. Re-mining a changed
+file stales chunks that are no longer present; project-wide re-mines stale
+chunks for deleted tracked files. Provenance is preserved so an agent can
+quote the source line range directly.
+
+For directories that should not enter memory (test fixtures, vendored docs,
+generated content), add them to `.recoilignore`. For directories that should
+be visible-but-not-ingested (the agent should know the directory exists, but
+its contents are not project guidance), declare a single index memory by
+hand:
+
+```sh
+recoil add --role note --claim-key source.fixtures.eval-corpora \
+  --validity active \
+  "eval/corpora/ contains synthetic stress fixtures — not project guidance."
+```
 
 ## Agent Hooks
 
 `recoil hook remind` prints a short memory primer that agent runtimes can
-inject at session start. It is intentionally reminder-only: Recoil does not
-block tools or try to replace normal shell usage.
+inject at session start. It is intentionally reminder-only: recoil does not
+intercept tools or replace shell usage.
+
+First-class installers are available for the agents recoil can manage safely:
 
 ```sh
-recoil hook remind
-recoil hook remind --format=json
-recoil hook remind --format=claude-code
-recoil hook remind --format=codex
-```
+recoil hook install claude-code           # ~/.claude/settings.json
+recoil hook install opencode              # <user-config-dir>/opencode/plugins/
+recoil hook install codex                 # ~/.codex/hooks.json
 
-First-class installers are available for the agents we can manage safely:
-
-```sh
-recoil hook install claude-code          # ~/.claude/settings.json
+# Project-scoped variants
 recoil hook install claude-code --scope project
-recoil hook uninstall claude-code
-
-recoil hook install opencode             # <user-config-dir>/opencode/plugins/recoil-opencode.js
 recoil hook install opencode --scope project
-recoil hook uninstall opencode
-
-recoil hook install codex                # ~/.codex/hooks.json
 recoil hook install codex --scope project
-recoil hook uninstall codex
 
-recoil hook install codex-agents         # AGENTS.md compatibility fallback
+# Marked AGENTS.md fallback for Codex builds without native hook support
+recoil hook install codex-agents
 ```
 
-Claude Code uses a native `SessionStart` hook. OpenCode uses a managed plugin
-that injects the reminder into the system prompt transform. Codex uses native
-`SessionStart` hooks through `hooks.json`; enable Codex's `codex_hooks` feature
-flag if your Codex build does not already have it on. `codex-agents` is kept as
-a marked `AGENTS.md` compatibility fallback.
-
-Installers are idempotent. Managed files carry a Recoil marker where the host
-format supports it; native hook entries are removed by the exact Recoil command,
-so uninstall leaves unrelated user hooks alone.
-
-## Mining Project Files
-
-`recoil mine` imports conservative markdown/text project files as sourced
-memory chunks. It skips hidden and tooling directories such as `.git`,
-`.recoil`, `.brainfile`, `node_modules`, and `vendor` by default.
-
-```sh
-recoil mine --dry-run
-recoil mine docs/
-```
-
-Mined memories keep `source_path` and `source_ref` line ranges so agents can
-show where local evidence came from. Re-mining tracks file hashes in the
-`sources` table: changed files stale old chunks that are no longer present, and
-project-wide re-mines mark chunks from deleted files stale.
+Installers are idempotent and uninstall removes only recoil-owned content,
+leaving unrelated hooks intact.
 
 ## Eval Harness
 
-`recoil eval` seeds a temporary database from `eval/fixtures.jsonl`, runs
-fixture-local `search` and `wake` cases, and reports recall@k, MRR,
-empty-result accuracy, stale-demotion failures, wake-safety failures, scope
-leaks, and latency.
+`recoil eval` seeds a temporary database from `eval/fixtures.jsonl`, runs the
+fixture cases through the same store and wake-layer code as the CLI, and
+reports recall@k, MRR, empty-result accuracy, stale-demotion failures,
+wake-safety failures, scope-isolation failures, and latency.
 
 ```sh
 recoil eval
 recoil eval eval/fixtures.jsonl
+```
+
+The eval is the gate that keeps ranking changes honest. Don't tune retrieval
+without running it.
+
+## Optional Embeddings Sidecar
+
+Embeddings are intentionally **not** on the required path. The core
+experience runs through SQLite FTS5, structured metadata, lifecycle filters,
+and source freshness. Real embedding providers are kept behind a sidecar
+that has to earn its weight on the eval before it can be promoted.
+
+The initial provider is `local-hash-v1`, a deterministic local
+embedding-like provider used to validate schema, indexing, and hybrid
+retrieval mechanics without network calls or API keys.
+
+```sh
+recoil embed index
+recoil embed search "background remote sync"
 recoil eval eval/embeddings.jsonl --retrieval fts
 recoil eval eval/embeddings.jsonl --retrieval semantic
 recoil eval eval/embeddings.jsonl --retrieval hybrid
@@ -154,119 +335,39 @@ contains paraphrase-heavy cases where plain FTS is expected to struggle, so
 semantic and hybrid retrieval can be measured without weakening the core FTS
 baseline.
 
-## Optional Embeddings
+## Status
 
-Embeddings are an optional sidecar, not part of the required v0 path. The core
-system still works through SQLite FTS5, structured metadata, lifecycle filters,
-and mined source freshness.
+recoil is at v0. The shape is settled and the core CLI is stable enough to
+build agent workflows on, but expect rough edges and surface-level changes
+before v1.
 
-```sh
-recoil embed index
-recoil embed search "mandatory project task board"
-```
+Stable today:
 
-The initial provider is `local-hash-v1`, a deterministic local embedding-like
-provider used to validate schema, indexing, and hybrid retrieval mechanics
-without network calls or API keys. Real embedding providers can be added behind
-the same provider/model sidecar table once eval data proves they help.
+- Storage, deterministic IDs, redaction, FTS5
+- Scope model and project init
+- `add` / `search` / `wake` / `list` / `show` / `forget`
+- `mark` / `supersede` / `decide` lifecycle commands
+- Project file mining with freshness via file hashes
+- `.recoilignore` per-project skip patterns
+- Agent hook installers (Claude Code, OpenCode, Codex)
+- Eval harness (14/14 on the bundled fixtures, MRR 1.0)
+- JSON envelope (`{version, kind, data}`)
 
-## Local Benchmarks
+Explicit non-goals for v0:
 
-`make bench` runs the repeatable 10k-memory store benchmark for add, search,
-and wake backing reads.
+- No cloud sync
+- No daemon
+- No hosted dashboard
+- No MCP server (it can come after the CLI semantics are stable)
+- No embeddings in the required path
+- No LLM-based extraction in the default write path
+- No automatic rewriting of older memories
 
-```sh
-make bench
-```
+Experimental:
 
-## Lifecycle Metadata
+- Optional embeddings sidecar (`recoil embed`)
+- Eval-driven retrieval modes (`fts`, `semantic`, `hybrid`)
 
-Memories can carry structured lifecycle fields:
+## License
 
-- `validity`: `active`, `historical`, `rejected`, `superseded`, `stale`, or
-  `unknown`.
-- `claim_key`: stable claim family, such as `dependency.sqlite-driver`.
-- `supersedes` / `superseded_by`: links between evidence records.
-
-These fields are persisted and shown in memory output. `search` treats active
-and unknown memories as current guidance while separating rejected, superseded,
-stale, and historical memories into a labeled history section. `wake` excludes
-historical states by default.
-
-Use `mark` to update lifecycle metadata on existing evidence:
-
-```sh
-recoil mark <memory-id> --validity rejected
-recoil mark <memory-id> --validity historical --claim-key dependency.sqlite-driver
-```
-
-Use `supersede` to create a replacement memory and link both sides:
-
-```sh
-recoil supersede <old-memory-id> "Recoil uses mattn/go-sqlite3 with FTS5."
-```
-
-Use `decide` for new durable decisions. It requires a claim key and writes an
-active decision by default:
-
-```sh
-recoil decide --claim-key dependency.sqlite-driver "Recoil uses mattn/go-sqlite3 with FTS5."
-```
-
-`search` and `list` support structured filters:
-
-```sh
-recoil search "sqlite" --role adr --current
-recoil list --role decision --validity active
-recoil list --claim-key dependency.sqlite-driver
-recoil list --historical
-```
-
-Natural search indexes content plus role, claim key, source agent, source path,
-and source reference. Exact filters remain the preferred path for canonical
-metadata lookups.
-
-## Waking A Session
-
-`recoil wake` prints bounded startup context in layers:
-
-- `L0 Current Context`: handoffs, next-step notes, and query matches.
-- `L1 Decisions And Constraints`: durable decisions, ADRs, preferences, and
-  constraints.
-- `L2 Recent Notes And Evidence`: recent supporting memories and mined source
-  chunks.
-
-The default text output keeps sourced evidence blocks under `--max-chars`.
-The JSON `data` includes both `layers` and a flattened `results` list.
-
-## Scopes
-
-Recoil v0 keeps reads and writes single-scope:
-
-- `--user`: durable operator preferences and personal facts.
-- no scope flag: project memory for the nearest initialized Recoil project.
-- `--project <path>`: explicit project memory override.
-- `--session <id>`: one session's memory.
-
-All memory commands default to project scope. Use `--user` for cross-project
-preferences and `--session` for one-session memories. If the current directory
-is not inside an initialized Recoil project, commands warn on stderr and use a
-local fallback scope.
-
-By default Recoil stores memories in the OS app-data directory. In sandboxed
-agent sessions where that directory cannot be opened, Recoil falls back to
-`.recoil/recoil.db` for initialized projects unless `--db` or `RECOIL_DB` is
-set. This keeps `wake` and `search` usable inside workspace-only agents, but it
-means the sandboxed session sees the project-local DB, not any existing global
-app-data DB.
-
-## V0 Non-Goals
-
-- No cloud sync.
-- No daemon.
-- No hosted dashboard.
-- No MCP server before the CLI is excellent.
-- No embeddings in the required path; optional sidecars must stay eval-driven.
-- No LLM-based extraction in the default write path.
-- No inferred room/topic hard filters.
-- No automatic rewriting of older memories.
+MIT. See [LICENSE](LICENSE).

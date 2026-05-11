@@ -50,7 +50,7 @@ subtasks:
     title: "Migrated history: document v0 non-goals in README"
     completed: true
   - id: epic-1-13
-    title: "Migrated to research-1: compare usefulness against MemPalace"
+    title: "Migrated to research: competitive positioning vs other local memory tools"
     completed: true
   - id: epic-1-14
     title: "Migrated to task-9: add local performance benchmark"
@@ -105,7 +105,7 @@ contract:
     - SQLite FTS5 is required for search; no degraded fallback behavior.
     - Default output must remain useful for agents without requiring JSON parsing.
     - "Scope discipline must be explicit: user, project, and session memories cannot blur together."
-    - "MemPalace comparison takeaway: mine/eval/wake quality are core v0 usefulness work, while Recoil should keep its simpler CLI vocabulary."
+    - "Competitive takeaway: mine/eval/wake quality are core v0 usefulness work, while Recoil should keep its simpler CLI vocabulary."
     - "Problem framing: make local evidence cheaper to retrieve than guessing."
     - "Stale-memory framing: preserve rejected/superseded history while making current guidance unmistakable."
   metrics:
