@@ -1,8 +1,6 @@
 ---
 id: task-8
 title: Expand project user and session scope tests
-column: todo
-position: 7
 priority: high
 tags:
   - v0
@@ -10,7 +8,7 @@ tags:
   - tests
 parentId: epic-1
 contract:
-  status: ready
+  status: done
   deliverables:
     - type: test
       path: cmd/scope_test.go
@@ -23,7 +21,13 @@ contract:
       - make test
   metrics:
     readyAt: "2026-05-11T02:28:25.256Z"
+    pickedUpAt: "2026-05-11T04:22:38.178Z"
+    deliveredAt: "2026-05-11T04:24:56.398Z"
+    validatedAt: "2026-05-11T04:24:56.398Z"
+    reworkCount: 0
 createdAt: "2026-05-11T02:28:25.262Z"
+updatedAt: "2026-05-11T04:24:56.398Z"
+completedAt: "2026-05-11T04:24:56.398Z"
 ---
 
 ## Description
