@@ -1,8 +1,6 @@
 ---
 id: task-5
 title: Add validity metadata and supersession links
-column: todo
-position: 3
 priority: high
 tags:
   - v0.1
@@ -22,6 +20,8 @@ contract:
     commands:
       - make test
 createdAt: "2026-05-11T02:26:06.621Z"
+completedAt: "2026-05-11T03:50:38.017Z"
+updatedAt: "2026-05-11T03:50:38.017Z"
 ---
 
 ## Description

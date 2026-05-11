@@ -1,8 +1,6 @@
 ---
 id: task-6
 title: Add mark and supersede lifecycle commands
-column: todo
-position: 4
 priority: high
 tags:
   - v0.1
@@ -22,6 +20,8 @@ contract:
     commands:
       - make test
 createdAt: "2026-05-11T02:26:06.852Z"
+completedAt: "2026-05-11T04:05:45.195Z"
+updatedAt: "2026-05-11T04:05:45.195Z"
 ---
 
 ## Description

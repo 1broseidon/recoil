@@ -27,6 +27,11 @@ Brainfile is allowed as task management between operator and agent, but
 `.brainfile/` should not be treated as an immediate product adapter or as
 special project memory for v0.
 
+Assume a default project has no Brainfile. Durable truths that Recoil should
+retrieve must be stored as direct Recoil memories or in ordinary project docs
+that the generic miner can ingest. Brainfile must not become the crutch that
+holds canonical decisions for the product path.
+
 Brainfile proves that an operator-focused memory system can be:
 
 - protocol-first,
@@ -66,6 +71,10 @@ Brainfile support should compose with Recoil, not define Recoil.
 
 The immediate product loop should prove itself on projects that have no
 Brainfile at all.
+
+Practically, this means product decisions and architecture facts that matter to
+agents should be duplicated or promoted into normal docs or direct `recoil add`
+records when they are expected to be retrievable.
 
 ## Non-Dependency Rule
 
