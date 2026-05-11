@@ -18,7 +18,7 @@ func newInstructionsCommand() *cobra.Command {
 				return err
 			}
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), map[string]string{
+				return writeJSON(cmd.OutOrStdout(), "instructions_result", map[string]string{
 					"agent":        agent,
 					"instructions": text,
 				})

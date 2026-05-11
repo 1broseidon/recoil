@@ -163,7 +163,7 @@ recoil version
 Output:
 
 - default: agent-readable frontmatter plus content
-- `--json`: stable JSON envelope
+- `--json`: stable `version`, `kind`, and `data` envelope
 - `--minimal`: tab-separated rows on scan commands
 
 Scope behavior:
@@ -480,8 +480,17 @@ default so the v0 path stays brainfile-less.
 - `L2 Recent Notes And Evidence`: recent supporting memories and mined source
   chunks.
 
-Text output keeps sourced blocks under `--max-chars`; JSON includes both
+Text output keeps sourced blocks under `--max-chars`; JSON `data` includes both
 `layers` and flattened `results`.
+
+## Recent Build Step
+
+Prerelease JSON output now uses a single top-level envelope:
+`{"version":"0.1","kind":"...","data":...}`.
+
+This removes the old `results.results` shape from summary commands such as
+`mine --json` and `wake --json`; command-specific payloads still carry their
+natural fields under `data`.
 
 ## Next Build Step
 

@@ -93,7 +93,7 @@ func newEvalCommand() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, result)
+				return writeJSON(w, "eval_result", result)
 			}
 			return frontmatter(w, []kv{
 				{k: "fixture", v: fixturePath},

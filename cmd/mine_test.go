@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,6 +69,50 @@ func TestMineCommandAddsGenericProjectFiles(t *testing.T) {
 	}
 	if len(hidden) != 0 {
 		t.Fatalf("expected hidden Brainfile file to be skipped, got %+v", hidden)
+	}
+}
+
+func TestMineCommandJSONUsesDataEnvelope(t *testing.T) {
+	root := t.TempDir()
+	writeCmdTestFile(t, filepath.Join(root, "README.md"), "# Project\n\nAlpha mining decision lives here.")
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{json: true}
+	defer func() { opts = oldOpts }()
+
+	c := newMineCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"--dry-run"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if string(envelope["kind"]) != `"mine_result"` {
+		t.Fatalf("expected mine_result kind, got:\n%s", out.String())
+	}
+	if _, ok := envelope["results"]; ok {
+		t.Fatalf("did not expect legacy top-level results field, got:\n%s", out.String())
+	}
+
+	var data struct {
+		Chunks  int               `json:"chunks"`
+		Results []mineChunkResult `json:"results"`
+	}
+	if err := json.Unmarshal(envelope["data"], &data); err != nil {
+		t.Fatal(err)
+	}
+	if data.Chunks != 1 || len(data.Results) != 1 || data.Results[0].SourcePath != "README.md" {
+		t.Fatalf("expected one README.md result in data, got %+v", data)
 	}
 }
 

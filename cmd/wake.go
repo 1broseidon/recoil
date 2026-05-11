@@ -99,7 +99,7 @@ func newWakeCommand() *cobra.Command {
 				Results:       results,
 			}
 			if opts.json {
-				return writeJSON(w, result)
+				return writeJSON(w, "wake_result", result)
 			}
 			if wakeOpts.minimal {
 				for _, mem := range results {

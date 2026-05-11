@@ -58,7 +58,8 @@ recoil repair
 ```
 
 Default output is frontmatter plus content. Use `--json` for a stable
-versioned envelope and `--minimal` on scan commands for tab-separated rows.
+versioned envelope shaped as `version`, `kind`, and `data`; use `--minimal` on
+scan commands for tab-separated rows.
 
 Brainfile is used for this repo's task board, but product truths should also be
 kept in ordinary docs and direct Recoil memories so the core loop stays
@@ -128,7 +129,7 @@ recoil supersede <old-memory-id> "Recoil uses mattn/go-sqlite3 with FTS5."
   chunks.
 
 The default text output keeps sourced evidence blocks under `--max-chars`.
-`--json` includes both `layers` and a flattened `results` list.
+The JSON `data` includes both `layers` and a flattened `results` list.
 
 ## Scopes
 

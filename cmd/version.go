@@ -24,7 +24,7 @@ func newVersionCommand() *cobra.Command {
 				"date":    date,
 			}
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), result)
+				return writeJSON(cmd.OutOrStdout(), "version_result", result)
 			}
 			_, err := fmt.Fprintf(cmd.OutOrStdout(), "recoil %s (%s, %s)\n", version, commit, date)
 			return err

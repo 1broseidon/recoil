@@ -93,7 +93,7 @@ func newSupersedeCommand() *cobra.Command {
 				Duplicate: duplicate,
 			}
 			if opts.json {
-				return writeJSON(w, result)
+				return writeJSON(w, "supersede_result", result)
 			}
 			return frontmatter(w, []kv{
 				{k: "action", v: "supersede"},

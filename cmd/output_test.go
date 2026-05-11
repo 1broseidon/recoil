@@ -2,9 +2,34 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func TestWriteJSONUsesKindAndDataEnvelope(t *testing.T) {
+	var b bytes.Buffer
+	if err := writeJSON(&b, "search_result", []string{"mem_a"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(b.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if string(got["version"]) != `"0.1"` {
+		t.Fatalf("expected version 0.1, got %s", got["version"])
+	}
+	if string(got["kind"]) != `"search_result"` {
+		t.Fatalf("expected kind search_result, got %s", got["kind"])
+	}
+	if _, ok := got["data"]; !ok {
+		t.Fatalf("expected data field, got %s", b.String())
+	}
+	if _, ok := got["results"]; ok {
+		t.Fatalf("did not expect legacy top-level results field, got %s", b.String())
+	}
+}
 
 func TestFrontmatterQuotesUnsafeValues(t *testing.T) {
 	var b bytes.Buffer

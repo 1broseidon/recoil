@@ -66,7 +66,7 @@ func newInitCommand() *cobra.Command {
 			}
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, result)
+				return writeJSON(w, "init_result", result)
 			}
 			return frontmatter(w, []kv{
 				{k: "db_path", v: dbPath},

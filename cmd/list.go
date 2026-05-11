@@ -43,7 +43,7 @@ func newListCommand() *cobra.Command {
 			}
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, memories)
+				return writeJSON(w, "list_result", memories)
 			}
 			if listOpts.minimal {
 				for _, mem := range memories {

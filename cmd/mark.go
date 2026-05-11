@@ -61,7 +61,7 @@ func newMarkCommand() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, markResult{Memory: updated})
+				return writeJSON(w, "mark_result", markResult{Memory: updated})
 			}
 			return lifecycleFrontmatter(w, "mark", updated, updated.Content)
 		},

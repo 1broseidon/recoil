@@ -10,7 +10,8 @@ import (
 
 type envelope struct {
 	Version string `json:"version"`
-	Results any    `json:"results"`
+	Kind    string `json:"kind"`
+	Data    any    `json:"data"`
 }
 
 type kv struct {
@@ -18,12 +19,13 @@ type kv struct {
 	v string
 }
 
-func writeJSON(w io.Writer, data any) error {
+func writeJSON(w io.Writer, kind string, data any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(envelope{
 		Version: "0.1",
-		Results: data,
+		Kind:    kind,
+		Data:    data,
 	})
 }
 

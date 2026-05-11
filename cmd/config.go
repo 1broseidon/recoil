@@ -59,7 +59,7 @@ func newConfigCommand() *cobra.Command {
 			}
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, result)
+				return writeJSON(w, "config_result", result)
 			}
 			return frontmatter(w, []kv{
 				{k: "db_path", v: dbPath},
@@ -89,7 +89,7 @@ func newConfigPathCommand() *cobra.Command {
 				return err
 			}
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), map[string]string{"db_path": dbPath})
+				return writeJSON(cmd.OutOrStdout(), "config_path_result", map[string]string{"db_path": dbPath})
 			}
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), dbPath)
 			return err

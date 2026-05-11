@@ -52,7 +52,7 @@ func newSearchCommand() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, current)
+				return writeJSON(w, "search_result", current)
 			}
 			if searchOpts.minimal {
 				for _, r := range current {

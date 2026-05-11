@@ -21,7 +21,7 @@ func newRepairCommand() *cobra.Command {
 				return err
 			}
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), map[string]any{"repaired": true})
+				return writeJSON(cmd.OutOrStdout(), "repair_result", map[string]any{"repaired": true})
 			}
 			return frontmatter(cmd.OutOrStdout(), []kv{{k: "repaired", v: "true"}}, "ready\n")
 		},

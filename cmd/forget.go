@@ -39,7 +39,7 @@ func newForgetCommand() *cobra.Command {
 					return err
 				}
 				if opts.json {
-					return writeJSON(w, result)
+					return writeJSON(w, "forget_result", result)
 				}
 				action := "tombstoned"
 				if result.Destroyed {
@@ -80,7 +80,7 @@ func newForgetCommand() *cobra.Command {
 					"dry_run":   true,
 				}
 				if opts.json {
-					return writeJSON(w, result)
+					return writeJSON(w, "forget_dry_run_result", result)
 				}
 				return frontmatter(w, []kv{
 					{k: "scope", v: sc.Kind},
@@ -97,7 +97,7 @@ func newForgetCommand() *cobra.Command {
 				return err
 			}
 			if opts.json {
-				return writeJSON(w, result)
+				return writeJSON(w, "forget_result", result)
 			}
 			action := "tombstoned"
 			if result.Destroyed {

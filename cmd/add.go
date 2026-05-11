@@ -77,7 +77,7 @@ func newAddCommand() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, addResult{Memory: mem, Duplicate: duplicate})
+				return writeJSON(w, "add_result", addResult{Memory: mem, Duplicate: duplicate})
 			}
 			return frontmatter(w, []kv{
 				{k: "id", v: mem.ID},

@@ -18,7 +18,7 @@ func newHookCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			msg := "Recoil: run `recoil wake` at session start and `recoil search \"<topic>\"` before relying on memory.\n"
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), map[string]string{"reminder": msg})
+				return writeJSON(cmd.OutOrStdout(), "hook_remind_result", map[string]string{"reminder": msg})
 			}
 			_, err := fmt.Fprint(cmd.OutOrStdout(), msg)
 			return err

@@ -26,7 +26,7 @@ func newShowCommand() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, mem)
+				return writeJSON(w, "show_result", mem)
 			}
 			return frontmatter(w, []kv{
 				{k: "id", v: mem.ID},
