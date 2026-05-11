@@ -492,12 +492,25 @@ This removes the old `results.results` shape from summary commands such as
 `mine --json` and `wake --json`; command-specific payloads still carry their
 natural fields under `data`.
 
+## Recent Build Step
+
+`task-8` expanded scope coverage without changing runtime behavior.
+
+CLI-level tests now cover default initialized project scope, explicit
+`--project`, `--user`, `--session`, mutually exclusive scope flags,
+uninitialized project warnings, and command-level isolation across project,
+explicit project, user, and session memories in the same database.
+
+Internal scope tests now cover project lookup from file paths, marker project
+IDs and portable flags, root-specific uninitialized fallback IDs, stable user
+IDs, and session ID trimming/rejection.
+
 ## Next Build Step
 
-Build `task-8` next.
+Build `task-9` next.
 
-Goal: broaden scope tests around project/user/session isolation and ensure the
-new lifecycle-aware retrieval behavior keeps respecting scope boundaries.
+Goal: add a 10k local performance benchmark that proves the simple local FTS
+path remains fast enough before adding heavier retrieval machinery.
 
 Do not build the Brainfile source adapter before the generic miner, layered
 wake, and stale lifecycle path are useful without Brainfile.
@@ -508,8 +521,8 @@ If starting a new chat, say:
 
 > Continue Recoil from `/Users/george/Projects/personal/recoil`. Read
 > `HANDOFF.md`, run `./recoil wake --max-chars 1600`, run `brainfile list`,
-> run `./recoil eval eval/fixtures.jsonl`, then start `task-8` by expanding
-> project/user/session scope tests. Keep the product path brainfile-less;
+> run `./recoil eval eval/fixtures.jsonl`, then start `task-9` by adding the
+> 10k local performance benchmark. Keep the product path brainfile-less;
 > canonical truths belong in direct memories or ordinary docs.
 
 ## Things To Avoid
