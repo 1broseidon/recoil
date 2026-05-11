@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -43,6 +47,62 @@ func TestBuildWakeLayersPrioritizesContextAndDecisions(t *testing.T) {
 	}
 	if layers[1].Key != "l1_decisions_constraints" || len(layers[1].Memories) != 1 {
 		t.Fatalf("expected decision in L1, got %+v", layers[1])
+	}
+}
+
+func TestWakeCommandCurrentResultsSurviveStaleRecencyCrowding(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	ctx := context.Background()
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	active, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:      "decision",
+		Content:   "Older active wake guidance should survive stale recency crowding.",
+		ScopeKind: "session",
+		ScopeID:   "crowded-wake",
+		Validity:  "active",
+		CreatedAt: "2026-01-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 25 {
+		_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+			Role:      "note",
+			Content:   fmt.Sprintf("Newer stale wake evidence %02d.", i),
+			ScopeKind: "session",
+			ScopeID:   "crowded-wake",
+			Validity:  "stale",
+			CreatedAt: fmt.Sprintf("2026-01-02T00:%02d:00Z", i),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newWakeCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"--session", "crowded-wake", "--minimal", "--limit", "5"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, active.ID) {
+		t.Fatalf("expected active memory in wake output:\n%s", got)
+	}
+	if strings.Contains(got, "stale wake evidence") {
+		t.Fatalf("did not expect stale memories in wake output:\n%s", got)
 	}
 }
 

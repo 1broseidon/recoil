@@ -70,22 +70,23 @@ func newWakeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				params.Lifecycle = store.LifecycleCurrent
 				found, err := st.Search(ctx, params)
 				if err != nil {
 					return err
 				}
-				queryResults = currentMemories(found)
+				queryResults = found
 			}
 
 			params, err := listParams(sc, wakeOpts.filters, fetchLimit, false)
 			if err != nil {
 				return err
 			}
+			params.Lifecycle = store.LifecycleCurrent
 			recent, err := st.List(ctx, params)
 			if err != nil {
 				return err
 			}
-			recent = currentMemories(recent)
 			layers := buildWakeLayers(query, queryResults, recent, wakeOpts.limit)
 			results := flattenWakeLayers(layers)
 

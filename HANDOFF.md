@@ -505,6 +505,21 @@ Internal scope tests now cover project lookup from file paths, marker project
 IDs and portable flags, root-specific uninitialized fallback IDs, stable user
 IDs, and session ID trimming/rejection.
 
+## Recent Review Fix
+
+The P1/P2 review findings after task-8 are fixed in the working tree.
+
+Search and wake now ask the store for current lifecycle rows directly instead
+of fetching mixed current/history rows and filtering after `LIMIT`, so rejected,
+superseded, stale, historical, or tombstoned memories cannot crowd active
+guidance out of the bounded fetch window. Text search still queries historical
+matches separately for the labeled history section.
+
+Custom `metadata_json.validity` values are now tolerated as user metadata. Valid
+Recoil lifecycle values are still backfilled from metadata, but invalid/custom
+values such as `draft` are ignored instead of failing `add` or blocking legacy
+DB open.
+
 ## Next Build Step
 
 Build `task-9` next.

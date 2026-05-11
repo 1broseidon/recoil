@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -158,6 +159,114 @@ func TestRetrievalScoreIncreasesWithStrongerNegativeRank(t *testing.T) {
 	}
 }
 
+func TestSearchLifecycleCurrentAvoidsHistoricalCrowding(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	for i := range 25 {
+		_, _, err := st.AddMemory(ctx, AddMemoryParams{
+			Content:   fmt.Sprintf("Crowded retrieval phrase rejected history %02d repeated repeated repeated.", i),
+			ScopeKind: "project",
+			ScopeID:   "project-1",
+			Validity:  "rejected",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	active, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Crowded retrieval phrase active canonical guidance.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Validity:  "active",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	current, err := st.Search(ctx, SearchParams{
+		Query:     "crowded retrieval phrase",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+		Lifecycle: LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 1 || current[0].ID != active.ID {
+		t.Fatalf("expected active memory despite rejected crowding, got %+v", current)
+	}
+
+	historical, err := st.Search(ctx, SearchParams{
+		Query:     "crowded retrieval phrase",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+		Lifecycle: LifecycleHistorical,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(historical) != 5 {
+		t.Fatalf("expected limited historical results, got %d", len(historical))
+	}
+	for _, mem := range historical {
+		if mem.Validity != "rejected" {
+			t.Fatalf("expected rejected historical result, got %+v", mem)
+		}
+	}
+}
+
+func TestListLifecycleCurrentAvoidsStaleRecencyCrowding(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	active, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Older active wake guidance should survive stale recency crowding.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Validity:  "active",
+		CreatedAt: "2026-01-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 25 {
+		_, _, err := st.AddMemory(ctx, AddMemoryParams{
+			Content:   fmt.Sprintf("Newer stale wake evidence %02d.", i),
+			ScopeKind: "project",
+			ScopeID:   "project-1",
+			Validity:  "stale",
+			CreatedAt: fmt.Sprintf("2026-01-02T00:%02d:00Z", i),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	current, err := st.List(ctx, ListParams{
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+		Lifecycle: LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 1 || current[0].ID != active.ID {
+		t.Fatalf("expected active memory despite stale recency crowding, got %+v", current)
+	}
+}
+
 func TestAddMemoryPersistsLifecycleMetadata(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
@@ -225,6 +334,42 @@ func TestAddMemoryExtractsLifecycleFromMetadataJSON(t *testing.T) {
 		mem.ClaimKey != "dependency.sqlite-driver" ||
 		mem.SupersededBy != "mem_sqlite_mattn" {
 		t.Fatalf("expected lifecycle fields from metadata, got %+v", mem)
+	}
+}
+
+func TestAddMemoryIgnoresInvalidMetadataValidity(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	mem, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:      "Custom metadata may use validity for non-lifecycle workflow state.",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		Validity:     "active",
+		MetadataJSON: `{"validity":"draft","claim_key":"custom.metadata"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mem.Validity != "active" || mem.ClaimKey != "custom.metadata" {
+		t.Fatalf("expected explicit validity with metadata claim key, got %+v", mem)
+	}
+
+	unknown, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:      "Invalid metadata validity without an explicit lifecycle remains unknown.",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		MetadataJSON: `{"validity":"draft"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unknown.Validity != "unknown" {
+		t.Fatalf("expected invalid metadata validity to be ignored, got %+v", unknown)
 	}
 }
 
@@ -345,6 +490,63 @@ func TestMigrationAddsLifecycleColumnsAndBackfillsMetadata(t *testing.T) {
 	}
 	if got.Validity != "active" || got.ClaimKey != "legacy.claim" || got.SupersededBy != "mem_new" {
 		t.Fatalf("expected migrated lifecycle metadata, got %+v", got)
+	}
+}
+
+func TestMigrationIgnoresInvalidMetadataValidity(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`
+		CREATE TABLE memories (
+			pk INTEGER PRIMARY KEY AUTOINCREMENT,
+			id TEXT NOT NULL UNIQUE,
+			hash TEXT NOT NULL UNIQUE,
+			role TEXT,
+			content TEXT NOT NULL,
+			source_agent TEXT,
+			source_path TEXT,
+			source_ref TEXT,
+			scope_kind TEXT NOT NULL,
+			scope_id TEXT NOT NULL,
+			project_id TEXT,
+			session_id TEXT,
+			room TEXT,
+			metadata_json TEXT,
+			created_at TEXT NOT NULL,
+			tombstoned_at TEXT,
+			purge_reason TEXT
+		);
+		INSERT INTO memories (
+			id, hash, role, content, scope_kind, scope_id, metadata_json, created_at
+		) VALUES (
+			'mem_legacy_draft', 'legacy_draft_hash', 'note', 'Legacy row with custom metadata validity.',
+			'project', 'project-1',
+			'{"validity":"draft","claim_key":"legacy.custom"}',
+			'2026-01-01T00:00:00Z'
+		);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	got, err := st.GetMemoryByID(ctx, "mem_legacy_draft", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Validity != "unknown" || got.ClaimKey != "legacy.custom" {
+		t.Fatalf("expected invalid metadata validity ignored during migration, got %+v", got)
 	}
 }
 

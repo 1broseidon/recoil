@@ -188,12 +188,12 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 			ScopeKind: tc.Scope.Kind,
 			ScopeID:   tc.Scope.ID,
 			Limit:     limit,
+			Lifecycle: store.LifecycleCurrent,
 		})
 		if err != nil {
 			return nil, err
 		}
-		current, _ := splitCurrentHistorical(results)
-		return fixtureIDsFor(seed, limitMemories(current, limit)), nil
+		return fixtureIDsFor(seed, results), nil
 	case "wake":
 		fetchLimit := wakeFetchLimit(limit)
 		var queryResults []store.Memory
@@ -203,6 +203,7 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 				ScopeKind: tc.Scope.Kind,
 				ScopeID:   tc.Scope.ID,
 				Limit:     fetchLimit,
+				Lifecycle: store.LifecycleCurrent,
 			})
 			if err != nil {
 				return nil, err
@@ -213,6 +214,7 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 			ScopeKind: tc.Scope.Kind,
 			ScopeID:   tc.Scope.ID,
 			Limit:     fetchLimit,
+			Lifecycle: store.LifecycleCurrent,
 		})
 		if err != nil {
 			return nil, err

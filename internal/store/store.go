@@ -82,6 +82,7 @@ type SearchParams struct {
 	Since       string
 	Before      string
 	Limit       int
+	Lifecycle   string
 }
 
 type ListParams struct {
@@ -93,7 +94,14 @@ type ListParams struct {
 	Before         string
 	Limit          int
 	IncludeDeleted bool
+	Lifecycle      string
 }
+
+const (
+	LifecycleAny        = ""
+	LifecycleCurrent    = "current"
+	LifecycleHistorical = "historical"
+)
 
 type ForgetParams struct {
 	IDOrPrefix string
@@ -234,7 +242,10 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	if p.Limit > 100 {
 		p.Limit = 100
 	}
-	where, args := scopedFilter("m", p.ScopeKind, p.ScopeID, p.SourceAgent, p.SourcePath, p.Since, p.Before, false)
+	where, args, err := scopedFilter("m", p.ScopeKind, p.ScopeID, p.SourceAgent, p.SourcePath, p.Since, p.Before, false, p.Lifecycle)
+	if err != nil {
+		return nil, err
+	}
 	args = append([]any{query}, args...)
 	args = append(args, "%"+strings.ToLower(strings.TrimSpace(p.Query))+"%", p.Limit)
 	sqlText := `
@@ -288,7 +299,10 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 	if p.Limit > 1000 {
 		p.Limit = 1000
 	}
-	where, args := scopedFilter("", p.ScopeKind, p.ScopeID, p.SourceAgent, p.SourcePath, p.Since, p.Before, p.IncludeDeleted)
+	where, args, err := scopedFilter("", p.ScopeKind, p.ScopeID, p.SourceAgent, p.SourcePath, p.Since, p.Before, p.IncludeDeleted, p.Lifecycle)
+	if err != nil {
+		return nil, err
+	}
 	args = append(args, p.Limit)
 	rows, err := s.db.QueryContext(ctx, `
 			SELECT id, hash, COALESCE(role, ''), content,
@@ -543,7 +557,7 @@ func scanMemory(scanner memoryScanner) (Memory, error) {
 	return mem, err
 }
 
-func scopedFilter(alias, scopeKind, scopeID, sourceAgent, sourcePath, since, before string, includeDeleted bool) (string, []any) {
+func scopedFilter(alias, scopeKind, scopeID, sourceAgent, sourcePath, since, before string, includeDeleted bool, lifecycle string) (string, []any, error) {
 	col := func(name string) string {
 		if alias == "" {
 			return name
@@ -579,7 +593,25 @@ func scopedFilter(alias, scopeKind, scopeID, sourceAgent, sourcePath, since, bef
 		fmt.Fprintf(&where, "\n\t\t\tAND %s <= ?", col("created_at"))
 		args = append(args, before)
 	}
-	return where.String(), args
+	lifecycleWhere, err := lifecycleFilter(col("validity"), lifecycle)
+	if err != nil {
+		return "", nil, err
+	}
+	where.WriteString(lifecycleWhere)
+	return where.String(), args, nil
+}
+
+func lifecycleFilter(validityColumn, lifecycle string) (string, error) {
+	switch strings.TrimSpace(lifecycle) {
+	case LifecycleAny:
+		return "", nil
+	case LifecycleCurrent:
+		return fmt.Sprintf("\n\t\t\tAND COALESCE(%s, 'unknown') NOT IN ('historical', 'rejected', 'superseded', 'stale', 'tombstoned')", validityColumn), nil
+	case LifecycleHistorical:
+		return fmt.Sprintf("\n\t\t\tAND COALESCE(%s, 'unknown') IN ('historical', 'rejected', 'superseded', 'stale', 'tombstoned')", validityColumn), nil
+	default:
+		return "", fmt.Errorf("invalid lifecycle filter %q", lifecycle)
+	}
 }
 
 func (s *Store) migrate() error {
@@ -820,10 +852,9 @@ func lifecycleFromMetadata(raw string) (memoryLifecycle, bool, error) {
 	validityRaw := metadataString(metadata, "validity")
 	if validityRaw != "" {
 		validity, err := normalizeValidity(validityRaw)
-		if err != nil {
-			return memoryLifecycle{}, false, err
+		if err == nil {
+			lifecycle.Validity = validity
 		}
-		lifecycle.Validity = validity
 	}
 	hasLifecycle := lifecycle.Validity != "" ||
 		lifecycle.ClaimKey != "" ||

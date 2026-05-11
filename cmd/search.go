@@ -38,17 +38,15 @@ func newSearchCommand() *cobra.Command {
 			}
 			defer st.Close()
 
-			params, err := searchParams(query, sc, searchOpts.filters, staleAwareFetchLimit(searchOpts.limit))
+			params, err := searchParams(query, sc, searchOpts.filters, searchOpts.limit)
 			if err != nil {
 				return err
 			}
-			results, err := st.Search(context.Background(), params)
+			params.Lifecycle = store.LifecycleCurrent
+			current, err := st.Search(context.Background(), params)
 			if err != nil {
 				return err
 			}
-			current, historical := splitCurrentHistorical(results)
-			current = limitMemories(current, searchOpts.limit)
-			historical = limitMemories(historical, searchOpts.limit)
 
 			w := cmd.OutOrStdout()
 			if opts.json {
@@ -59,6 +57,12 @@ func newSearchCommand() *cobra.Command {
 					writeMinimalMemory(w, r, true)
 				}
 				return nil
+			}
+			historicalParams := params
+			historicalParams.Lifecycle = store.LifecycleHistorical
+			historical, err := st.Search(context.Background(), historicalParams)
+			if err != nil {
+				return err
 			}
 
 			return frontmatter(w, []kv{
