@@ -14,6 +14,10 @@ brainfile show -t task-1
 brainfile show -t decision-1
 ```
 
+Brainfile is not the product substrate. Durable product and architecture truths
+should also live in direct Recoil memories or ordinary project docs so Recoil is
+designed for projects that have no Brainfile.
+
 ## Current Wedge
 
 Recoil v0 is local coding-agent continuity inside an initialized project.
@@ -37,8 +41,11 @@ recoil wake --max-chars 1600
 recoil search "<topic>"
 recoil add --agent <agent> --role decision "<durable memory>"
 recoil mine
+recoil eval
 recoil list
 recoil show <memory-id>
+recoil mark <memory-id> --validity stale
+recoil supersede <old-memory-id> "<replacement memory>"
 recoil forget <memory-id>
 ```
 
@@ -51,7 +58,8 @@ one-session memories.
 
 ## Settled Decisions
 
-Reference these Brainfile records rather than expanding new docs:
+Reference these Brainfile records for build sequencing, and promote durable
+product truths into ordinary docs or direct Recoil memories:
 
 - `decision-2`: Product thesis, recall must be cheaper than guessing.
 - `adr-1`: Local SQLite FTS5 with deterministic writes.
@@ -68,11 +76,11 @@ The executable v0/v0.1 backlog lives as child tasks under `epic-1`:
 
 1. `task-1`: Create retrieval eval fixtures including stale cases. (done)
 2. `task-3`: Implement conservative project file miner. (done)
-3. `task-4`: Improve wake into layered current context.
-4. `task-5`: Add validity metadata and supersession links.
-5. `task-6`: Add mark and supersede lifecycle commands.
-6. `task-2`: Implement eval harness for recall and stale demotion.
-7. `task-7`: Make search and wake stale-aware.
+3. `task-4`: Improve wake into layered current context. (done)
+4. `task-2`: Implement eval harness for recall and stale demotion. (done)
+5. `task-5`: Add validity metadata and supersession links. (done)
+6. `task-6`: Add mark and supersede lifecycle commands. (done)
+7. `task-7`: Make search and wake stale-aware. (done)
 8. `task-8`: Expand project/user/session scope tests.
 9. `task-9`: Add 10k local performance benchmark.
 10. `task-10`: Add optional Brainfile source adapter.
@@ -89,11 +97,22 @@ relationship should be:
   file/transcript mining.
 - For this repository, Brainfile is only the task-management protocol between
   operator and agent while Recoil is being built.
+- Canonical product and architecture truths must live in direct Recoil memories
+  or ordinary project docs, because a normal project has no Brainfile.
 - A Brainfile source adapter is deferred until the generic, brainfile-less
   product loop is useful on its own.
 
 This keeps Recoil universal and avoids accidentally making the development
 workflow into a product dependency.
+
+## Source Freshness Direction
+
+Long-term, Recoil memory should be a fast local search protocol over reliable
+sources, not a static imported pile. Direct memories and ordinary project docs
+are first-class sources. Future source adapters should follow Cymbal's JIT
+freshness posture: before `search` or `wake`, check source fingerprints or
+cursors, refresh dirty source-derived chunks, prune or supersede deleted/changed
+evidence, and preserve provenance.
 
 ## Stale Memory Rule
 
@@ -103,9 +122,12 @@ current truth.
 Recoil should preserve rejected and superseded history, but retrieval must make
 current guidance unmistakable. In practice:
 
-- `wake` should favor active decisions, constraints, and handoffs.
-- `search` should show current results first.
-- rejected/superseded memories should be labeled as historical context.
+- memories carry `validity`, `claim_key`, `supersedes`, and `superseded_by`
+  fields in the store.
+- `wake` excludes rejected, superseded, stale, historical, and tombstoned
+  memories by default.
+- `search` shows active/unknown current guidance first and labels
+  rejected/superseded/stale/historical matches as history in text output.
 - evals must include stale/superseded cases before ranking is tuned.
 
 ## Non-Goals For The Core Path

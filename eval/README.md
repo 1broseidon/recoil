@@ -7,6 +7,16 @@ behavior is tuned.
 
 The file is JSON Lines. Each line is either a seeded memory or an eval case.
 
+Run the harness with:
+
+```sh
+recoil eval
+recoil eval eval/fixtures.jsonl
+```
+
+The command uses an isolated temporary database by default so eval fixtures do
+not pollute the operator's real memory store.
+
 ## Memory Lines
 
 Memory records have `type: "memory"` and a fixture-local `id`:
@@ -24,12 +34,16 @@ Memory fields:
 - `scope.kind`: `project`, `user`, or `session`.
 - `scope.id`: fixture-local scope ID.
 - `role`, `source_agent`, `source_path`, and `source_ref`: seed metadata to pass
-  through to Recoil when supported.
+  through to Recoil when supported. Canonical source paths should model ordinary
+  project docs or direct memories, not Brainfile-only records.
 - `created_at_order`: larger numbers are newer for wake/list ordering tests.
 - `metadata.validity`: planned freshness state: `active`, `historical`,
   `rejected`, `superseded`, `stale`, or `unknown`.
 - `metadata.claim_key`: stable claim family used by stale/supersession tests.
 - `metadata.superseded_by`: fixture ID that replaces this memory.
+
+The eval seeder writes these lifecycle values into Recoil's structured store
+columns as well as retaining the original metadata JSON.
 
 ## Case Lines
 
@@ -53,9 +67,9 @@ Case fields:
 - `forbidden_ids`: memories that must not appear anywhere in the result.
 - `expected_empty`: true when the right behavior is no answer.
 
-For the current CLI, stale-aware output sections do not exist yet. The harness
-for `task-2` can still report these as failing stale-demotion or wake-safety
-cases until `task-5`, `task-6`, and `task-7` add the lifecycle semantics.
+The harness treats current/primary search results as the scoring surface.
+Historical search matches can still be shown separately by the CLI without
+counting as current guidance.
 
 ## Initial Metrics
 

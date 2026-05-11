@@ -74,7 +74,7 @@ func newWakeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				queryResults = found
+				queryResults = currentMemories(found)
 			}
 
 			params, err := listParams(sc, wakeOpts.filters, fetchLimit, false)
@@ -85,6 +85,7 @@ func newWakeCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			recent = currentMemories(recent)
 			layers := buildWakeLayers(query, queryResults, recent, wakeOpts.limit)
 			results := flattenWakeLayers(layers)
 
@@ -154,6 +155,9 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	total := 0
 	add := func(mem store.Memory, fromQuery bool) {
 		if total >= limit || seen[mem.ID] {
+			return
+		}
+		if isHistoricalMemory(mem) {
 			return
 		}
 		layerIndex := classifyWakeMemory(mem, query, fromQuery)
@@ -264,6 +268,18 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	fmt.Fprintf(&meta, "created: %s\n", mem.CreatedAt)
 	if mem.Role != "" {
 		fmt.Fprintf(&meta, "role: %s\n", mem.Role)
+	}
+	if mem.Validity != "" {
+		fmt.Fprintf(&meta, "validity: %s\n", mem.Validity)
+	}
+	if mem.ClaimKey != "" {
+		fmt.Fprintf(&meta, "claim_key: %s\n", mem.ClaimKey)
+	}
+	if mem.Supersedes != "" {
+		fmt.Fprintf(&meta, "supersedes: %s\n", mem.Supersedes)
+	}
+	if mem.SupersededBy != "" {
+		fmt.Fprintf(&meta, "superseded_by: %s\n", mem.SupersededBy)
 	}
 	if mem.SourceAgent != "" {
 		fmt.Fprintf(&meta, "source_agent: %s\n", mem.SourceAgent)

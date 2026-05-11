@@ -12,13 +12,17 @@ import (
 )
 
 type addOptions struct {
-	scope      scopeOptions
-	file       string
-	role       string
-	agent      string
-	sourcePath string
-	sourceRef  string
-	metadata   string
+	scope        scopeOptions
+	file         string
+	role         string
+	agent        string
+	sourcePath   string
+	sourceRef    string
+	metadata     string
+	validity     string
+	claimKey     string
+	supersedes   string
+	supersededBy string
 }
 
 type addResult struct {
@@ -62,6 +66,10 @@ func newAddCommand() *cobra.Command {
 				ProjectID:    sc.ProjectID,
 				SessionID:    sc.SessionID,
 				MetadataJSON: addOpts.metadata,
+				Validity:     addOpts.validity,
+				ClaimKey:     addOpts.claimKey,
+				Supersedes:   addOpts.supersedes,
+				SupersededBy: addOpts.supersededBy,
 			})
 			if err != nil {
 				return err
@@ -76,6 +84,10 @@ func newAddCommand() *cobra.Command {
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
 				{k: "created", v: mem.CreatedAt},
+				{k: "validity", v: mem.Validity},
+				{k: "claim_key", v: mem.ClaimKey},
+				{k: "supersedes", v: mem.Supersedes},
+				{k: "superseded_by", v: mem.SupersededBy},
 				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
 			}, mem.Content)
 		},
@@ -87,6 +99,10 @@ func newAddCommand() *cobra.Command {
 	c.Flags().StringVar(&addOpts.sourcePath, "source-path", "", "source file or transcript path")
 	c.Flags().StringVar(&addOpts.sourceRef, "source-ref", "", "source reference within the path")
 	c.Flags().StringVar(&addOpts.metadata, "metadata", "", "custom metadata as JSON")
+	c.Flags().StringVar(&addOpts.validity, "validity", "", "validity state: active, historical, rejected, superseded, stale, unknown")
+	c.Flags().StringVar(&addOpts.claimKey, "claim-key", "", "stable claim family for supersession")
+	c.Flags().StringVar(&addOpts.supersedes, "supersedes", "", "memory ID this memory supersedes")
+	c.Flags().StringVar(&addOpts.supersededBy, "superseded-by", "", "memory ID that supersedes this memory")
 	return c
 }
 

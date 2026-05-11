@@ -2,8 +2,10 @@
 
 Date: 2026-05-11
 Workspace: `/Users/george/Projects/personal/recoil`
-Status: v0 CLI exists; task-1 eval fixtures, task-3 generic file miner, and
-task-4 layered wake are done; next build step is validity metadata.
+Status: v0 CLI exists; task-1 eval fixtures, task-2 eval harness, task-3
+generic file miner, task-4 layered wake, and task-5 validity metadata are done;
+task-6 lifecycle commands and task-7 stale-aware retrieval are done; next build
+step is broader scope tests.
 
 This doc is for a new chat session to continue without reconstructing the
 thread.
@@ -16,13 +18,12 @@ Run these first:
 cd /Users/george/Projects/personal/recoil
 ./recoil wake --max-chars 1600
 brainfile list
-brainfile show -t task-5
+brainfile show -t task-8
 make test
 ```
 
-The next logical build step is `task-5`: add validity metadata and supersession
-links. The current priority is immediate feature impact on projects with no
-Brainfile.
+The next logical build step is `task-8`: expand project/user/session scope tests.
+`recoil eval` is now 9/9, so preserve that as a regression target.
 
 ## Project Identity
 
@@ -38,7 +39,7 @@ It was renamed from Reverb early in the thread. Current names are:
 
 Do not reintroduce `reverb` names.
 
-The workspace has no `.git` directory at the moment.
+The workspace is a git repo. Do not use destructive git commands.
 
 ## Product Thesis
 
@@ -69,6 +70,9 @@ Brainfile is **not** a dependency. In this repo it is only:
 
 The Brainfile adapter is explicitly deferred. Do not treat `.brainfile/` as an
 immediate product adapter or special project memory for v0.
+
+Assume a normal project has no Brainfile. Canonical truths must live in direct
+Recoil memories or ordinary project docs that `recoil mine` can ingest.
 
 Core Recoil must work without Brainfile:
 
@@ -185,6 +189,11 @@ Implemented:
 - conservative markdown/text project file mining through `recoil mine`
 - layered `wake` output with L0 current context, L1 decisions/constraints, and
   L2 recent notes/evidence
+- isolated `recoil eval` harness for retrieval metrics against JSONL fixtures
+- structured lifecycle metadata: `validity`, `claim_key`, `supersedes`,
+  `superseded_by`
+- lifecycle commands: `mark` and `supersede`
+- stale-aware `search` and `wake`
 
 Current local DB:
 
@@ -200,7 +209,7 @@ Current project marker:
 
 Recent `recoil status` showed:
 
-- memory_count: 13
+- memory_count: 27
 - tombstone_count: 0
 - fts5: true
 - project_initialized: true
@@ -223,18 +232,22 @@ internal/redact/
 internal/scope/
 internal/store/
 internal/mine/
+internal/eval/
+eval/
 
 .brainfile/
 .recoil/
 ```
 
-Docs were intentionally consolidated. `docs/` now only has:
+Product docs are intentionally compact. `docs/` now has:
 
 ```text
 docs/product.md
 ```
 
-Detailed product decisions are in Brainfile records, not scattered markdown.
+Detailed build sequencing is in Brainfile records. Product truths should also
+live in ordinary docs or direct Recoil memories so the product path stays
+brainfile-less.
 
 ## Brainfile Board
 
@@ -280,10 +293,10 @@ Executable sequence under `epic-1`:
 0. `task-1`: Create retrieval eval fixtures including stale cases (done)
 1. `task-3`: Implement conservative project file miner (done)
 2. `task-4`: Improve wake into layered current context (done)
-3. `task-5`: Add validity metadata and supersession links
-4. `task-6`: Add mark and supersede lifecycle commands
-5. `task-2`: Implement eval harness for recall and stale demotion
-6. `task-7`: Make search and wake stale-aware
+3. `task-2`: Implement eval harness for recall and stale demotion (done)
+4. `task-5`: Add validity metadata and supersession links (done)
+5. `task-6`: Add mark and supersede lifecycle commands (done)
+6. `task-7`: Make search and wake stale-aware (done)
 7. `task-8`: Expand project user and session scope tests
 8. `task-9`: Add 10k local performance benchmark
 9. `task-10`: Add optional Brainfile source adapter (deferred, low priority)
@@ -337,6 +350,18 @@ generic files, transcripts, direct `add`, wake, and lifecycle controls first.
 Treat Brainfile as task management between operator and agent in this repo, not
 as a product adapter for now.
 
+When a fact matters to Recoil users or agents, store it in ordinary docs or
+direct Recoil memories. Do not hide canonical truth only in `.brainfile/`.
+
+### Source Freshness
+
+Long-term, Recoil memory should be a fast local search protocol over reliable
+sources, not a static imported pile. Direct memories and ordinary docs are
+first-class sources. Future adapters should use Cymbal-style JIT freshness:
+check source fingerprints or cursors before `search`/`wake`, refresh dirty
+source-derived chunks, prune or supersede deleted/changed evidence, and preserve
+provenance.
+
 ### MemPalace Comparison
 
 MemPalace is stronger today as a complete memory app: mining, sweep, wake-up,
@@ -370,6 +395,74 @@ No need to redo this research unless the user asks.
 
 ## Recent Build Step
 
+`task-7` made retrieval lifecycle-aware:
+
+- `search` over-fetches, partitions active/unknown memories from
+  historical/rejected/superseded/stale memories, returns current results as the
+  primary JSON/minimal surface, and labels historical matches separately in text
+  output.
+- `wake` filters historical/rejected/superseded/stale memories before layering,
+  so startup context does not present old evidence as current guidance.
+- `recoil eval eval/fixtures.jsonl` now passes 9/9:
+  - recall_at_k: 1.0000
+  - mrr: 1.0000
+  - empty_result_accuracy: 1.0000
+  - stale_demotion_failures: 0
+  - wake_safety_failures: 0
+
+## Recent Build Step
+
+`task-6` added lifecycle commands:
+
+- `recoil mark <memory-id> --validity rejected|stale|historical|active|superseded|unknown`
+- `recoil mark <memory-id> --claim-key <key> --supersedes <id> --superseded-by <id>`
+- `recoil supersede <old-memory-id> "<replacement memory>"`
+
+`mark` preserves omitted lifecycle fields and updates only the fields requested.
+`supersede` creates a new active replacement memory in the old memory's scope,
+copies the old claim key unless `--claim-key` is provided, sets the new memory's
+`supersedes` link, and marks the old memory `superseded` with `superseded_by`.
+
+## Recent Build Step
+
+`task-5` added first-class lifecycle metadata to the store:
+
+- `validity`
+- `claim_key`
+- `supersedes`
+- `superseded_by`
+
+`AddMemory` can persist these directly or extract them from metadata JSON.
+Existing databases migrate by adding the columns and backfilling lifecycle
+values from metadata JSON where present. `UpdateLifecycle` provides the store
+API that task-6 can use for mark/supersede commands.
+
+The fields now appear in JSON and text memory output.
+
+## Recent Build Step
+
+`task-2` added `recoil eval`, backed by `internal/eval`.
+
+The harness seeds a temporary DB from `eval/fixtures.jsonl`, runs `search` and
+`wake` cases through the same store/wake-layer code as the CLI, maps generated
+Recoil IDs back to fixture IDs, and reports recall@k, MRR, empty-result
+accuracy, scope isolation failures, stale-demotion failures, wake-safety
+failures, and latency.
+
+Initial baseline from `./recoil eval eval/fixtures.jsonl` before task-7:
+
+- passed: 5 / 9
+- recall_at_k: 1.0000
+- mrr: 0.8750
+- empty_result_accuracy: 1.0000
+- scope_isolation_failures: 0
+- stale_demotion_failures: 3
+- wake_safety_failures: 1
+
+Task-7 closed these failures; keep 9/9 as the current regression target.
+
+## Recent Build Step
+
 `task-3` added `recoil mine` for generic markdown/text evidence with
 provenance, deterministic dedupe through existing `AddMemory`, project default
 scope, and no LLM.
@@ -392,10 +485,10 @@ Text output keeps sourced blocks under `--max-chars`; JSON includes both
 
 ## Next Build Step
 
-Build `task-5` next.
+Build `task-8` next.
 
-Goal: add validity metadata and supersession links so old evidence can be kept
-without appearing as current guidance.
+Goal: broaden scope tests around project/user/session isolation and ensure the
+new lifecycle-aware retrieval behavior keeps respecting scope boundaries.
 
 Do not build the Brainfile source adapter before the generic miner, layered
 wake, and stale lifecycle path are useful without Brainfile.
@@ -406,8 +499,9 @@ If starting a new chat, say:
 
 > Continue Recoil from `/Users/george/Projects/personal/recoil`. Read
 > `HANDOFF.md`, run `./recoil wake --max-chars 1600`, run `brainfile list`,
-> then start `task-5` by adding validity metadata and supersession links. Keep
-> the product path brainfile-less; Brainfile is only task management here.
+> run `./recoil eval eval/fixtures.jsonl`, then start `task-8` by expanding
+> project/user/session scope tests. Keep the product path brainfile-less;
+> canonical truths belong in direct memories or ordinary docs.
 
 ## Things To Avoid
 
@@ -417,8 +511,7 @@ If starting a new chat, say:
 - Do not build the Brainfile adapter before the brainfile-less core loop is
   useful.
 - Do not add embeddings before local FTS/evals are proven.
-- Do not tune ranking before eval fixtures exist.
+- Do not tune ranking without checking `recoil eval`.
 - Do not replace old memories by rewriting them as the default stale-memory
   solution.
-- Do not use `git reset` or destructive git commands; this workspace is not a
-  git repo anyway.
+- Do not use `git reset` or destructive git commands.

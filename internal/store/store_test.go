@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -154,6 +155,196 @@ func TestRetrievalScoreIncreasesWithStrongerNegativeRank(t *testing.T) {
 	}
 	if retrievalScore(0) != 0 {
 		t.Fatalf("expected zero rank to produce zero score, got %f", retrievalScore(0))
+	}
+}
+
+func TestAddMemoryPersistsLifecycleMetadata(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	mem, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:      "Recoil uses mattn go sqlite3 for FTS5 support.",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		Validity:     "active",
+		ClaimKey:     "dependency.sqlite-driver",
+		Supersedes:   "mem_old",
+		SupersededBy: "mem_future",
+		MetadataJSON: `{"fixture_id":"mem_sqlite_mattn"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.GetMemory(ctx, mem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Validity != "active" ||
+		got.ClaimKey != "dependency.sqlite-driver" ||
+		got.Supersedes != "mem_old" ||
+		got.SupersededBy != "mem_future" {
+		t.Fatalf("unexpected lifecycle fields: %+v", got)
+	}
+
+	results, err := st.Search(ctx, SearchParams{
+		Query:     "sqlite3 FTS5",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Validity != "active" || results[0].ClaimKey == "" {
+		t.Fatalf("expected lifecycle fields in search result, got %+v", results)
+	}
+}
+
+func TestAddMemoryExtractsLifecycleFromMetadataJSON(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	mem, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:      "Pure Go sqlite was rejected because FTS5 is required.",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		MetadataJSON: `{"validity":"rejected","claim_key":"dependency.sqlite-driver","superseded_by":"mem_sqlite_mattn"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mem.Validity != "rejected" ||
+		mem.ClaimKey != "dependency.sqlite-driver" ||
+		mem.SupersededBy != "mem_sqlite_mattn" {
+		t.Fatalf("expected lifecycle fields from metadata, got %+v", mem)
+	}
+}
+
+func TestUpdateLifecycle(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	old, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Earlier source plan made Brainfile required.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Validity:  "active",
+		ClaimKey:  "source.brainfile",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:    "Current source plan keeps Brainfile optional.",
+		ScopeKind:  "project",
+		ScopeID:    "project-1",
+		Validity:   "active",
+		ClaimKey:   "source.brainfile",
+		Supersedes: old.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := st.UpdateLifecycle(ctx, LifecycleParams{
+		IDOrPrefix:   old.ID[:12],
+		Validity:     "superseded",
+		ClaimKey:     "source.brainfile",
+		SupersededBy: newer.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Validity != "superseded" || updated.SupersededBy != newer.ID {
+		t.Fatalf("expected superseded old memory, got %+v", updated)
+	}
+}
+
+func TestAddMemoryRejectsInvalidValidity(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	_, _, err = st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Bad validity should not persist.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Validity:  "currentish",
+	})
+	if err == nil || !strings.Contains(err.Error(), `invalid validity "currentish"`) {
+		t.Fatalf("expected invalid validity error, got %v", err)
+	}
+}
+
+func TestMigrationAddsLifecycleColumnsAndBackfillsMetadata(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`
+		CREATE TABLE memories (
+			pk INTEGER PRIMARY KEY AUTOINCREMENT,
+			id TEXT NOT NULL UNIQUE,
+			hash TEXT NOT NULL UNIQUE,
+			role TEXT,
+			content TEXT NOT NULL,
+			source_agent TEXT,
+			source_path TEXT,
+			source_ref TEXT,
+			scope_kind TEXT NOT NULL,
+			scope_id TEXT NOT NULL,
+			project_id TEXT,
+			session_id TEXT,
+			room TEXT,
+			metadata_json TEXT,
+			created_at TEXT NOT NULL,
+			tombstoned_at TEXT,
+			purge_reason TEXT
+		);
+		INSERT INTO memories (
+			id, hash, role, content, scope_kind, scope_id, metadata_json, created_at
+		) VALUES (
+			'mem_legacy', 'legacy_hash', 'decision', 'Legacy active metadata row.',
+			'project', 'project-1',
+			'{"validity":"active","claim_key":"legacy.claim","superseded_by":"mem_new"}',
+			'2026-01-01T00:00:00Z'
+		);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	got, err := st.GetMemoryByID(ctx, "mem_legacy", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Validity != "active" || got.ClaimKey != "legacy.claim" || got.SupersededBy != "mem_new" {
+		t.Fatalf("expected migrated lifecycle metadata, got %+v", got)
 	}
 }
 

@@ -34,6 +34,18 @@ func memoryBlocks(memories []store.Memory, maxChars int, includeScore bool) stri
 			fmt.Fprintf(&b, "score: %.4f\n", mem.Score)
 		}
 		fmt.Fprintf(&b, "created: %s\n", mem.CreatedAt)
+		if mem.Validity != "" {
+			fmt.Fprintf(&b, "validity: %s\n", mem.Validity)
+		}
+		if mem.ClaimKey != "" {
+			fmt.Fprintf(&b, "claim_key: %s\n", mem.ClaimKey)
+		}
+		if mem.Supersedes != "" {
+			fmt.Fprintf(&b, "supersedes: %s\n", mem.Supersedes)
+		}
+		if mem.SupersededBy != "" {
+			fmt.Fprintf(&b, "superseded_by: %s\n", mem.SupersededBy)
+		}
 		if mem.Role != "" {
 			fmt.Fprintf(&b, "role: %s\n", mem.Role)
 		}

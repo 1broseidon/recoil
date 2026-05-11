@@ -64,6 +64,21 @@ func TestBuildWakeLayersPromotesQueryMatchesAndDedupes(t *testing.T) {
 	}
 }
 
+func TestBuildWakeLayersSkipsHistoricalMemories(t *testing.T) {
+	queryMatch := store.Memory{ID: "mem_rejected", Validity: "rejected", Content: "Old SQLite decision."}
+	recent := []store.Memory{
+		{ID: "mem_superseded", Validity: "superseded", Content: "Brainfile used to be required."},
+		{ID: "mem_active", Validity: "active", Role: "decision", Content: "Brainfile is optional."},
+		{ID: "mem_unknown", Content: "Unknown validity remains eligible."},
+	}
+	layers := buildWakeLayers("sqlite", []store.Memory{queryMatch}, recent, 5)
+	got := ids(flattenWakeLayers(layers))
+	want := "mem_active,mem_unknown"
+	if got != want {
+		t.Fatalf("unexpected wake memories: got %s, want %s", got, want)
+	}
+}
+
 func TestLayeredMemoryBlocksHonorsHardBudget(t *testing.T) {
 	layers := []wakeLayer{
 		{

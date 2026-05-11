@@ -1,8 +1,6 @@
 ---
 id: task-7
 title: Make search and wake stale-aware
-column: todo
-position: 6
 priority: high
 tags:
   - v0.1
@@ -22,6 +20,8 @@ contract:
     commands:
       - make test
 createdAt: "2026-05-11T02:26:07.081Z"
+completedAt: "2026-05-11T04:08:51.943Z"
+updatedAt: "2026-05-11T04:08:51.943Z"
 ---
 
 ## Description

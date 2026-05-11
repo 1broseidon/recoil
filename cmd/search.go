@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,7 @@ func newSearchCommand() *cobra.Command {
 			}
 			defer st.Close()
 
-			params, err := searchParams(query, sc, searchOpts.filters, searchOpts.limit)
+			params, err := searchParams(query, sc, searchOpts.filters, staleAwareFetchLimit(searchOpts.limit))
 			if err != nil {
 				return err
 			}
@@ -45,13 +46,16 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			current, historical := splitCurrentHistorical(results)
+			current = limitMemories(current, searchOpts.limit)
+			historical = limitMemories(historical, searchOpts.limit)
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, results)
+				return writeJSON(w, current)
 			}
 			if searchOpts.minimal {
-				for _, r := range results {
+				for _, r := range current {
 					writeMinimalMemory(w, r, true)
 				}
 				return nil
@@ -61,8 +65,9 @@ func newSearchCommand() *cobra.Command {
 				{k: "query", v: query},
 				{k: "scope", v: sc.Kind},
 				{k: "scope_id", v: sc.ID},
-				{k: "result_count", v: fmt.Sprintf("%d", len(results))},
-			}, memoryBlocks(results, searchOpts.maxChars, true))
+				{k: "result_count", v: fmt.Sprintf("%d", len(current))},
+				{k: "history_count", v: fmt.Sprintf("%d", len(historical))},
+			}, searchMemoryBlocks(current, historical, searchOpts.maxChars))
 		},
 	}
 	addScopeFlags(c, &searchOpts.scope)
@@ -71,4 +76,22 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().BoolVar(&searchOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().IntVar(&searchOpts.maxChars, "max-chars", 4000, "maximum characters of memory content to print")
 	return c
+}
+
+func searchMemoryBlocks(current, historical []store.Memory, maxChars int) string {
+	var b strings.Builder
+	if len(current) == 0 {
+		b.WriteString("No current memories found.")
+	} else {
+		b.WriteString("## Current Results\n\n")
+		b.WriteString(memoryBlocks(current, maxChars, true))
+	}
+	if len(historical) > 0 {
+		if b.Len() > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString("## Historical Results\n\n")
+		b.WriteString(memoryBlocks(historical, maxChars, true))
+	}
+	return strings.TrimRight(b.String(), "\n")
 }

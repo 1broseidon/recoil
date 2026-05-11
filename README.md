@@ -37,14 +37,18 @@ recoil config
 
 recoil add "Prefers vim keybindings"
 recoil add "We moved auth tokens into the keyring" --agent codex --role decision
+recoil add --validity active --claim-key auth.token-storage "Auth tokens live in the keyring"
 
 recoil search "why did we change auth?"
 recoil wake --max-chars 1600
 recoil mine --dry-run
 recoil mine
+recoil eval
 
 recoil show <memory-id>
 recoil list --since 7d
+recoil mark <memory-id> --validity rejected
+recoil supersede <old-memory-id> "Replacement memory text"
 recoil forget <memory-id>
 recoil forget <memory-id> --destroy
 
@@ -56,8 +60,9 @@ recoil repair
 Default output is frontmatter plus content. Use `--json` for a stable
 versioned envelope and `--minimal` on scan commands for tab-separated rows.
 
-Detailed product notes have been consolidated into Brainfile records under
-`.brainfile/board/`; `docs/product.md` is the compact index.
+Brainfile is used for this repo's task board, but product truths should also be
+kept in ordinary docs and direct Recoil memories so the core loop stays
+brainfile-less.
 
 ## Mining Project Files
 
@@ -72,6 +77,45 @@ recoil mine docs/
 
 Mined memories keep `source_path` and `source_ref` line ranges so agents can
 show where local evidence came from.
+
+## Eval Harness
+
+`recoil eval` seeds a temporary database from `eval/fixtures.jsonl`, runs
+fixture-local `search` and `wake` cases, and reports recall@k, MRR,
+empty-result accuracy, stale-demotion failures, wake-safety failures, scope
+leaks, and latency.
+
+```sh
+recoil eval
+recoil eval eval/fixtures.jsonl
+```
+
+## Lifecycle Metadata
+
+Memories can carry structured lifecycle fields:
+
+- `validity`: `active`, `historical`, `rejected`, `superseded`, `stale`, or
+  `unknown`.
+- `claim_key`: stable claim family, such as `dependency.sqlite-driver`.
+- `supersedes` / `superseded_by`: links between evidence records.
+
+These fields are persisted and shown in memory output. `search` treats active
+and unknown memories as current guidance while separating rejected, superseded,
+stale, and historical memories into a labeled history section. `wake` excludes
+historical states by default.
+
+Use `mark` to update lifecycle metadata on existing evidence:
+
+```sh
+recoil mark <memory-id> --validity rejected
+recoil mark <memory-id> --validity historical --claim-key dependency.sqlite-driver
+```
+
+Use `supersede` to create a replacement memory and link both sides:
+
+```sh
+recoil supersede <old-memory-id> "Recoil uses mattn/go-sqlite3 with FTS5."
+```
 
 ## Waking A Session
 
