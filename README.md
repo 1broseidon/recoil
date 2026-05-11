@@ -54,6 +54,10 @@ recoil forget <memory-id> --destroy
 
 recoil instructions codex
 recoil hook remind
+recoil hook remind --format=claude-code
+recoil hook install claude-code --scope project
+recoil hook install opencode --scope project
+recoil hook install codex --scope project
 recoil repair
 ```
 
@@ -64,6 +68,42 @@ scan commands for tab-separated rows.
 Brainfile is used for this repo's task board, but product truths should also be
 kept in ordinary docs and direct Recoil memories so the core loop stays
 brainfile-less.
+
+## Agent Hooks
+
+`recoil hook remind` prints a short memory primer that agent runtimes can
+inject at session start. It is intentionally reminder-only: Recoil does not
+block tools or try to replace normal shell usage.
+
+```sh
+recoil hook remind
+recoil hook remind --format=json
+recoil hook remind --format=claude-code
+```
+
+First-class installers are available for the agents we can manage safely:
+
+```sh
+recoil hook install claude-code          # ~/.claude/settings.json
+recoil hook install claude-code --scope project
+recoil hook uninstall claude-code
+
+recoil hook install opencode             # <user-config-dir>/opencode/plugins/recoil-opencode.js
+recoil hook install opencode --scope project
+recoil hook uninstall opencode
+
+recoil hook install codex                # ~/.codex/AGENTS.md
+recoil hook install codex --scope project
+recoil hook uninstall codex
+```
+
+Claude Code uses a native `SessionStart` hook. OpenCode uses a managed plugin
+that injects the reminder into the system prompt transform. Codex does not have
+a stable native local hook target in this repo's tested environment, so Recoil
+manages a marked `AGENTS.md` instruction block instead.
+
+Installers are idempotent. Managed files and hook entries carry a Recoil marker,
+and uninstall removes only Recoil-owned content.
 
 ## Mining Project Files
 

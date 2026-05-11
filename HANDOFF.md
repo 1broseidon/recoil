@@ -157,6 +157,9 @@ recoil instructions codex
 recoil instructions claude-code
 recoil instructions opencode
 recoil hook remind
+recoil hook install claude-code
+recoil hook install opencode
+recoil hook install codex
 recoil version
 ```
 
@@ -299,7 +302,8 @@ Executable sequence under `epic-1`:
 6. `task-7`: Make search and wake stale-aware (done)
 7. `task-8`: Expand project user and session scope tests
 8. `task-9`: Add 10k local performance benchmark
-9. `task-10`: Add optional Brainfile source adapter (deferred, low priority)
+9. `task-11`: Add agent hook system
+10. `task-10`: Add optional Brainfile source adapter (deferred, low priority)
 
 ## Settled Decisions
 
@@ -519,6 +523,22 @@ Custom `metadata_json.validity` values are now tolerated as user metadata. Valid
 Recoil lifecycle values are still backfilled from metadata, but invalid/custom
 values such as `draft` are ignored instead of failing `add` or blocking legacy
 DB open.
+
+## Recent Build Step
+
+`task-11` added agent hook integration helpers:
+
+- `recoil hook remind` now supports `text`, generic `json`, and
+  `claude-code` SessionStart payloads.
+- `recoil hook install claude-code` merges a marked SessionStart command into
+  Claude settings at user or project scope.
+- `recoil hook install opencode` writes a managed OpenCode plugin at user or
+  project scope.
+- `recoil hook install codex` manages a marked `AGENTS.md` instruction block
+  because Codex does not expose a stable native local hook target in the tested
+  environment.
+
+Installers are idempotent and uninstall removes only Recoil-marked content.
 
 ## Recent Build Step
 
