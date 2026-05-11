@@ -29,6 +29,30 @@ func TestCollectSkipsHiddenAndToolingDirs(t *testing.T) {
 	}
 }
 
+func TestCollectHonorsRecoilignorePatternsAndSentinel(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "README.md"), "# Project\n\nKeep this.")
+	writeFile(t, filepath.Join(root, "docs", "keep.md"), "keep me")
+	writeFile(t, filepath.Join(root, "eval", "corpora", "docs-heavy", "files", "adr.md"), "fictional adr")
+	writeFile(t, filepath.Join(root, "eval", "corpora", "docs-heavy", "files", "runbook.md"), "fictional runbook")
+	writeFile(t, filepath.Join(root, "vendor-notes", "third-party", "README.md"), "3p docs")
+	writeFile(t, filepath.Join(root, "vendor-notes", ".recoilignore"), "*\n")
+	writeFile(t, filepath.Join(root, ".recoilignore"), "# top-level\neval/corpora/\n")
+
+	result, err := Collect(Options{Path: root, SourceRoot: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, chunk := range result.Chunks {
+		paths = append(paths, chunk.SourcePath)
+	}
+	got := strings.Join(paths, ",")
+	if got != "README.md,docs/keep.md" {
+		t.Fatalf("unexpected mined paths: %s", got)
+	}
+}
+
 func TestChunkTextAddsStableLineRefs(t *testing.T) {
 	text := strings.Join([]string{
 		"# Heading",

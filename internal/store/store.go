@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -101,6 +102,33 @@ type ListParams struct {
 	Limit          int
 	IncludeDeleted bool
 	Lifecycle      string
+}
+
+type EmbeddingRecord struct {
+	MemoryID    string    `json:"memory_id"`
+	Provider    string    `json:"provider"`
+	Model       string    `json:"model"`
+	Dims        int       `json:"dims"`
+	Vector      []float64 `json:"vector,omitempty"`
+	ContentHash string    `json:"content_hash"`
+	CreatedAt   string    `json:"created_at"`
+}
+
+type SemanticSearchParams struct {
+	QueryVector []float64
+	Provider    string
+	Model       string
+	ScopeKind   string
+	ScopeID     string
+	SourceAgent string
+	SourcePath  string
+	Role        string
+	ClaimKey    string
+	Validity    string
+	Since       string
+	Before      string
+	Limit       int
+	Lifecycle   string
 }
 
 const (
@@ -346,6 +374,58 @@ func retrievalScore(rank float64) float64 {
 	return absRank / (1 + absRank)
 }
 
+func EmbeddingText(mem Memory) string {
+	parts := []string{
+		mem.Role,
+		strings.ReplaceAll(mem.ClaimKey, ".", " "),
+		mem.ClaimKey,
+		mem.SourceAgent,
+		strings.ReplaceAll(mem.SourcePath, "/", " "),
+		mem.SourceRef,
+		mem.Content,
+	}
+	var b strings.Builder
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(part)
+	}
+	return b.String()
+}
+
+func EmbeddingContentHash(mem Memory) string {
+	sum := sha256.Sum256([]byte(EmbeddingText(mem)))
+	return hex.EncodeToString(sum[:])
+}
+
+func cosineSimilarity(a, b []float64) float64 {
+	if len(a) == 0 || len(a) != len(b) {
+		return 0
+	}
+	var dot, normA, normB float64
+	for i := range a {
+		dot += a[i] * b[i]
+		normA += a[i] * a[i]
+		normB += b[i] * b[i]
+	}
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+	score := dot / (math.Sqrt(normA) * math.Sqrt(normB))
+	if score < 0 {
+		return 0
+	}
+	if score > 1 {
+		return 1
+	}
+	return score
+}
+
 func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 	if p.Limit <= 0 {
 		p.Limit = 50
@@ -395,6 +475,124 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 		memories = append(memories, mem)
 	}
 	return memories, rows.Err()
+}
+
+func (s *Store) UpsertEmbedding(ctx context.Context, mem Memory, provider, model string, vector []float64) error {
+	provider = strings.TrimSpace(provider)
+	model = strings.TrimSpace(model)
+	if provider == "" || model == "" {
+		return fmt.Errorf("embedding provider and model are required")
+	}
+	if len(vector) == 0 {
+		return fmt.Errorf("embedding vector is empty")
+	}
+	vectorJSON, err := json.Marshal(vector)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO memory_embeddings (
+			memory_id, provider, model, dims, vector_json, content_hash, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(memory_id, provider, model) DO UPDATE SET
+			dims = excluded.dims,
+			vector_json = excluded.vector_json,
+			content_hash = excluded.content_hash,
+			created_at = excluded.created_at`,
+		mem.ID, provider, model, len(vector), string(vectorJSON), EmbeddingContentHash(mem), now,
+	)
+	return err
+}
+
+func (s *Store) SemanticSearch(ctx context.Context, p SemanticSearchParams) ([]Memory, error) {
+	if len(p.QueryVector) == 0 {
+		return nil, nil
+	}
+	if p.Limit <= 0 {
+		p.Limit = 5
+	}
+	if p.Limit > 100 {
+		p.Limit = 100
+	}
+	provider := strings.TrimSpace(p.Provider)
+	model := strings.TrimSpace(p.Model)
+	if provider == "" || model == "" {
+		return nil, fmt.Errorf("embedding provider and model are required")
+	}
+	where, args, err := scopedFilter("m", memoryQueryFilter{
+		ScopeKind:   p.ScopeKind,
+		ScopeID:     p.ScopeID,
+		SourceAgent: p.SourceAgent,
+		SourcePath:  p.SourcePath,
+		Role:        p.Role,
+		ClaimKey:    p.ClaimKey,
+		Validity:    p.Validity,
+		Since:       p.Since,
+		Before:      p.Before,
+		Lifecycle:   p.Lifecycle,
+	})
+	if err != nil {
+		return nil, err
+	}
+	args = append([]any{provider, model}, args...)
+	rows, err := s.db.QueryContext(ctx, `
+			SELECT
+				m.id, m.hash, COALESCE(m.role, ''), m.content,
+				COALESCE(m.source_agent, ''), COALESCE(m.source_path, ''), COALESCE(m.source_ref, ''),
+				m.scope_kind, m.scope_id, COALESCE(m.project_id, ''), COALESCE(m.session_id, ''),
+				COALESCE(m.room, ''), COALESCE(m.metadata_json, ''),
+				COALESCE(m.validity, 'unknown'), COALESCE(m.claim_key, ''), COALESCE(m.supersedes, ''), COALESCE(m.superseded_by, ''),
+				m.created_at, COALESCE(m.tombstoned_at, ''),
+				e.vector_json, e.content_hash
+			FROM memory_embeddings e
+			JOIN memories m ON m.id = e.memory_id
+			WHERE e.provider = ? AND e.model = ?`+where, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ranked []Memory
+	for rows.Next() {
+		var mem Memory
+		var vectorJSON, contentHash string
+		if err := rows.Scan(
+			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
+			&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
+			&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
+			&mem.CreatedAt, &mem.TombstonedAt, &vectorJSON, &contentHash,
+		); err != nil {
+			return nil, err
+		}
+		if contentHash != EmbeddingContentHash(mem) {
+			continue
+		}
+		var vector []float64
+		if err := json.Unmarshal([]byte(vectorJSON), &vector); err != nil {
+			return nil, err
+		}
+		score := cosineSimilarity(p.QueryVector, vector)
+		if score <= 0 {
+			continue
+		}
+		mem.Score = score
+		mem.Excerpt = mem.Content
+		ranked = append(ranked, mem)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].Score == ranked[j].Score {
+			return ranked[i].CreatedAt > ranked[j].CreatedAt
+		}
+		return ranked[i].Score > ranked[j].Score
+	})
+	if len(ranked) > p.Limit {
+		ranked = ranked[:p.Limit]
+	}
+	return ranked, nil
 }
 
 func (s *Store) UpdateLifecycle(ctx context.Context, p LifecycleParams) (*Memory, error) {
@@ -929,6 +1127,17 @@ func (s *Store) migrate() error {
 			deleted_at TEXT,
 			metadata_json TEXT
 		)`,
+		`CREATE TABLE IF NOT EXISTS memory_embeddings (
+			memory_id TEXT NOT NULL,
+			provider TEXT NOT NULL,
+			model TEXT NOT NULL,
+			dims INTEGER NOT NULL,
+			vector_json TEXT NOT NULL,
+			content_hash TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			PRIMARY KEY(memory_id, provider, model),
+			FOREIGN KEY(memory_id) REFERENCES memories(id) ON DELETE CASCADE
+		)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.Exec(stmt); err != nil {
@@ -945,6 +1154,7 @@ func (s *Store) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_memories_validity ON memories(validity)`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_claim_scope ON memories(scope_kind, scope_id, claim_key)`,
 		`CREATE INDEX IF NOT EXISTS idx_sources_scope_path ON sources(scope_kind, scope_id, path)`,
+		`CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider ON memory_embeddings(provider, model)`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil {
 			return err

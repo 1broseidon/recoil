@@ -16,7 +16,19 @@ type Scope struct {
 
 type Fixture struct {
 	Memories []MemoryRecord
+	Corpora  []CorpusRecord
 	Cases    []CaseRecord
+}
+
+type CorpusRecord struct {
+	ID            string `json:"id"`
+	Path          string `json:"path"`
+	Scope         Scope  `json:"scope"`
+	Role          string `json:"role,omitempty"`
+	SourceAgent   string `json:"source_agent,omitempty"`
+	IncludeHidden bool   `json:"include_hidden,omitempty"`
+	MaxFileBytes  int64  `json:"max_file_bytes,omitempty"`
+	MaxChunkChars int    `json:"max_chunk_chars,omitempty"`
 }
 
 type MemoryRecord struct {
@@ -49,6 +61,7 @@ type CaseRecord struct {
 	ForbiddenCurrentIDs   []string `json:"forbidden_current_ids,omitempty"`
 	ForbiddenIDs          []string `json:"forbidden_ids,omitempty"`
 	ExpectedEmpty         bool     `json:"expected_empty,omitempty"`
+	MatchBy               string   `json:"match_by,omitempty"`
 	Notes                 string   `json:"notes,omitempty"`
 }
 
@@ -67,6 +80,7 @@ func Parse(r io.Reader) (Fixture, error) {
 
 	var fixture Fixture
 	memoryIDs := make(map[string]int)
+	corpusIDs := make(map[string]int)
 	caseIDs := make(map[string]int)
 	lineNo := 0
 	for scanner.Scan() {
@@ -95,6 +109,19 @@ func Parse(r io.Reader) (Fixture, error) {
 			}
 			memoryIDs[rec.ID] = lineNo
 			fixture.Memories = append(fixture.Memories, rec)
+		case "corpus":
+			var rec CorpusRecord
+			if err := json.Unmarshal([]byte(line), &rec); err != nil {
+				return Fixture{}, fmt.Errorf("line %d corpus: %w", lineNo, err)
+			}
+			if err := validateCorpus(rec); err != nil {
+				return Fixture{}, fmt.Errorf("line %d corpus: %w", lineNo, err)
+			}
+			if first, ok := corpusIDs[rec.ID]; ok {
+				return Fixture{}, fmt.Errorf("line %d corpus: duplicate id %q first seen on line %d", lineNo, rec.ID, first)
+			}
+			corpusIDs[rec.ID] = lineNo
+			fixture.Corpora = append(fixture.Corpora, rec)
 		case "case":
 			var rec CaseRecord
 			if err := json.Unmarshal([]byte(line), &rec); err != nil {
@@ -131,6 +158,16 @@ func validateMemory(rec MemoryRecord) error {
 	return nil
 }
 
+func validateCorpus(rec CorpusRecord) error {
+	if strings.TrimSpace(rec.ID) == "" {
+		return fmt.Errorf("id is required")
+	}
+	if strings.TrimSpace(rec.Path) == "" {
+		return fmt.Errorf("path is required")
+	}
+	return validateScope(rec.Scope)
+}
+
 func validateCase(rec CaseRecord) error {
 	if strings.TrimSpace(rec.ID) == "" {
 		return fmt.Errorf("id is required")
@@ -142,6 +179,11 @@ func validateCase(rec CaseRecord) error {
 	}
 	if err := validateScope(rec.Scope); err != nil {
 		return err
+	}
+	switch strings.TrimSpace(rec.MatchBy) {
+	case "", "id", "source_path":
+	default:
+		return fmt.Errorf("unsupported match_by %q", rec.MatchBy)
 	}
 	return nil
 }

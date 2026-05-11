@@ -1,0 +1,8 @@
+# Patterns the recoil miner skips. Same shape as gitignore but smaller:
+# - trailing slash means "skip this directory and everything under it"
+# - bare names are matched as glob patterns against the relative path and basename
+# - lines starting with # are comments
+#
+# Test corpora are fictional documents authored to stress retrieval. They must
+# not be ingested as facts about Recoil itself.
+eval/corpora/

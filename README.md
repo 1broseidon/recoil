@@ -47,6 +47,9 @@ recoil wake --max-chars 1600
 recoil mine --dry-run
 recoil mine
 recoil eval
+recoil eval eval/embeddings.jsonl --retrieval hybrid
+recoil embed index
+recoil embed search "background remote sync"
 
 recoil show <memory-id>
 recoil list --since 7d
@@ -141,7 +144,31 @@ leaks, and latency.
 ```sh
 recoil eval
 recoil eval eval/fixtures.jsonl
+recoil eval eval/embeddings.jsonl --retrieval fts
+recoil eval eval/embeddings.jsonl --retrieval semantic
+recoil eval eval/embeddings.jsonl --retrieval hybrid
 ```
+
+`eval/embeddings.jsonl` is intentionally separate from the default gate. It
+contains paraphrase-heavy cases where plain FTS is expected to struggle, so
+semantic and hybrid retrieval can be measured without weakening the core FTS
+baseline.
+
+## Optional Embeddings
+
+Embeddings are an optional sidecar, not part of the required v0 path. The core
+system still works through SQLite FTS5, structured metadata, lifecycle filters,
+and mined source freshness.
+
+```sh
+recoil embed index
+recoil embed search "mandatory project task board"
+```
+
+The initial provider is `local-hash-v1`, a deterministic local embedding-like
+provider used to validate schema, indexing, and hybrid retrieval mechanics
+without network calls or API keys. Real embedding providers can be added behind
+the same provider/model sidecar table once eval data proves they help.
 
 ## Local Benchmarks
 
@@ -239,7 +266,7 @@ app-data DB.
 - No daemon.
 - No hosted dashboard.
 - No MCP server before the CLI is excellent.
-- No embeddings in the required path.
+- No embeddings in the required path; optional sidecars must stay eval-driven.
 - No LLM-based extraction in the default write path.
 - No inferred room/topic hard filters.
 - No automatic rewriting of older memories.

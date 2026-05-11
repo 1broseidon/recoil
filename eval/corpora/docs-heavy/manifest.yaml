@@ -1,0 +1,15 @@
+name: docs-heavy
+shape: documentation
+source: synthetic
+license: project-internal
+frozen: true
+scope:
+  kind: project
+  id: corpus-docs-heavy
+notes: |
+  Synthetic documentation for a fictional Pelican data platform.
+  Designed to stress FTS retrieval on prose-heavy markdown with deliberate
+  vocabulary mismatch, contradictions without supersession links, and absent
+  facts.
+  Do not modify files/ in place after the first baseline run.
+file_count_expected: 14

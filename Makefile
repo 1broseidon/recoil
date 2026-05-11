@@ -25,5 +25,11 @@ test:
 bench:
 	go test -run '^$$' -bench 'BenchmarkStore.*10K' -benchmem -benchtime=50x -count=1 ./internal/store
 
+stress: build
+	@for fixture in eval/corpora/*/cases.jsonl; do \
+		echo "== $$fixture =="; \
+		./$(BINARY) eval $$fixture --retrieval fts || exit $$?; \
+	done
+
 clean:
 	rm -f $(BINARY)

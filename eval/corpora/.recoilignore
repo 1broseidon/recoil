@@ -1,0 +1,4 @@
+# Sentinel: any directory containing a .recoilignore with a single * line is
+# self-skipped by recoil mine. Belt-and-braces with the root .recoilignore so
+# this tree is safe even if mined from inside a subdirectory.
+*

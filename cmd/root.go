@@ -46,6 +46,7 @@ func init() {
 	rootCmd.AddCommand(newMarkCommand())
 	rootCmd.AddCommand(newSupersedeCommand())
 	rootCmd.AddCommand(newMineCommand())
+	rootCmd.AddCommand(newEmbedCommand())
 	rootCmd.AddCommand(newEvalCommand())
 	rootCmd.AddCommand(newStatusCommand())
 	rootCmd.AddCommand(newConfigCommand())

@@ -1,17 +1,21 @@
 package mine
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"unicode/utf8"
 )
+
+const ignoreFileName = ".recoilignore"
 
 const (
 	DefaultMaxFileBytes  = 256 * 1024
@@ -115,36 +119,61 @@ func Discover(opts Options) ([]File, string, []Skip, error) {
 		return []File{file}, filepath.Dir(root), nil, nil
 	}
 
+	rules, err := loadIgnoreFile(filepath.Join(root, ignoreFileName))
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("read %s: %w", ignoreFileName, err)
+	}
+
 	var files []File
 	var skipped []Skip
-	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(root, func(p string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			skipped = append(skipped, Skip{Path: displayPath(path, sourceRoot), Reason: walkErr.Error()})
+			skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: walkErr.Error()})
 			if entry != nil && entry.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if path == root {
+		if p == root {
 			return nil
 		}
+		rel, relErr := filepath.Rel(root, p)
+		if relErr != nil {
+			rel = entry.Name()
+		}
+		rel = filepath.ToSlash(rel)
 		if entry.IsDir() {
 			if shouldSkipDir(entry.Name(), opts.IncludeHidden) {
-				skipped = append(skipped, Skip{Path: displayPath(path, sourceRoot), Reason: "skipped directory"})
+				skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "skipped directory"})
+				return filepath.SkipDir
+			}
+			if rules.matchDir(rel) {
+				skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "recoilignore"})
+				return filepath.SkipDir
+			}
+			if hasIgnoreSentinel(p) {
+				skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "recoilignore sentinel"})
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		if entry.Type()&os.ModeSymlink != 0 {
-			skipped = append(skipped, Skip{Path: displayPath(path, sourceRoot), Reason: "symlink"})
+			skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "symlink"})
+			return nil
+		}
+		if entry.Name() == ignoreFileName {
+			return nil
+		}
+		if rules.matchFile(rel) {
+			skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "recoilignore"})
 			return nil
 		}
 		info, err := entry.Info()
 		if err != nil {
-			skipped = append(skipped, Skip{Path: displayPath(path, sourceRoot), Reason: err.Error()})
+			skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: err.Error()})
 			return nil
 		}
-		file, skip := fileFromInfo(path, sourceRoot, info, opts)
+		file, skip := fileFromInfo(p, sourceRoot, info, opts)
 		if skip.Reason != "" {
 			skipped = append(skipped, skip)
 			return nil
@@ -290,6 +319,87 @@ func displayPath(path, sourceRoot string) string {
 		return filepath.ToSlash(rel)
 	}
 	return filepath.ToSlash(path)
+}
+
+type ignoreRules struct {
+	dirPrefixes []string
+	globs       []string
+}
+
+func loadIgnoreFile(path string) (ignoreRules, error) {
+	var rules ignoreRules
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return rules, nil
+		}
+		return rules, err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "./")
+		if strings.HasSuffix(line, "/") {
+			rules.dirPrefixes = append(rules.dirPrefixes, strings.TrimSuffix(line, "/"))
+			continue
+		}
+		rules.globs = append(rules.globs, line)
+	}
+	return rules, scanner.Err()
+}
+
+func (r ignoreRules) matchDir(rel string) bool {
+	rel = strings.TrimSuffix(rel, "/")
+	for _, prefix := range r.dirPrefixes {
+		if rel == prefix || strings.HasPrefix(rel, prefix+"/") {
+			return true
+		}
+	}
+	for _, glob := range r.globs {
+		if matched, _ := path.Match(glob, rel); matched {
+			return true
+		}
+	}
+	return false
+}
+
+func (r ignoreRules) matchFile(rel string) bool {
+	for _, prefix := range r.dirPrefixes {
+		if strings.HasPrefix(rel, prefix+"/") {
+			return true
+		}
+	}
+	for _, glob := range r.globs {
+		if matched, _ := path.Match(glob, rel); matched {
+			return true
+		}
+		if matched, _ := path.Match(glob, path.Base(rel)); matched {
+			return true
+		}
+	}
+	return false
+}
+
+func hasIgnoreSentinel(dir string) bool {
+	data, err := os.ReadFile(filepath.Join(dir, ignoreFileName))
+	if err != nil {
+		return false
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if line == "*" || line == "**" || line == "/" {
+			return true
+		}
+	}
+	return false
 }
 
 func shouldSkipDir(name string, includeHidden bool) bool {

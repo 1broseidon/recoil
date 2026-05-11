@@ -3,9 +3,10 @@
 Date: 2026-05-11
 Workspace: `/Users/george/Projects/personal/recoil`
 Status: v0 CLI exists; task-1 eval fixtures, task-2 eval harness, task-3
-generic file miner, task-4 layered wake, and task-5 validity metadata are done;
-task-6 lifecycle commands and task-7 stale-aware retrieval are done; next build
-step is broader scope tests.
+generic file miner, task-4 layered wake, task-5 validity metadata, task-6
+lifecycle commands, task-7 stale-aware retrieval, and the task-8 faceted
+retrieval/source-freshness foundation are done. An optional embeddings sidecar
+experiment is now in progress after the faceted foundation.
 
 This doc is for a new chat session to continue without reconstructing the
 thread.
@@ -20,10 +21,13 @@ cd /Users/george/Projects/personal/recoil
 brainfile list
 brainfile show -t task-8
 make test
+./recoil eval eval/fixtures.jsonl
+./recoil eval eval/embeddings.jsonl --retrieval hybrid
 ```
 
-The next logical build step is `task-8`: expand project/user/session scope tests.
-`recoil eval` is now 9/9, so preserve that as a regression target.
+The default `recoil eval eval/fixtures.jsonl` target is 14/14 with MRR 1.0000,
+so preserve that as the core regression target. The embedding fixture is a
+separate experiment for paraphrase-heavy retrieval.
 
 ## Project Identity
 
@@ -97,7 +101,8 @@ before generic files.
 - No cloud sync in v0.
 - No LLM call in the write path.
 - No MCP before CLI semantics and evals are stable.
-- No embeddings in the required path.
+- No embeddings in the required path. Optional embedding sidecars are allowed
+  only when evals prove they help.
 - No inferred knowledge graph before verbatim recall is solid.
 - No automatic rewriting of older memories.
 
@@ -149,6 +154,8 @@ recoil decide --claim-key <stable.key> "..."
 recoil search "..."
 recoil wake
 recoil mine
+recoil embed index
+recoil embed search "..."
 recoil show <memory-id>
 recoil list
 recoil forget <memory-id>
@@ -208,6 +215,11 @@ Implemented:
 - structured filters on `search` and `list`: `--role`, `--claim-key`,
   `--validity`, `--current`, and `--historical`
 - `recoil decide` for active claim-keyed decisions
+- optional `memory_embeddings` sidecar table keyed by memory/provider/model
+- `recoil embed index` and `recoil embed search` using local deterministic
+  `local-hash-v1` provider
+- `recoil eval --retrieval fts|semantic|hybrid` plus
+  `eval/embeddings.jsonl` for paraphrase-heavy experiments
 
 Current local DB:
 
@@ -634,7 +646,7 @@ If starting a new chat, say:
 - Do not make Brainfile required.
 - Do not build the Brainfile adapter before the brainfile-less core loop is
   useful.
-- Do not add embeddings before local FTS/evals are proven.
+- Do not make embeddings required; keep them optional and eval-driven.
 - Do not tune ranking without checking `recoil eval`.
 - Do not replace old memories by rewriting them as the default stale-memory
   solution.
