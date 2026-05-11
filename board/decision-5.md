@@ -19,8 +19,8 @@ Recoil should borrow Brainfile's operator-first lessons: typed records, stable I
 
 ## Decision
 
-Recoil should not clone MemPalace or Mem0 if a better local pattern is visible
-in Brainfile, but Recoil must not depend on Brainfile.
+Recoil should not clone other local memory tools if a better local pattern is
+visible in Brainfile, but Recoil must not depend on Brainfile.
 
 Current build posture: build Recoil brainfile-less. In this repository,
 Brainfile is allowed as task management between operator and agent, but
