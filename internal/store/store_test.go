@@ -88,6 +88,75 @@ func TestAddMemoryRedactsDeterministically(t *testing.T) {
 	}
 }
 
+func TestAddMemoryResurrectsTombstonedDuplicate(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	mem, duplicate, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "A decision that can be intentionally re-added later.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if duplicate {
+		t.Fatal("first insert should not be a duplicate")
+	}
+	if _, err := st.ForgetMemory(ctx, ForgetParams{IDOrPrefix: mem.ID, Reason: "changed my mind"}); err != nil {
+		t.Fatal(err)
+	}
+
+	resurrected, duplicate, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "A decision that can be intentionally re-added later.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if duplicate {
+		t.Fatal("resurrected insert should be reported as active, not duplicate")
+	}
+	if resurrected.ID != mem.ID {
+		t.Fatalf("expected same memory ID after resurrection: %s != %s", resurrected.ID, mem.ID)
+	}
+	if resurrected.TombstonedAt != "" {
+		t.Fatalf("expected tombstone cleared, got %q", resurrected.TombstonedAt)
+	}
+
+	results, err := st.Search(ctx, SearchParams{
+		Query:     "intentionally re-added",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].ID != mem.ID {
+		t.Fatalf("expected resurrected memory in search, got %+v", results)
+	}
+}
+
+func TestRetrievalScoreIncreasesWithStrongerNegativeRank(t *testing.T) {
+	weak := retrievalScore(-0.1)
+	strong := retrievalScore(-10)
+	if weak <= 0 || weak >= 1 {
+		t.Fatalf("expected weak score in (0,1), got %f", weak)
+	}
+	if strong <= weak || strong >= 1 {
+		t.Fatalf("expected stronger rank to produce higher score below 1, weak=%f strong=%f", weak, strong)
+	}
+	if retrievalScore(0) != 0 {
+		t.Fatalf("expected zero rank to produce zero score, got %f", retrievalScore(0))
+	}
+}
+
 func TestListFiltersByScopeAndAgent(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))

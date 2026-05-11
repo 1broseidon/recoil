@@ -3,6 +3,7 @@ package cmd
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/1broseidon/recoil/internal/store"
 )
@@ -80,15 +81,79 @@ func TestLayeredMemoryBlocksHonorsHardBudget(t *testing.T) {
 			},
 		},
 	}
-	body := layeredMemoryBlocks(layers, 220, true)
+	rendered := layeredMemoryBlocks(layers, 220, true)
+	body := rendered.Body
 	if len(body) > 220 {
 		t.Fatalf("wake body exceeded hard budget: %d\n%s", len(body), body)
+	}
+	if rendered.ShownCount != 1 {
+		t.Fatalf("expected one shown memory, got %d", rendered.ShownCount)
+	}
+	if !rendered.Truncated {
+		t.Fatal("expected truncated render")
 	}
 	if !strings.Contains(body, "L0 Current Context") {
 		t.Fatalf("expected section heading, got:\n%s", body)
 	}
 	if !strings.Contains(body, "source_path: HANDOFF.md") {
 		t.Fatalf("expected source metadata, got:\n%s", body)
+	}
+}
+
+func TestLayeredMemoryBlocksReportsOmittedMemories(t *testing.T) {
+	layers := []wakeLayer{
+		{
+			Key:   "l2_recent_evidence",
+			Title: "L2 Recent Notes And Evidence",
+			Memories: []store.Memory{
+				{
+					ID:        "mem_first",
+					CreatedAt: "2026-05-11T03:00:00Z",
+					Content:   strings.Repeat("first ", 80),
+				},
+				{
+					ID:        "mem_second",
+					CreatedAt: "2026-05-11T03:01:00Z",
+					Content:   "second memory should be omitted",
+				},
+			},
+		},
+	}
+	rendered := layeredMemoryBlocks(layers, 180, true)
+	if !rendered.Truncated {
+		t.Fatal("expected truncation when selected memories are omitted")
+	}
+	if rendered.ShownCount != 1 {
+		t.Fatalf("expected only the first memory to be shown, got %d", rendered.ShownCount)
+	}
+	if strings.Contains(rendered.Body, "mem_second") {
+		t.Fatalf("expected second memory to be omitted, got:\n%s", rendered.Body)
+	}
+}
+
+func TestBoundedOutputIsUTF8Safe(t *testing.T) {
+	layers := []wakeLayer{
+		{
+			Key:   "l0_current_context",
+			Title: "L0 Current Context",
+			Memories: []store.Memory{
+				{
+					ID:        "mem_unicode",
+					CreatedAt: "2026-05-11T03:00:00Z",
+					Content:   strings.Repeat("é", 40),
+				},
+			},
+		},
+	}
+	rendered := layeredMemoryBlocks(layers, 145, true)
+	if !utf8.ValidString(rendered.Body) {
+		t.Fatalf("expected valid UTF-8, got %q", rendered.Body)
+	}
+	if len(rendered.Body) > 145 {
+		t.Fatalf("wake body exceeded hard budget: %d", len(rendered.Body))
+	}
+	if !rendered.Truncated {
+		t.Fatal("expected Unicode content to be truncated")
 	}
 }
 

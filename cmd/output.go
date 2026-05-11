@@ -85,9 +85,26 @@ func truncateText(s string, maxChars int) string {
 		return s
 	}
 	if maxChars <= 3 {
-		return s[:maxChars]
+		return safeBytePrefix(s, maxChars)
 	}
-	return strings.TrimSpace(s[:maxChars-3]) + "..."
+	return strings.TrimSpace(safeBytePrefix(s, maxChars-3)) + "..."
+}
+
+func safeBytePrefix(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	end := 0
+	for i := range s {
+		if i > maxBytes {
+			break
+		}
+		end = i
+	}
+	return s[:end]
 }
 
 func oneLine(s string) string {

@@ -18,11 +18,12 @@ type wakeOptions struct {
 }
 
 type wakeResult struct {
-	Query   string            `json:"query,omitempty"`
-	Scope   string            `json:"scope"`
-	ScopeID string            `json:"scope_id"`
-	Layers  []wakeLayerResult `json:"layers"`
-	Results []store.Memory    `json:"results"`
+	Query         string            `json:"query,omitempty"`
+	Scope         string            `json:"scope"`
+	ScopeID       string            `json:"scope_id"`
+	SelectedCount int               `json:"selected_count"`
+	Layers        []wakeLayerResult `json:"layers"`
+	Results       []store.Memory    `json:"results"`
 }
 
 type wakeLayerResult struct {
@@ -35,6 +36,12 @@ type wakeLayer struct {
 	Key      string
 	Title    string
 	Memories []store.Memory
+}
+
+type wakeRender struct {
+	Body       string
+	ShownCount int
+	Truncated  bool
 }
 
 func newWakeCommand() *cobra.Command {
@@ -83,11 +90,12 @@ func newWakeCommand() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			result := wakeResult{
-				Query:   query,
-				Scope:   sc.Kind,
-				ScopeID: sc.ID,
-				Layers:  wakeLayerResults(layers),
-				Results: results,
+				Query:         query,
+				Scope:         sc.Kind,
+				ScopeID:       sc.ID,
+				SelectedCount: len(results),
+				Layers:        wakeLayerResults(layers),
+				Results:       results,
 			}
 			if opts.json {
 				return writeJSON(w, result)
@@ -98,13 +106,17 @@ func newWakeCommand() *cobra.Command {
 				}
 				return nil
 			}
+			rendered := layeredMemoryBlocks(layers, wakeOpts.maxChars, true)
 			return frontmatter(w, []kv{
 				{k: "query", v: query},
 				{k: "scope", v: sc.Kind},
 				{k: "scope_id", v: sc.ID},
-				{k: "result_count", v: fmt.Sprintf("%d", len(results))},
+				{k: "result_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
+				{k: "selected_count", v: fmt.Sprintf("%d", len(results))},
+				{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
+				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
-			}, layeredMemoryBlocks(layers, wakeOpts.maxChars, true))
+			}, rendered.Body)
 		},
 	}
 	addScopeFlags(c, &wakeOpts.scope)
@@ -208,32 +220,42 @@ func flattenWakeLayers(layers []wakeLayer) []store.Memory {
 	return results
 }
 
-func layeredMemoryBlocks(layers []wakeLayer, maxChars int, includeScore bool) string {
+func layeredMemoryBlocks(layers []wakeLayer, maxChars int, includeScore bool) wakeRender {
 	var b strings.Builder
 	remaining := maxChars
-	wrote := false
+	selectedCount := len(flattenWakeLayers(layers))
+	render := wakeRender{}
 	for _, layer := range layers {
 		if len(layer.Memories) == 0 {
 			continue
 		}
 		header := fmt.Sprintf("## %s\n", layer.Title)
 		if !appendBounded(&b, header, &remaining, maxChars) {
-			break
+			render.Truncated = true
+			render.Body = strings.TrimRight(b.String(), "\n")
+			return render
 		}
-		wrote = true
 		for _, mem := range layer.Memories {
-			if !appendMemoryBlockBounded(&b, mem, &remaining, maxChars, includeScore) {
-				return strings.TrimRight(b.String(), "\n")
+			shown, complete := appendMemoryBlockBounded(&b, mem, &remaining, maxChars, includeScore)
+			if shown {
+				render.ShownCount++
+			}
+			if !complete {
+				render.Truncated = true
+				render.Body = strings.TrimRight(b.String(), "\n")
+				return render
 			}
 		}
 	}
-	if !wrote {
-		return "No memories found."
+	if selectedCount == 0 {
+		render.Body = "No memories found."
+		return render
 	}
-	return strings.TrimRight(b.String(), "\n")
+	render.Body = strings.TrimRight(b.String(), "\n")
+	return render
 }
 
-func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *int, maxChars int, includeScore bool) bool {
+func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *int, maxChars int, includeScore bool) (bool, bool) {
 	var meta strings.Builder
 	fmt.Fprintf(&meta, "### %s\n", mem.ID)
 	if includeScore && mem.Score > 0 {
@@ -258,15 +280,20 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 		b.WriteString(meta.String())
 		b.WriteString(mem.Content)
 		b.WriteString("\n\n")
-		return true
+		return true, true
 	}
 	overhead := meta.Len() + 2
 	if *remaining <= overhead {
-		return false
+		return false, false
 	}
-	content := truncateText(mem.Content, *remaining-overhead)
+	contentLimit := *remaining - overhead
+	content := truncateText(mem.Content, contentLimit)
 	block := meta.String() + content + "\n\n"
-	return appendBounded(b, block, remaining, maxChars)
+	complete := appendBounded(b, block, remaining, maxChars)
+	if len(mem.Content) > contentLimit {
+		complete = false
+	}
+	return true, complete
 }
 
 func appendBounded(b *strings.Builder, s string, remaining *int, maxChars int) bool {
@@ -278,8 +305,9 @@ func appendBounded(b *strings.Builder, s string, remaining *int, maxChars int) b
 		return false
 	}
 	if len(s) > *remaining {
-		b.WriteString(s[:*remaining])
-		*remaining = 0
+		prefix := safeBytePrefix(s, *remaining)
+		b.WriteString(prefix)
+		*remaining -= len(prefix)
 		return false
 	}
 	b.WriteString(s)

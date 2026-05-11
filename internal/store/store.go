@@ -178,6 +178,19 @@ func (s *Store) AddMemory(ctx context.Context, p AddMemoryParams) (*Memory, bool
 	if err != nil {
 		return nil, false, err
 	}
+	if affected == 0 && mem.TombstonedAt != "" {
+		if _, err := s.db.ExecContext(ctx, `
+			UPDATE memories
+			SET tombstoned_at = NULL, purge_reason = NULL
+			WHERE hash = ?`, hash); err != nil {
+			return nil, false, err
+		}
+		mem, err = s.memoryByHash(ctx, hash)
+		if err != nil {
+			return nil, false, err
+		}
+		return mem, false, nil
+	}
 	return mem, affected == 0, nil
 }
 
@@ -224,10 +237,15 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		); err != nil {
 			return nil, err
 		}
-		mem.Score = 1 / (1 + math.Abs(rank))
+		mem.Score = retrievalScore(rank)
 		results = append(results, mem)
 	}
 	return results, rows.Err()
+}
+
+func retrievalScore(rank float64) float64 {
+	absRank := math.Abs(rank)
+	return absRank / (1 + absRank)
 }
 
 func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
