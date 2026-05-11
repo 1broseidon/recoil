@@ -42,6 +42,9 @@ recoil show <memory-id>
 recoil forget <memory-id>
 ```
 
+`wake` is the session boot command. It should orient an agent with layered,
+sourced context rather than behave like an unstructured recent-memory dump.
+
 Inside an initialized project, no scope flag means the current project. Use
 `--user` for durable cross-project preferences and `--session <id>` for
 one-session memories.

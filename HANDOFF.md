@@ -2,8 +2,8 @@
 
 Date: 2026-05-11
 Workspace: `/Users/george/Projects/personal/recoil`
-Status: v0 CLI exists; task-1 eval fixtures and task-3 generic file miner are
-done; next build step is layered wake.
+Status: v0 CLI exists; task-1 eval fixtures, task-3 generic file miner, and
+task-4 layered wake are done; next build step is validity metadata.
 
 This doc is for a new chat session to continue without reconstructing the
 thread.
@@ -16,12 +16,12 @@ Run these first:
 cd /Users/george/Projects/personal/recoil
 ./recoil wake --max-chars 1600
 brainfile list
-brainfile show -t task-4
+brainfile show -t task-5
 make test
 ```
 
-The next logical build step is `task-4`: improve wake into layered current
-context. The current priority is immediate feature impact on projects with no
+The next logical build step is `task-5`: add validity metadata and supersession
+links. The current priority is immediate feature impact on projects with no
 Brainfile.
 
 ## Project Identity
@@ -183,6 +183,8 @@ Implemented:
 - list/search/wake/show APIs
 - FTS repair
 - conservative markdown/text project file mining through `recoil mine`
+- layered `wake` output with L0 current context, L1 decisions/constraints, and
+  L2 recent notes/evidence
 
 Current local DB:
 
@@ -277,7 +279,7 @@ Executable sequence under `epic-1`:
 
 0. `task-1`: Create retrieval eval fixtures including stale cases (done)
 1. `task-3`: Implement conservative project file miner (done)
-2. `task-4`: Improve wake into layered current context
+2. `task-4`: Improve wake into layered current context (done)
 3. `task-5`: Add validity metadata and supersession links
 4. `task-6`: Add mark and supersede lifecycle commands
 5. `task-2`: Implement eval harness for recall and stale demotion
@@ -375,13 +377,25 @@ scope, and no LLM.
 It intentionally skips `.brainfile/` and other hidden/tooling directories by
 default so the v0 path stays brainfile-less.
 
+## Recent Build Step
+
+`task-4` made `recoil wake` layer startup context:
+
+- `L0 Current Context`: handoffs, next-step notes, and query matches.
+- `L1 Decisions And Constraints`: decisions, ADRs, preferences, rules, and
+  constraint-like content.
+- `L2 Recent Notes And Evidence`: recent supporting memories and mined source
+  chunks.
+
+Text output keeps sourced blocks under `--max-chars`; JSON includes both
+`layers` and flattened `results`.
+
 ## Next Build Step
 
-Build `task-4` next.
+Build `task-5` next.
 
-Goal: make `recoil wake` more useful as startup context by layering current
-decisions, constraints, handoffs, and recent notes while preserving hard
-character budgets and sourced evidence blocks.
+Goal: add validity metadata and supersession links so old evidence can be kept
+without appearing as current guidance.
 
 Do not build the Brainfile source adapter before the generic miner, layered
 wake, and stale lifecycle path are useful without Brainfile.
@@ -392,8 +406,8 @@ If starting a new chat, say:
 
 > Continue Recoil from `/Users/george/Projects/personal/recoil`. Read
 > `HANDOFF.md`, run `./recoil wake --max-chars 1600`, run `brainfile list`,
-> then start `task-4` by improving wake into layered current context. Keep the
-> product path brainfile-less; Brainfile is only task management here.
+> then start `task-5` by adding validity metadata and supersession links. Keep
+> the product path brainfile-less; Brainfile is only task management here.
 
 ## Things To Avoid
 

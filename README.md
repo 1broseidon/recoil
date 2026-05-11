@@ -73,6 +73,19 @@ recoil mine docs/
 Mined memories keep `source_path` and `source_ref` line ranges so agents can
 show where local evidence came from.
 
+## Waking A Session
+
+`recoil wake` prints bounded startup context in layers:
+
+- `L0 Current Context`: handoffs, next-step notes, and query matches.
+- `L1 Decisions And Constraints`: durable decisions, ADRs, preferences, and
+  constraints.
+- `L2 Recent Notes And Evidence`: recent supporting memories and mined source
+  chunks.
+
+The default text output keeps sourced evidence blocks under `--max-chars`.
+`--json` includes both `layers` and a flattened `results` list.
+
 ## Scopes
 
 Recoil v0 keeps reads and writes single-scope:
