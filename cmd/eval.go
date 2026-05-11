@@ -184,11 +184,32 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 	switch tc.Mode {
 	case "search":
 		results, err := st.Search(ctx, store.SearchParams{
-			Query:     tc.Query,
-			ScopeKind: tc.Scope.Kind,
-			ScopeID:   tc.Scope.ID,
-			Limit:     limit,
-			Lifecycle: store.LifecycleCurrent,
+			Query:       tc.Query,
+			ScopeKind:   tc.Scope.Kind,
+			ScopeID:     tc.Scope.ID,
+			Role:        tc.Role,
+			ClaimKey:    tc.ClaimKey,
+			Validity:    tc.Validity,
+			SourceAgent: tc.SourceAgent,
+			SourcePath:  tc.SourcePath,
+			Limit:       limit,
+			Lifecycle:   evalLifecycle(tc, store.LifecycleCurrent),
+		})
+		if err != nil {
+			return nil, err
+		}
+		return fixtureIDsFor(seed, results), nil
+	case "list":
+		results, err := st.List(ctx, store.ListParams{
+			ScopeKind:   tc.Scope.Kind,
+			ScopeID:     tc.Scope.ID,
+			Role:        tc.Role,
+			ClaimKey:    tc.ClaimKey,
+			Validity:    tc.Validity,
+			SourceAgent: tc.SourceAgent,
+			SourcePath:  tc.SourcePath,
+			Limit:       limit,
+			Lifecycle:   evalLifecycle(tc, store.LifecycleAny),
 		})
 		if err != nil {
 			return nil, err
@@ -199,11 +220,16 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 		var queryResults []store.Memory
 		if strings.TrimSpace(tc.Query) != "" {
 			results, err := st.Search(ctx, store.SearchParams{
-				Query:     tc.Query,
-				ScopeKind: tc.Scope.Kind,
-				ScopeID:   tc.Scope.ID,
-				Limit:     fetchLimit,
-				Lifecycle: store.LifecycleCurrent,
+				Query:       tc.Query,
+				ScopeKind:   tc.Scope.Kind,
+				ScopeID:     tc.Scope.ID,
+				Role:        tc.Role,
+				ClaimKey:    tc.ClaimKey,
+				Validity:    tc.Validity,
+				SourceAgent: tc.SourceAgent,
+				SourcePath:  tc.SourcePath,
+				Limit:       fetchLimit,
+				Lifecycle:   evalLifecycle(tc, store.LifecycleCurrent),
 			})
 			if err != nil {
 				return nil, err
@@ -211,10 +237,15 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 			queryResults = results
 		}
 		recent, err := st.List(ctx, store.ListParams{
-			ScopeKind: tc.Scope.Kind,
-			ScopeID:   tc.Scope.ID,
-			Limit:     fetchLimit,
-			Lifecycle: store.LifecycleCurrent,
+			ScopeKind:   tc.Scope.Kind,
+			ScopeID:     tc.Scope.ID,
+			Role:        tc.Role,
+			ClaimKey:    tc.ClaimKey,
+			Validity:    tc.Validity,
+			SourceAgent: tc.SourceAgent,
+			SourcePath:  tc.SourcePath,
+			Limit:       fetchLimit,
+			Lifecycle:   evalLifecycle(tc, store.LifecycleCurrent),
 		})
 		if err != nil {
 			return nil, err
@@ -224,6 +255,16 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 	default:
 		return nil, fmt.Errorf("unsupported mode %q", tc.Mode)
 	}
+}
+
+func evalLifecycle(tc recoileval.CaseRecord, fallback string) string {
+	if strings.TrimSpace(tc.Validity) != "" {
+		return store.LifecycleAny
+	}
+	if strings.TrimSpace(tc.Lifecycle) != "" {
+		return strings.TrimSpace(tc.Lifecycle)
+	}
+	return fallback
 }
 
 func evalLimit(tc recoileval.CaseRecord) int {

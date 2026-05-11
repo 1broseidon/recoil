@@ -12,10 +12,15 @@ import (
 )
 
 type memoryFilterOptions struct {
-	since  string
-	before string
-	agent  string
-	source string
+	since      string
+	before     string
+	agent      string
+	source     string
+	role       string
+	claimKey   string
+	validity   string
+	current    bool
+	historical bool
 }
 
 func addMemoryFilterFlags(c *cobra.Command, opts *memoryFilterOptions) {
@@ -23,10 +28,19 @@ func addMemoryFilterFlags(c *cobra.Command, opts *memoryFilterOptions) {
 	c.Flags().StringVar(&opts.before, "before", "", "filter memories created before a date or duration like 7d")
 	c.Flags().StringVar(&opts.agent, "agent", "", "filter by source agent")
 	c.Flags().StringVar(&opts.source, "source", "", "filter by source path substring")
+	c.Flags().StringVar(&opts.role, "role", "", "filter by exact role")
+	c.Flags().StringVar(&opts.claimKey, "claim-key", "", "filter by exact claim key")
+	c.Flags().StringVar(&opts.validity, "validity", "", "filter by exact validity state")
+	c.Flags().BoolVar(&opts.current, "current", false, "filter to current memories")
+	c.Flags().BoolVar(&opts.historical, "historical", false, "filter to historical, rejected, superseded, stale, or tombstoned memories")
 }
 
 func searchParams(query string, sc scope.Scope, filters memoryFilterOptions, limit int) (store.SearchParams, error) {
 	since, before, err := parseTimeFilters(filters)
+	if err != nil {
+		return store.SearchParams{}, err
+	}
+	lifecycle, err := parseLifecycleFilter(filters)
 	if err != nil {
 		return store.SearchParams{}, err
 	}
@@ -36,9 +50,13 @@ func searchParams(query string, sc scope.Scope, filters memoryFilterOptions, lim
 		ScopeID:     sc.ID,
 		SourceAgent: filters.agent,
 		SourcePath:  filters.source,
+		Role:        strings.TrimSpace(filters.role),
+		ClaimKey:    strings.TrimSpace(filters.claimKey),
+		Validity:    strings.TrimSpace(filters.validity),
 		Since:       since,
 		Before:      before,
 		Limit:       limit,
+		Lifecycle:   lifecycle,
 	}, nil
 }
 
@@ -47,16 +65,40 @@ func listParams(sc scope.Scope, filters memoryFilterOptions, limit int, includeD
 	if err != nil {
 		return store.ListParams{}, err
 	}
+	lifecycle, err := parseLifecycleFilter(filters)
+	if err != nil {
+		return store.ListParams{}, err
+	}
 	return store.ListParams{
 		ScopeKind:      sc.Kind,
 		ScopeID:        sc.ID,
 		SourceAgent:    filters.agent,
 		SourcePath:     filters.source,
+		Role:           strings.TrimSpace(filters.role),
+		ClaimKey:       strings.TrimSpace(filters.claimKey),
+		Validity:       strings.TrimSpace(filters.validity),
 		Since:          since,
 		Before:         before,
 		Limit:          limit,
 		IncludeDeleted: includeDeleted,
+		Lifecycle:      lifecycle,
 	}, nil
+}
+
+func parseLifecycleFilter(filters memoryFilterOptions) (string, error) {
+	if filters.current && filters.historical {
+		return "", fmt.Errorf("choose only one of --current or --historical")
+	}
+	if strings.TrimSpace(filters.validity) != "" && (filters.current || filters.historical) {
+		return "", fmt.Errorf("choose --validity or --current/--historical, not both")
+	}
+	if filters.current {
+		return store.LifecycleCurrent, nil
+	}
+	if filters.historical {
+		return store.LifecycleHistorical, nil
+	}
+	return store.LifecycleAny, nil
 }
 
 func parseTimeFilters(filters memoryFilterOptions) (string, string, error) {

@@ -15,6 +15,7 @@ const (
 	hookFormatText       = "text"
 	hookFormatJSON       = "json"
 	hookFormatClaudeCode = "claude-code"
+	hookFormatCodex      = "codex"
 )
 
 func newHookCommand() *cobra.Command {
@@ -44,7 +45,7 @@ func newHookRemindCommand() *cobra.Command {
 			return emitHookReminder(cmd.OutOrStdout(), format)
 		},
 	}
-	c.Flags().StringVar(&format, "format", hookFormatText, "output format: text, json, claude-code")
+	c.Flags().StringVar(&format, "format", hookFormatText, "output format: text, json, claude-code, codex")
 	return c
 }
 
@@ -63,7 +64,8 @@ func newHookInstallCommand(uninstall bool) *cobra.Command {
 		Long: `Supported agents:
   claude-code   native SessionStart hook in Claude settings
   opencode      managed OpenCode plugin
-  codex         managed AGENTS.md instruction block`,
+  codex         native SessionStart hook in Codex hooks.json
+  codex-agents  managed AGENTS.md instruction block compatibility fallback`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runHookInstall(cmd, args[0], scope, dryRun, uninstall)
@@ -88,7 +90,7 @@ func emitHookReminder(w io.Writer, format string) error {
 		return err
 	case hookFormatJSON:
 		return writeRawJSON(w, map[string]string{"systemMessage": hookReminderText})
-	case hookFormatClaudeCode:
+	case hookFormatClaudeCode, hookFormatCodex:
 		return writeRawJSON(w, map[string]any{
 			"hookSpecificOutput": map[string]any{
 				"hookEventName":     "SessionStart",
@@ -96,7 +98,7 @@ func emitHookReminder(w io.Writer, format string) error {
 			},
 		})
 	default:
-		return fmt.Errorf("unknown --format %q (want: text, json, claude-code)", format)
+		return fmt.Errorf("unknown --format %q (want: text, json, claude-code, codex)", format)
 	}
 }
 
@@ -146,18 +148,22 @@ func lookupHookAdapter(agent string) (hookAdapter, error) {
 		return hookAdapter{install: installOpenCodeHooks, uninstall: uninstallOpenCodeHooks}, nil
 	case "codex":
 		return hookAdapter{install: installCodexHooks, uninstall: uninstallCodexHooks}, nil
+	case "codex-agents", "codex-agent", "codex-instructions":
+		return hookAdapter{install: installCodexInstructionHooks, uninstall: uninstallCodexInstructionHooks}, nil
 	default:
-		return hookAdapter{}, fmt.Errorf("unknown agent %q (supported: claude-code, opencode, codex)", agent)
+		return hookAdapter{}, fmt.Errorf("unknown agent %q (supported: claude-code, opencode, codex, codex-agents)", agent)
 	}
 }
 
 const (
-	recoilHookMarker      = "recoil-hook"
-	claudeHookCommand     = "recoil hook remind --format=claude-code"
-	opencodePluginName    = "recoil-opencode.js"
-	opencodePluginPrefix  = "// recoil-hook managed by recoil\n// recoil-version: "
-	codexManagedBlockOpen = "<!-- recoil-hook:start -->"
-	codexManagedBlockEnd  = "<!-- recoil-hook:end -->"
+	recoilHookMarker       = "recoil-hook"
+	claudeHookCommand      = "recoil hook remind --format=claude-code"
+	opencodePluginName     = "recoil-opencode.js"
+	opencodePluginPrefix   = "// recoil-hook managed by recoil\n// recoil-version: "
+	codexHookCommand       = "recoil hook remind --format=codex"
+	codexHookStatusMessage = "Loading Recoil memory guidance"
+	codexManagedBlockOpen  = "<!-- recoil-hook:start -->"
+	codexManagedBlockEnd   = "<!-- recoil-hook:end -->"
 )
 
 // Claude Code adapter.
@@ -441,6 +447,176 @@ func managedFileState(path, prefix string) (bool, error) {
 
 // Codex adapter.
 
+type codexHooksSettings struct {
+	raw map[string]any
+}
+
+func codexHooksPath(scope string) (string, error) {
+	if scope == "project" {
+		return filepath.Join(".codex", "hooks.json"), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".codex", "hooks.json"), nil
+}
+
+func loadCodexHooks(path string) (*codexHooksSettings, error) {
+	settings := &codexHooksSettings{raw: map[string]any{}}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return settings, nil
+		}
+		return nil, err
+	}
+	if len(data) == 0 {
+		return settings, nil
+	}
+	if err := json.Unmarshal(data, &settings.raw); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+	return settings, nil
+}
+
+func writeCodexHooks(path string, settings *codexHooksSettings) error {
+	data, err := json.MarshalIndent(settings.raw, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return atomicWriteFile(path, data, 0o644)
+}
+
+func mergeCodexHooks(settings *codexHooksSettings) {
+	removeCodexHooks(settings)
+	hooks, _ := settings.raw["hooks"].(map[string]any)
+	if hooks == nil {
+		hooks = map[string]any{}
+	}
+	hooks["SessionStart"] = append(hookGroups(hooks["SessionStart"]), map[string]any{
+		"matcher": "startup|resume|clear",
+		"hooks": []any{
+			map[string]any{
+				"type":          "command",
+				"command":       codexHookCommand,
+				"statusMessage": codexHookStatusMessage,
+				"timeout":       5,
+			},
+		},
+	})
+	settings.raw["hooks"] = hooks
+}
+
+func removeCodexHooks(settings *codexHooksSettings) {
+	hooks, _ := settings.raw["hooks"].(map[string]any)
+	if hooks == nil {
+		return
+	}
+	for _, key := range []string{"SessionStart", "UserPromptSubmit", "Stop", "PreToolUse", "PermissionRequest", "PostToolUse"} {
+		arr, _ := hooks[key].([]any)
+		if arr == nil {
+			continue
+		}
+		filtered := arr[:0]
+		for _, entry := range arr {
+			next, keep := removeCommandHooksFromGroup(entry, codexHookCommand)
+			if keep {
+				filtered = append(filtered, next)
+			}
+		}
+		if len(filtered) == 0 {
+			delete(hooks, key)
+		} else {
+			hooks[key] = filtered
+		}
+	}
+	if len(hooks) == 0 {
+		delete(settings.raw, "hooks")
+	}
+}
+
+func hookGroups(existing any) []any {
+	arr, _ := existing.([]any)
+	return arr
+}
+
+func removeCommandHooksFromGroup(entry any, command string) (any, bool) {
+	group, ok := entry.(map[string]any)
+	if !ok {
+		return entry, true
+	}
+	hooks, ok := group["hooks"].([]any)
+	if !ok {
+		return entry, true
+	}
+	filtered := hooks[:0]
+	removed := false
+	for _, hook := range hooks {
+		item, _ := hook.(map[string]any)
+		if item != nil && item["command"] == command {
+			removed = true
+			continue
+		}
+		filtered = append(filtered, hook)
+	}
+	if !removed {
+		return entry, true
+	}
+	if len(filtered) == 0 {
+		return nil, false
+	}
+	next := map[string]any{}
+	for k, v := range group {
+		next[k] = v
+	}
+	next["hooks"] = filtered
+	return next, true
+}
+
+func installCodexHooks(scope string, dryRun bool) (string, string, error) {
+	path, err := codexHooksPath(scope)
+	if err != nil {
+		return "", "", err
+	}
+	settings, err := loadCodexHooks(path)
+	if err != nil {
+		return path, "", err
+	}
+	mergeCodexHooks(settings)
+	data, _ := json.MarshalIndent(settings.raw, "", "  ")
+	if dryRun {
+		return path, string(data), nil
+	}
+	if err := writeCodexHooks(path, settings); err != nil {
+		return path, "", err
+	}
+	return path, string(data), nil
+}
+
+func uninstallCodexHooks(scope string, dryRun bool) (string, string, error) {
+	path, err := codexHooksPath(scope)
+	if err != nil {
+		return "", "", err
+	}
+	settings, err := loadCodexHooks(path)
+	if err != nil {
+		return path, "", err
+	}
+	removeCodexHooks(settings)
+	data, _ := json.MarshalIndent(settings.raw, "", "  ")
+	if dryRun {
+		return path, string(data), nil
+	}
+	if err := writeCodexHooks(path, settings); err != nil {
+		return path, "", err
+	}
+	return path, string(data), nil
+}
+
+// Codex AGENTS.md compatibility adapter.
+
 func codexInstructionsPath(scope string) (string, error) {
 	if scope == "project" {
 		return "AGENTS.md", nil
@@ -460,7 +636,7 @@ At session start in this project, run ` + "`recoil hook remind`" + ` and follow 
 ` + codexManagedBlockEnd + "\n"
 }
 
-func installCodexHooks(scope string, dryRun bool) (string, string, error) {
+func installCodexInstructionHooks(scope string, dryRun bool) (string, string, error) {
 	path, err := codexInstructionsPath(scope)
 	if err != nil {
 		return "", "", err
@@ -479,7 +655,7 @@ func installCodexHooks(scope string, dryRun bool) (string, string, error) {
 	return path, next, nil
 }
 
-func uninstallCodexHooks(scope string, dryRun bool) (string, string, error) {
+func uninstallCodexInstructionHooks(scope string, dryRun bool) (string, string, error) {
 	path, err := codexInstructionsPath(scope)
 	if err != nil {
 		return "", "", err

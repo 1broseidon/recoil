@@ -42,7 +42,10 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			params.Lifecycle = store.LifecycleCurrent
+			explicitLifecycle := params.Lifecycle != store.LifecycleAny || params.Validity != ""
+			if !explicitLifecycle {
+				params.Lifecycle = store.LifecycleCurrent
+			}
 			current, err := st.Search(context.Background(), params)
 			if err != nil {
 				return err
@@ -58,11 +61,14 @@ func newSearchCommand() *cobra.Command {
 				}
 				return nil
 			}
-			historicalParams := params
-			historicalParams.Lifecycle = store.LifecycleHistorical
-			historical, err := st.Search(context.Background(), historicalParams)
-			if err != nil {
-				return err
+			var historical []store.Memory
+			if !explicitLifecycle {
+				historicalParams := params
+				historicalParams.Lifecycle = store.LifecycleHistorical
+				historical, err = st.Search(context.Background(), historicalParams)
+				if err != nil {
+					return err
+				}
 			}
 
 			return frontmatter(w, []kv{

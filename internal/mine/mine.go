@@ -2,6 +2,8 @@ package mine
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"os"
@@ -26,9 +28,10 @@ type Options struct {
 }
 
 type File struct {
-	Path string
-	Rel  string
-	Size int64
+	Path    string
+	Rel     string
+	Size    int64
+	ModTime string
 }
 
 type Chunk struct {
@@ -38,6 +41,9 @@ type Chunk struct {
 	Index      int
 	StartLine  int
 	EndLine    int
+	FileHash   string
+	FileSize   int64
+	FileMTime  string
 }
 
 type Result struct {
@@ -166,7 +172,14 @@ func ChunksForFile(file File, opts Options) ([]Chunk, error) {
 	if !utf8.ValidString(text) {
 		return nil, fmt.Errorf("invalid utf-8")
 	}
-	return ChunkText(file.Rel, text, opts.MaxChunkChars), nil
+	chunks := ChunkText(file.Rel, text, opts.MaxChunkChars)
+	hash := sha256.Sum256(data)
+	for i := range chunks {
+		chunks[i].FileHash = hex.EncodeToString(hash[:])
+		chunks[i].FileSize = file.Size
+		chunks[i].FileMTime = file.ModTime
+	}
+	return chunks, nil
 }
 
 func ChunkText(sourcePath, text string, maxChars int) []Chunk {
@@ -264,7 +277,12 @@ func fileFromInfo(path, sourceRoot string, info fs.FileInfo, opts Options) (File
 	if info.Size() > opts.MaxFileBytes {
 		return File{}, Skip{Path: rel, Reason: "file too large"}
 	}
-	return File{Path: path, Rel: rel, Size: info.Size()}, Skip{}
+	return File{
+		Path:    path,
+		Rel:     rel,
+		Size:    info.Size(),
+		ModTime: info.ModTime().UTC().Format("2006-01-02T15:04:05Z07:00"),
+	}, Skip{}
 }
 
 func displayPath(path, sourceRoot string) string {

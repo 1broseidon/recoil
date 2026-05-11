@@ -1,7 +1,12 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/1broseidon/recoil/internal/config"
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -32,6 +37,7 @@ func init() {
 
 	rootCmd.AddCommand(newInitCommand())
 	rootCmd.AddCommand(newAddCommand())
+	rootCmd.AddCommand(newDecideCommand())
 	rootCmd.AddCommand(newSearchCommand())
 	rootCmd.AddCommand(newWakeCommand())
 	rootCmd.AddCommand(newShowCommand())
@@ -55,8 +61,53 @@ func openStore() (*store.Store, string, error) {
 		return nil, "", err
 	}
 	st, err := store.Open(dbPath)
-	if err != nil {
+	if err == nil {
+		return st, dbPath, nil
+	}
+	if dbPathExplicitlySet() || !isDBAccessError(err) {
 		return nil, "", err
 	}
-	return st, dbPath, nil
+	projectDBPath, ok, fallbackErr := initializedProjectDBPath()
+	if fallbackErr != nil || !ok {
+		return nil, "", err
+	}
+	st, fallbackOpenErr := store.Open(projectDBPath)
+	if fallbackOpenErr != nil {
+		return nil, "", err
+	}
+	return st, projectDBPath, nil
+}
+
+func dbPathExplicitlySet() bool {
+	return strings.TrimSpace(opts.dbPath) != "" || strings.TrimSpace(os.Getenv("RECOIL_DB")) != ""
+}
+
+func initializedProjectDBPath() (string, bool, error) {
+	sc, err := scope.ProjectScope(".")
+	if err != nil {
+		return "", false, err
+	}
+	if !sc.Initialized || sc.Root == "" {
+		return "", false, nil
+	}
+	return filepath.Join(sc.Root, scope.ProjectDirName, "recoil.db"), true, nil
+}
+
+func isDBAccessError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, needle := range []string{
+		"unable to open database file",
+		"operation not permitted",
+		"permission denied",
+		"no such file or directory",
+		"not a directory",
+	} {
+		if strings.Contains(msg, needle) {
+			return true
+		}
+	}
+	return false
 }

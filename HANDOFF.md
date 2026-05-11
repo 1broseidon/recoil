@@ -145,6 +145,7 @@ recoil config
 recoil config path
 
 recoil add "..."
+recoil decide --claim-key <stable.key> "..."
 recoil search "..."
 recoil wake
 recoil mine
@@ -160,6 +161,7 @@ recoil hook remind
 recoil hook install claude-code
 recoil hook install opencode
 recoil hook install codex
+recoil hook install codex-agents
 recoil version
 ```
 
@@ -176,6 +178,9 @@ Scope behavior:
 - `--user` is explicit cross-project scope
 - `--session <id>` is explicit one-session scope
 - uninitialized project fallback warns on stderr
+- if the default app-data DB is inaccessible in a sandboxed agent session,
+  commands fall back to `.recoil/recoil.db` for initialized projects unless
+  `--db` or `RECOIL_DB` is set
 
 ## Current Store Behavior
 
@@ -190,6 +195,7 @@ Implemented:
 - list/search/wake/show APIs
 - FTS repair
 - conservative markdown/text project file mining through `recoil mine`
+- source freshness for mined files through file hashes and stale chunk marking
 - layered `wake` output with L0 current context, L1 decisions/constraints, and
   L2 recent notes/evidence
 - isolated `recoil eval` harness for retrieval metrics against JSONL fixtures
@@ -197,6 +203,11 @@ Implemented:
   `superseded_by`
 - lifecycle commands: `mark` and `supersede`
 - stale-aware `search` and `wake`
+- metadata-aware search over content, role, claim key, source agent, source
+  path, and source reference
+- structured filters on `search` and `list`: `--role`, `--claim-key`,
+  `--validity`, `--current`, and `--historical`
+- `recoil decide` for active claim-keyed decisions
 
 Current local DB:
 
@@ -526,6 +537,43 @@ DB open.
 
 ## Recent Build Step
 
+Faceted retrieval and source freshness are now in place.
+
+- `search` and `list` accept structured filters for role, claim key, validity,
+  current lifecycle, and historical lifecycle.
+- Search FTS now indexes content plus role, claim key, source agent, source
+  path, and source ref, with conservative ranking boosts for exact metadata and
+  decision-like roles.
+- `recoil decide --claim-key <key> "..."` writes an active decision memory so
+  agents do not have to remember the full `add --role decision --validity
+  active --claim-key ...` incantation.
+- Wake fetches startup context by quotas: handoff-ish source records first,
+  ADR/decision/constraint/preference/rule records next, then recent evidence.
+- `recoil mine` records file hashes in `sources`; re-mining a changed file
+  marks old chunks stale when they are no longer present, and project-wide
+  re-mines stale chunks for deleted tracked files.
+- Eval fixtures now include metadata-only search, active ADR list, exact
+  claim-key list, and ambiguous dependency/library retrieval cases.
+
+Current target from `./recoil eval eval/fixtures.jsonl`: 14/14 pass with MRR
+1.0000.
+
+## Recent Build Step
+
+Project commands now handle sandboxed agent sessions where
+`~/Library/Application Support/recoil/recoil.db` cannot be opened.
+
+If the default app-data DB fails with a filesystem access/open error and the
+current directory is inside an initialized Recoil project, `openStore` falls
+back to `.recoil/recoil.db`. Explicit `--db` and `RECOIL_DB` paths still remain
+authoritative and do not fall back.
+
+This fixes fresh Codex workspace sessions where `recoil wake` or `recoil search`
+previously failed with `unable to open database file: no such file or
+directory`.
+
+## Recent Build Step
+
 `task-11` added agent hook integration helpers:
 
 - `recoil hook remind` now supports `text`, generic `json`, and
@@ -534,11 +582,13 @@ DB open.
   Claude settings at user or project scope.
 - `recoil hook install opencode` writes a managed OpenCode plugin at user or
   project scope.
-- `recoil hook install codex` manages a marked `AGENTS.md` instruction block
-  because Codex does not expose a stable native local hook target in the tested
-  environment.
+- `recoil hook install codex` writes a native Codex `hooks.json` SessionStart
+  hook at user or project scope. Codex documents this under the `codex_hooks`
+  feature flag.
+- `recoil hook install codex-agents` remains available as a marked `AGENTS.md`
+  compatibility fallback.
 
-Installers are idempotent and uninstall removes only Recoil-marked content.
+Installers are idempotent and uninstall removes only Recoil-owned content.
 
 ## Recent Build Step
 

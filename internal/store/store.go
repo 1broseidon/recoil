@@ -79,6 +79,9 @@ type SearchParams struct {
 	ScopeID     string
 	SourceAgent string
 	SourcePath  string
+	Role        string
+	ClaimKey    string
+	Validity    string
 	Since       string
 	Before      string
 	Limit       int
@@ -90,6 +93,9 @@ type ListParams struct {
 	ScopeID        string
 	SourceAgent    string
 	SourcePath     string
+	Role           string
+	ClaimKey       string
+	Validity       string
 	Since          string
 	Before         string
 	Limit          int
@@ -126,6 +132,27 @@ type BulkForgetResult struct {
 	IDs       []string `json:"ids"`
 	Count     int      `json:"count"`
 	Destroyed bool     `json:"destroyed"`
+}
+
+type SourceRefreshParams struct {
+	Kind            string
+	Path            string
+	Agent           string
+	ScopeKind       string
+	ScopeID         string
+	Role            string
+	ContentHash     string
+	ModTime         string
+	Size            int64
+	ChunkCount      int
+	MetadataJSON    string
+	ActiveMemoryIDs []string
+}
+
+type SourceRefreshResult struct {
+	ID      string
+	Changed bool
+	Staled  int
 }
 
 type Counts struct {
@@ -242,12 +269,32 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	if p.Limit > 100 {
 		p.Limit = 100
 	}
-	where, args, err := scopedFilter("m", p.ScopeKind, p.ScopeID, p.SourceAgent, p.SourcePath, p.Since, p.Before, false, p.Lifecycle)
+	where, args, err := scopedFilter("m", memoryQueryFilter{
+		ScopeKind:   p.ScopeKind,
+		ScopeID:     p.ScopeID,
+		SourceAgent: p.SourceAgent,
+		SourcePath:  p.SourcePath,
+		Role:        p.Role,
+		ClaimKey:    p.ClaimKey,
+		Validity:    p.Validity,
+		Since:       p.Since,
+		Before:      p.Before,
+		Lifecycle:   p.Lifecycle,
+	})
 	if err != nil {
 		return nil, err
 	}
 	args = append([]any{query}, args...)
-	args = append(args, "%"+strings.ToLower(strings.TrimSpace(p.Query))+"%", p.Limit)
+	queryLower := strings.ToLower(strings.TrimSpace(p.Query))
+	args = append(args,
+		queryLower,
+		queryLower,
+		queryLower,
+		queryLower,
+		"%"+queryLower+"%",
+		"%"+queryLower+"%",
+		p.Limit,
+	)
 	sqlText := `
 			SELECT
 				m.id, m.hash, COALESCE(m.role, ''), m.content,
@@ -261,7 +308,14 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		FROM memories_fts
 		JOIN memories m ON m.pk = memories_fts.rowid
 		WHERE memories_fts MATCH ?` + where + `
-		ORDER BY CASE WHEN lower(m.content) LIKE ? THEN rank - 1.0 ELSE rank END
+		ORDER BY rank
+			- CASE WHEN lower(COALESCE(m.claim_key, '')) = ? THEN 5.0 ELSE 0 END
+			- CASE WHEN lower(COALESCE(m.role, '')) = ? THEN 3.0 ELSE 0 END
+			- CASE WHEN lower(COALESCE(m.source_agent, '')) = ? THEN 1.5 ELSE 0 END
+			- CASE WHEN lower(COALESCE(m.source_path, '')) = ? THEN 1.5 ELSE 0 END
+			- CASE WHEN lower(COALESCE(m.source_path, '')) LIKE ? THEN 1.0 ELSE 0 END
+			- CASE WHEN lower(m.content) LIKE ? THEN 1.0 ELSE 0 END
+			- CASE WHEN lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
 		LIMIT ?`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)
 	if err != nil {
@@ -299,7 +353,19 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 	if p.Limit > 1000 {
 		p.Limit = 1000
 	}
-	where, args, err := scopedFilter("", p.ScopeKind, p.ScopeID, p.SourceAgent, p.SourcePath, p.Since, p.Before, p.IncludeDeleted, p.Lifecycle)
+	where, args, err := scopedFilter("", memoryQueryFilter{
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		SourceAgent:    p.SourceAgent,
+		SourcePath:     p.SourcePath,
+		Role:           p.Role,
+		ClaimKey:       p.ClaimKey,
+		Validity:       p.Validity,
+		Since:          p.Since,
+		Before:         p.Before,
+		IncludeDeleted: p.IncludeDeleted,
+		Lifecycle:      p.Lifecycle,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -482,6 +548,187 @@ func (s *Store) Counts(ctx context.Context) (Counts, error) {
 	return counts, nil
 }
 
+func (s *Store) RefreshSource(ctx context.Context, p SourceRefreshParams) (SourceRefreshResult, error) {
+	p.Kind = strings.TrimSpace(p.Kind)
+	if p.Kind == "" {
+		p.Kind = "file"
+	}
+	p.Path = strings.TrimSpace(filepath.ToSlash(p.Path))
+	p.Agent = strings.TrimSpace(p.Agent)
+	p.ScopeKind = strings.TrimSpace(p.ScopeKind)
+	p.ScopeID = strings.TrimSpace(p.ScopeID)
+	if p.Path == "" || p.ScopeKind == "" || p.ScopeID == "" {
+		return SourceRefreshResult{}, fmt.Errorf("source path and scope are required")
+	}
+	id := sourceID(p.ScopeKind, p.ScopeID, p.Agent, p.Path)
+	var previousHash string
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(content_hash, '') FROM sources WHERE id = ?`, id).Scan(&previousHash)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return SourceRefreshResult{}, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	changed := errors.Is(err, sql.ErrNoRows) || previousHash != strings.TrimSpace(p.ContentHash)
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO sources (
+			id, kind, path, agent, scope_kind, scope_id, content_hash,
+			mod_time, size_bytes, chunk_count, last_mined_at, metadata_json, deleted_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+		ON CONFLICT(id) DO UPDATE SET
+			kind = excluded.kind,
+			path = excluded.path,
+			agent = excluded.agent,
+			scope_kind = excluded.scope_kind,
+			scope_id = excluded.scope_id,
+			content_hash = excluded.content_hash,
+			mod_time = excluded.mod_time,
+			size_bytes = excluded.size_bytes,
+			chunk_count = excluded.chunk_count,
+			last_mined_at = excluded.last_mined_at,
+			metadata_json = excluded.metadata_json,
+			deleted_at = NULL`,
+		id, p.Kind, p.Path, p.Agent, p.ScopeKind, p.ScopeID, strings.TrimSpace(p.ContentHash),
+		strings.TrimSpace(p.ModTime), p.Size, p.ChunkCount, now, p.MetadataJSON,
+	); err != nil {
+		return SourceRefreshResult{}, err
+	}
+	for _, id := range p.ActiveMemoryIDs {
+		if _, err := s.db.ExecContext(ctx, `
+			UPDATE memories
+			SET validity = 'active'
+			WHERE id = ?
+				AND scope_kind = ?
+				AND scope_id = ?
+				AND COALESCE(source_agent, '') = ?
+				AND COALESCE(source_path, '') = ?
+				AND COALESCE(validity, 'unknown') = 'stale'`,
+			id, p.ScopeKind, p.ScopeID, p.Agent, p.Path,
+		); err != nil {
+			return SourceRefreshResult{}, err
+		}
+	}
+	staled, err := s.staleSourceMemoriesExcept(ctx, p, p.ActiveMemoryIDs)
+	if err != nil {
+		return SourceRefreshResult{}, err
+	}
+	return SourceRefreshResult{ID: id, Changed: changed, Staled: staled}, nil
+}
+
+func (s *Store) StaleMissingSources(ctx context.Context, scopeKind, scopeID, agent string, currentPaths []string) (int, error) {
+	current := make(map[string]bool, len(currentPaths))
+	for _, path := range currentPaths {
+		current[filepath.ToSlash(strings.TrimSpace(path))] = true
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, path, COALESCE(agent, '')
+		FROM sources
+		WHERE kind = 'file'
+			AND scope_kind = ?
+			AND scope_id = ?
+			AND COALESCE(agent, '') = ?
+			AND deleted_at IS NULL`,
+		scopeKind, scopeID, strings.TrimSpace(agent),
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	type sourceRow struct {
+		id    string
+		path  string
+		agent string
+	}
+	var missing []sourceRow
+	for rows.Next() {
+		var row sourceRow
+		if err := rows.Scan(&row.id, &row.path, &row.agent); err != nil {
+			return 0, err
+		}
+		if !current[filepath.ToSlash(row.path)] {
+			missing = append(missing, row)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	total := 0
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, row := range missing {
+		if _, err := s.db.ExecContext(ctx, `UPDATE sources SET deleted_at = ? WHERE id = ?`, now, row.id); err != nil {
+			return total, err
+		}
+		staled, err := s.staleSourceMemoriesExcept(ctx, SourceRefreshParams{
+			Path:      row.path,
+			Agent:     row.agent,
+			ScopeKind: scopeKind,
+			ScopeID:   scopeID,
+		}, nil)
+		if err != nil {
+			return total, err
+		}
+		total += staled
+	}
+	return total, nil
+}
+
+func (s *Store) staleSourceMemoriesExcept(ctx context.Context, p SourceRefreshParams, keepIDs []string) (int, error) {
+	keep := make(map[string]bool, len(keepIDs))
+	for _, id := range keepIDs {
+		keep[id] = true
+	}
+	roleWhere := ""
+	args := []any{p.ScopeKind, p.ScopeID, p.Agent, p.Path}
+	if strings.TrimSpace(p.Role) != "" {
+		roleWhere = "AND COALESCE(role, '') = ?"
+		args = append(args, strings.TrimSpace(p.Role))
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id
+		FROM memories
+		WHERE scope_kind = ?
+			AND scope_id = ?
+			AND COALESCE(source_agent, '') = ?
+			AND COALESCE(source_path, '') = ?
+			AND tombstoned_at IS NULL
+			AND COALESCE(validity, 'unknown') NOT IN ('historical', 'rejected', 'superseded', 'stale', 'tombstoned')
+			`+roleWhere, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	staled := 0
+	for _, id := range ids {
+		if keep[id] {
+			continue
+		}
+		if _, err := s.db.ExecContext(ctx, `UPDATE memories SET validity = 'stale' WHERE id = ?`, id); err != nil {
+			return staled, err
+		}
+		staled++
+	}
+	return staled, nil
+}
+
+func sourceID(scopeKind, scopeID, agent, sourcePath string) string {
+	h := sha256.New()
+	for _, part := range []string{scopeKind, scopeID, agent, filepath.ToSlash(sourcePath)} {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return "src_" + hex.EncodeToString(h.Sum(nil))[:24]
+}
+
 func (s *Store) memoryByHash(ctx context.Context, hash string) (*Memory, error) {
 	row := s.db.QueryRowContext(ctx, `
 			SELECT id, hash, COALESCE(role, ''), content,
@@ -557,7 +804,21 @@ func scanMemory(scanner memoryScanner) (Memory, error) {
 	return mem, err
 }
 
-func scopedFilter(alias, scopeKind, scopeID, sourceAgent, sourcePath, since, before string, includeDeleted bool, lifecycle string) (string, []any, error) {
+type memoryQueryFilter struct {
+	ScopeKind      string
+	ScopeID        string
+	SourceAgent    string
+	SourcePath     string
+	Role           string
+	ClaimKey       string
+	Validity       string
+	Since          string
+	Before         string
+	IncludeDeleted bool
+	Lifecycle      string
+}
+
+func scopedFilter(alias string, filter memoryQueryFilter) (string, []any, error) {
 	col := func(name string) string {
 		if alias == "" {
 			return name
@@ -566,34 +827,46 @@ func scopedFilter(alias, scopeKind, scopeID, sourceAgent, sourcePath, since, bef
 	}
 	var where strings.Builder
 	var args []any
-	if !includeDeleted {
+	if !filter.IncludeDeleted {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s IS NULL", col("tombstoned_at"))
 	}
-	if scopeKind != "" {
+	if filter.ScopeKind != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("scope_kind"))
-		args = append(args, scopeKind)
+		args = append(args, filter.ScopeKind)
 	}
-	if scopeID != "" {
+	if filter.ScopeID != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("scope_id"))
-		args = append(args, scopeID)
+		args = append(args, filter.ScopeID)
 	}
-	if sourceAgent != "" {
+	if filter.SourceAgent != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("source_agent"))
-		args = append(args, sourceAgent)
+		args = append(args, filter.SourceAgent)
 	}
-	if sourcePath != "" {
+	if filter.SourcePath != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s LIKE ?", col("source_path"))
-		args = append(args, "%"+sourcePath+"%")
+		args = append(args, "%"+filter.SourcePath+"%")
 	}
-	if since != "" {
+	if filter.Role != "" {
+		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("role"))
+		args = append(args, filter.Role)
+	}
+	if filter.ClaimKey != "" {
+		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("claim_key"))
+		args = append(args, filter.ClaimKey)
+	}
+	if filter.Validity != "" {
+		fmt.Fprintf(&where, "\n\t\t\tAND COALESCE(%s, 'unknown') = ?", col("validity"))
+		args = append(args, filter.Validity)
+	}
+	if filter.Since != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s >= ?", col("created_at"))
-		args = append(args, since)
+		args = append(args, filter.Since)
 	}
-	if before != "" {
+	if filter.Before != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s <= ?", col("created_at"))
-		args = append(args, before)
+		args = append(args, filter.Before)
 	}
-	lifecycleWhere, err := lifecycleFilter(col("validity"), lifecycle)
+	lifecycleWhere, err := lifecycleFilter(col("validity"), filter.Lifecycle)
 	if err != nil {
 		return "", nil, err
 	}
@@ -638,30 +911,22 @@ func (s *Store) migrate() error {
 				created_at TEXT NOT NULL,
 				tombstoned_at TEXT,
 				purge_reason TEXT
-			)`,
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope_kind, scope_id, created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at)`,
-		`CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-				content,
-				content='memories',
-			content_rowid='pk'
-		)`,
-		`CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
-			INSERT INTO memories_fts(rowid, content) VALUES (new.pk, new.content);
-		END`,
-		`CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-			INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.pk, old.content);
-		END`,
-		`CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE OF content ON memories BEGIN
-			INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.pk, old.content);
-			INSERT INTO memories_fts(rowid, content) VALUES (new.pk, new.content);
-		END`,
 		`CREATE TABLE IF NOT EXISTS sources (
 			id TEXT PRIMARY KEY,
 			kind TEXT NOT NULL,
 			path TEXT,
 			agent TEXT,
+			scope_kind TEXT,
+			scope_id TEXT,
+			content_hash TEXT,
+			mod_time TEXT,
+			size_bytes INTEGER,
+			chunk_count INTEGER,
 			last_mined_at TEXT,
+			deleted_at TEXT,
 			metadata_json TEXT
 		)`,
 	}
@@ -673,9 +938,13 @@ func (s *Store) migrate() error {
 	if err := s.ensureLifecycleColumns(); err != nil {
 		return err
 	}
+	if err := s.ensureSourceColumns(); err != nil {
+		return err
+	}
 	for _, stmt := range []string{
 		`CREATE INDEX IF NOT EXISTS idx_memories_validity ON memories(validity)`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_claim_scope ON memories(scope_kind, scope_id, claim_key)`,
+		`CREATE INDEX IF NOT EXISTS idx_sources_scope_path ON sources(scope_kind, scope_id, path)`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil {
 			return err
@@ -684,8 +953,103 @@ func (s *Store) migrate() error {
 	if err := s.backfillLifecycleFromMetadata(); err != nil {
 		return err
 	}
+	if err := s.ensureFTSSchema(); err != nil {
+		return err
+	}
 	if _, err := s.db.Exec(`INSERT INTO memories_fts(memories_fts) VALUES('rebuild')`); err != nil {
 		return formatSQLiteFeatureError(err)
+	}
+	return nil
+}
+
+func (s *Store) ensureSourceColumns() error {
+	columns, err := s.tableColumns("sources")
+	if err != nil {
+		return err
+	}
+	alter := []struct {
+		name string
+		sql  string
+	}{
+		{name: "scope_kind", sql: `ALTER TABLE sources ADD COLUMN scope_kind TEXT`},
+		{name: "scope_id", sql: `ALTER TABLE sources ADD COLUMN scope_id TEXT`},
+		{name: "content_hash", sql: `ALTER TABLE sources ADD COLUMN content_hash TEXT`},
+		{name: "mod_time", sql: `ALTER TABLE sources ADD COLUMN mod_time TEXT`},
+		{name: "size_bytes", sql: `ALTER TABLE sources ADD COLUMN size_bytes INTEGER`},
+		{name: "chunk_count", sql: `ALTER TABLE sources ADD COLUMN chunk_count INTEGER`},
+		{name: "deleted_at", sql: `ALTER TABLE sources ADD COLUMN deleted_at TEXT`},
+	}
+	for _, col := range alter {
+		if columns[col.name] {
+			continue
+		}
+		if _, err := s.db.Exec(col.sql); err != nil {
+			if isDuplicateColumnError(err) {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) ensureFTSSchema() error {
+	columns, err := s.tableColumns("memories_fts")
+	if err != nil {
+		return err
+	}
+	expected := []string{"content", "role", "claim_key", "source_agent", "source_path", "source_ref"}
+	recreate := len(columns) == 0
+	for _, name := range expected {
+		if !columns[name] {
+			recreate = true
+			break
+		}
+	}
+	if recreate {
+		for _, stmt := range []string{
+			`DROP TRIGGER IF EXISTS memories_ai`,
+			`DROP TRIGGER IF EXISTS memories_ad`,
+			`DROP TRIGGER IF EXISTS memories_au`,
+			`DROP TABLE IF EXISTS memories_fts`,
+			`CREATE VIRTUAL TABLE memories_fts USING fts5(
+				content,
+				role,
+				claim_key,
+				source_agent,
+				source_path,
+				source_ref,
+				content='memories',
+				content_rowid='pk'
+			)`,
+		} {
+			if _, err := s.db.Exec(stmt); err != nil {
+				return formatSQLiteFeatureError(err)
+			}
+		}
+	}
+	for _, stmt := range []string{
+		`DROP TRIGGER IF EXISTS memories_ai`,
+		`DROP TRIGGER IF EXISTS memories_ad`,
+		`DROP TRIGGER IF EXISTS memories_au`,
+		`CREATE TRIGGER memories_ai AFTER INSERT ON memories BEGIN
+			INSERT INTO memories_fts(rowid, content, role, claim_key, source_agent, source_path, source_ref)
+			VALUES (new.pk, new.content, new.role, new.claim_key, new.source_agent, new.source_path, new.source_ref);
+		END`,
+		`CREATE TRIGGER memories_ad AFTER DELETE ON memories BEGIN
+			INSERT INTO memories_fts(memories_fts, rowid, content, role, claim_key, source_agent, source_path, source_ref)
+			VALUES('delete', old.pk, old.content, old.role, old.claim_key, old.source_agent, old.source_path, old.source_ref);
+		END`,
+		`CREATE TRIGGER memories_au AFTER UPDATE OF content, role, claim_key, source_agent, source_path, source_ref ON memories BEGIN
+			INSERT INTO memories_fts(memories_fts, rowid, content, role, claim_key, source_agent, source_path, source_ref)
+			VALUES('delete', old.pk, old.content, old.role, old.claim_key, old.source_agent, old.source_path, old.source_ref);
+			INSERT INTO memories_fts(rowid, content, role, claim_key, source_agent, source_path, source_ref)
+			VALUES (new.pk, new.content, new.role, new.claim_key, new.source_agent, new.source_path, new.source_ref);
+		END`,
+	} {
+		if _, err := s.db.Exec(stmt); err != nil {
+			return formatSQLiteFeatureError(err)
+		}
 	}
 	return nil
 }
@@ -709,10 +1073,17 @@ func (s *Store) ensureLifecycleColumns() error {
 			continue
 		}
 		if _, err := s.db.Exec(col.sql); err != nil {
+			if isDuplicateColumnError(err) {
+				continue
+			}
 			return err
 		}
 	}
 	return nil
+}
+
+func isDuplicateColumnError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "duplicate column name")
 }
 
 func (s *Store) tableColumns(table string) (map[string]bool, error) {

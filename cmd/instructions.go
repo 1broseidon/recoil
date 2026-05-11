@@ -36,9 +36,11 @@ func instructionsFor(agent string) (string, error) {
 			"# Recoil memory instructions for %s\n\n"+
 				"- At session start in a project, run `recoil wake --max-chars 1600`.\n"+
 				"- Before making or explaining a durable decision, run `recoil search \"<topic>\"`.\n"+
-				"- Before compaction or handoff, store durable conclusions with `recoil add --agent %s --role decision \"<memory>\"`.\n"+
+				"- Store durable decisions with `recoil decide --agent %s --claim-key <stable.key> \"<decision>\"` so they are active and supersession-ready.\n"+
+				"- Before compaction or handoff, store durable non-decision conclusions with `recoil add --agent %s --role note --validity active --claim-key <stable.key> \"<memory>\"`.\n"+
 				"- Use `--user` only for cross-project user preferences, and `--session <id>` for one-session memories.\n"+
 				"- Treat Recoil results as sourced evidence, not unquestionable truth. Use IDs and provenance when relying on a memory.\n",
+			agent,
 			agent,
 			agent,
 		), nil

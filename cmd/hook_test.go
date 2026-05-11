@@ -55,6 +55,23 @@ func TestHookRemindFormats(t *testing.T) {
 	if claudePayload.SystemMessage != "" {
 		t.Fatalf("did not expect generic systemMessage in Claude payload, got:\n%s", claude.String())
 	}
+
+	var codex bytes.Buffer
+	if err := emitHookReminder(&codex, hookFormatCodex); err != nil {
+		t.Fatal(err)
+	}
+	var codexPayload struct {
+		HookSpecificOutput struct {
+			HookEventName     string `json:"hookEventName"`
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(codex.Bytes(), &codexPayload); err != nil {
+		t.Fatal(err)
+	}
+	if codexPayload.HookSpecificOutput.HookEventName != "SessionStart" {
+		t.Fatalf("expected Codex SessionStart payload, got:\n%s", codex.String())
+	}
 }
 
 func TestHookRemindGlobalJSONUsesEnvelope(t *testing.T) {
@@ -193,15 +210,85 @@ func TestOpenCodeInstallRefusesForeignPlugin(t *testing.T) {
 	}
 }
 
-func TestCodexInstallProjectScopeManagesInstructionBlock(t *testing.T) {
+func TestCodexInstallProjectScopeWritesNativeHooksJSON(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeCmdTestFile(t, filepath.Join(".codex", "hooks.json"), `{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {"type": "command", "command": "echo user"}
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {"type": "command", "command": "echo start"}
+        ]
+      }
+    ]
+  }
+}
+`)
+
+	path, summary, err := installCodexHooks("project", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != filepath.Join(".codex", "hooks.json") {
+		t.Fatalf("unexpected path %q", path)
+	}
+	if !strings.Contains(summary, codexHookCommand) {
+		t.Fatalf("expected codex hook command in summary, got:\n%s", summary)
+	}
+	if _, _, err := installCodexHooks("project", false); err != nil {
+		t.Fatal(err)
+	}
+
+	settings, err := loadCodexHooks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hooks := settings.raw["hooks"].(map[string]any)
+	if got := countHookCommands(hooks["SessionStart"], codexHookCommand); got != 1 {
+		t.Fatalf("expected one Recoil Codex SessionStart hook, got %d: %+v", got, hooks["SessionStart"])
+	}
+	if got := countHookCommands(hooks["SessionStart"], "echo start"); got != 1 {
+		t.Fatalf("expected user SessionStart hook preserved, got %d: %+v", got, hooks["SessionStart"])
+	}
+	if got := countHookCommands(hooks["PreToolUse"], "echo user"); got != 1 {
+		t.Fatalf("expected user PreToolUse hook preserved, got %d: %+v", got, hooks["PreToolUse"])
+	}
+
+	if _, _, err := uninstallCodexHooks("project", false); err != nil {
+		t.Fatal(err)
+	}
+	settings, err = loadCodexHooks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hooks = settings.raw["hooks"].(map[string]any)
+	if got := countHookCommands(hooks["SessionStart"], codexHookCommand); got != 0 {
+		t.Fatalf("expected Recoil Codex hook removed, got %d: %+v", got, hooks["SessionStart"])
+	}
+	if got := countHookCommands(hooks["SessionStart"], "echo start"); got != 1 {
+		t.Fatalf("expected user SessionStart hook preserved after uninstall, got %d: %+v", got, hooks["SessionStart"])
+	}
+}
+
+func TestCodexAgentsInstallProjectScopeManagesInstructionBlock(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	writeCmdTestFile(t, "AGENTS.md", "# Existing\n\nKeep this.\n")
 
-	if _, _, err := installCodexHooks("project", false); err != nil {
+	if _, _, err := installCodexInstructionHooks("project", false); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := installCodexHooks("project", false); err != nil {
+	if _, _, err := installCodexInstructionHooks("project", false); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile("AGENTS.md")
@@ -216,7 +303,7 @@ func TestCodexInstallProjectScopeManagesInstructionBlock(t *testing.T) {
 		t.Fatalf("expected existing content and Recoil guidance, got:\n%s", got)
 	}
 
-	if _, _, err := uninstallCodexHooks("project", false); err != nil {
+	if _, _, err := uninstallCodexInstructionHooks("project", false); err != nil {
 		t.Fatal(err)
 	}
 	data, err = os.ReadFile("AGENTS.md")
@@ -230,6 +317,22 @@ func TestCodexInstallProjectScopeManagesInstructionBlock(t *testing.T) {
 	if !strings.Contains(got, "# Existing") || !strings.Contains(got, "Keep this.") {
 		t.Fatalf("expected existing content preserved, got:\n%s", got)
 	}
+}
+
+func countHookCommands(event any, command string) int {
+	count := 0
+	groups, _ := event.([]any)
+	for _, groupValue := range groups {
+		group, _ := groupValue.(map[string]any)
+		hooks, _ := group["hooks"].([]any)
+		for _, hookValue := range hooks {
+			hook, _ := hookValue.(map[string]any)
+			if hook["command"] == command {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func countClaudeHookMarkers(event any) int {

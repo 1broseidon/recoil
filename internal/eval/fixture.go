@@ -37,6 +37,12 @@ type CaseRecord struct {
 	Mode                  string   `json:"mode"`
 	Query                 string   `json:"query,omitempty"`
 	Scope                 Scope    `json:"scope"`
+	Role                  string   `json:"role,omitempty"`
+	ClaimKey              string   `json:"claim_key,omitempty"`
+	Validity              string   `json:"validity,omitempty"`
+	Lifecycle             string   `json:"lifecycle,omitempty"`
+	SourceAgent           string   `json:"source_agent,omitempty"`
+	SourcePath            string   `json:"source_path,omitempty"`
 	Limit                 int      `json:"limit,omitempty"`
 	ExpectedCurrentIDs    []string `json:"expected_current_ids,omitempty"`
 	ExpectedHistoricalIDs []string `json:"expected_historical_ids,omitempty"`
@@ -130,7 +136,7 @@ func validateCase(rec CaseRecord) error {
 		return fmt.Errorf("id is required")
 	}
 	switch rec.Mode {
-	case "search", "wake":
+	case "search", "wake", "list":
 	default:
 		return fmt.Errorf("unsupported mode %q", rec.Mode)
 	}

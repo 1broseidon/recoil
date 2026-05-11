@@ -2,8 +2,8 @@
 
 `fixtures.jsonl` defines the first retrieval eval corpus for Recoil. It is
 intended for `task-2`, where a harness can seed a temporary database, run
-`search` and `wake`, and report retrieval quality before ranking or stale-memory
-behavior is tuned.
+`search`, `list`, and `wake`, and report retrieval quality before ranking or
+stale-memory behavior is tuned.
 
 The file is JSON Lines. Each line is either a seeded memory or an eval case.
 
@@ -56,10 +56,13 @@ Case records have `type: "case"`:
 Case fields:
 
 - `category`: one of `current_decision`, `stale_history`, `absent_fact`,
-  `scope_isolation`, or `wake_safety`.
-- `mode`: `search` or `wake`.
+  `scope_isolation`, `wake_safety`, `metadata_retrieval`, or
+  `faceted_retrieval`.
+- `mode`: `search`, `list`, or `wake`.
 - `query`: query string. Wake can use an empty query.
 - `scope`: the scope passed to the command.
+- `role`, `claim_key`, `validity`, `lifecycle`, `source_agent`, and
+  `source_path`: optional structured filters.
 - `limit`: result limit.
 - `expected_current_ids`: memories that must appear as current/primary evidence.
 - `expected_historical_ids`: memories that may appear only as labeled history.

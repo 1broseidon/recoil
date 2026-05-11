@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -70,7 +71,9 @@ func newWakeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				params.Lifecycle = store.LifecycleCurrent
+				if params.Validity == "" && params.Lifecycle == store.LifecycleAny {
+					params.Lifecycle = store.LifecycleCurrent
+				}
 				found, err := st.Search(ctx, params)
 				if err != nil {
 					return err
@@ -78,12 +81,7 @@ func newWakeCommand() *cobra.Command {
 				queryResults = found
 			}
 
-			params, err := listParams(sc, wakeOpts.filters, fetchLimit, false)
-			if err != nil {
-				return err
-			}
-			params.Lifecycle = store.LifecycleCurrent
-			recent, err := st.List(ctx, params)
+			recent, err := wakeRecentMemories(ctx, st, sc, wakeOpts.filters, fetchLimit, wakeOpts.limit)
 			if err != nil {
 				return err
 			}
@@ -127,6 +125,80 @@ func newWakeCommand() *cobra.Command {
 	c.Flags().IntVar(&wakeOpts.maxChars, "max-chars", 1600, "maximum characters of memory content to print")
 	c.Flags().BoolVar(&wakeOpts.minimal, "minimal", false, "print tab-separated rows")
 	return c
+}
+
+func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, filters memoryFilterOptions, fetchLimit, displayLimit int) ([]store.Memory, error) {
+	if hasExplicitWakeFilters(filters) {
+		params, err := listParams(sc, filters, fetchLimit, false)
+		if err != nil {
+			return nil, err
+		}
+		if params.Validity == "" && params.Lifecycle == store.LifecycleAny {
+			params.Lifecycle = store.LifecycleCurrent
+		}
+		return st.List(ctx, params)
+	}
+
+	quota := displayLimit
+	if quota <= 0 {
+		quota = 8
+	}
+	seen := map[string]bool{}
+	var out []store.Memory
+	add := func(memories []store.Memory) {
+		for _, mem := range memories {
+			if len(out) >= fetchLimit {
+				return
+			}
+			if seen[mem.ID] {
+				continue
+			}
+			seen[mem.ID] = true
+			out = append(out, mem)
+		}
+	}
+	list := func(mod func(*store.ListParams), limit int) error {
+		params, err := listParams(sc, filters, limit, false)
+		if err != nil {
+			return err
+		}
+		params.Lifecycle = store.LifecycleCurrent
+		mod(&params)
+		memories, err := st.List(ctx, params)
+		if err != nil {
+			return err
+		}
+		add(memories)
+		return nil
+	}
+
+	if err := list(func(p *store.ListParams) { p.SourcePath = "HANDOFF.md" }, 2); err != nil {
+		return nil, err
+	}
+	l1Quota := quota / 2
+	if l1Quota < 3 {
+		l1Quota = 3
+	}
+	for _, role := range []string{"adr", "decision", "constraint", "preference", "rule"} {
+		if err := list(func(p *store.ListParams) { p.Role = role }, l1Quota); err != nil {
+			return nil, err
+		}
+	}
+	if err := list(func(p *store.ListParams) {}, fetchLimit); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func hasExplicitWakeFilters(filters memoryFilterOptions) bool {
+	return strings.TrimSpace(filters.agent) != "" ||
+		strings.TrimSpace(filters.source) != "" ||
+		strings.TrimSpace(filters.role) != "" ||
+		strings.TrimSpace(filters.claimKey) != "" ||
+		strings.TrimSpace(filters.validity) != "" ||
+		strings.TrimSpace(filters.since) != "" ||
+		strings.TrimSpace(filters.before) != "" ||
+		filters.historical
 }
 
 func wakeFetchLimit(limit int) int {

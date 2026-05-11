@@ -32,6 +32,8 @@ type mineResult struct {
 	Chunks       int               `json:"chunks"`
 	Added        int               `json:"added"`
 	Duplicates   int               `json:"duplicates"`
+	Sources      int               `json:"sources"`
+	Staled       int               `json:"staled"`
 	Results      []mineChunkResult `json:"results,omitempty"`
 	Skipped      []mine.Skip       `json:"skipped,omitempty"`
 }
@@ -48,6 +50,9 @@ type minedMetadata struct {
 	ChunkIndex int    `json:"chunk_index"`
 	StartLine  int    `json:"start_line"`
 	EndLine    int    `json:"end_line"`
+	FileHash   string `json:"file_hash,omitempty"`
+	FileMTime  string `json:"file_mtime,omitempty"`
+	FileSize   int64  `json:"file_size,omitempty"`
 }
 
 func newMineCommand() *cobra.Command {
@@ -102,6 +107,8 @@ func newMineCommand() *cobra.Command {
 				defer st.Close()
 			}
 
+			sourceIDs := map[string][]string{}
+			sourceChunks := map[string][]mine.Chunk{}
 			for _, chunk := range collected.Chunks {
 				item := mineChunkResult{
 					SourcePath: chunk.SourcePath,
@@ -129,6 +136,8 @@ func newMineCommand() *cobra.Command {
 					}
 					item.ID = mem.ID
 					item.Duplicate = duplicate
+					sourceIDs[chunk.SourcePath] = append(sourceIDs[chunk.SourcePath], mem.ID)
+					sourceChunks[chunk.SourcePath] = append(sourceChunks[chunk.SourcePath], chunk)
 					if duplicate {
 						result.Duplicates++
 					} else {
@@ -136,6 +145,43 @@ func newMineCommand() *cobra.Command {
 					}
 				}
 				result.Results = append(result.Results, item)
+			}
+			if !mineOpts.dryRun {
+				for sourcePath, chunks := range sourceChunks {
+					if len(chunks) == 0 {
+						continue
+					}
+					first := chunks[0]
+					refreshed, err := st.RefreshSource(ctx, store.SourceRefreshParams{
+						Kind:            "file",
+						Path:            sourcePath,
+						Agent:           mineOpts.agent,
+						ScopeKind:       sc.Kind,
+						ScopeID:         sc.ID,
+						Role:            mineOpts.role,
+						ContentHash:     first.FileHash,
+						ModTime:         first.FileMTime,
+						Size:            first.FileSize,
+						ChunkCount:      len(chunks),
+						ActiveMemoryIDs: sourceIDs[sourcePath],
+					})
+					if err != nil {
+						return err
+					}
+					result.Sources++
+					result.Staled += refreshed.Staled
+				}
+				if sc.Kind == "project" && sc.Root != "" && collected.Root == sc.Root {
+					paths := make([]string, 0, len(sourceChunks))
+					for path := range sourceChunks {
+						paths = append(paths, path)
+					}
+					staled, err := st.StaleMissingSources(ctx, sc.Kind, sc.ID, mineOpts.agent, paths)
+					if err != nil {
+						return err
+					}
+					result.Staled += staled
+				}
 			}
 
 			w := cmd.OutOrStdout()
@@ -152,6 +198,8 @@ func newMineCommand() *cobra.Command {
 				{k: "chunks", v: fmt.Sprintf("%d", result.Chunks)},
 				{k: "added", v: fmt.Sprintf("%d", result.Added)},
 				{k: "duplicates", v: fmt.Sprintf("%d", result.Duplicates)},
+				{k: "sources", v: fmt.Sprintf("%d", result.Sources)},
+				{k: "staled", v: fmt.Sprintf("%d", result.Staled)},
 			}, mineResultLines(result))
 		},
 	}
@@ -172,6 +220,9 @@ func mineMetadataJSON(chunk mine.Chunk) (string, error) {
 		ChunkIndex: chunk.Index,
 		StartLine:  chunk.StartLine,
 		EndLine:    chunk.EndLine,
+		FileHash:   chunk.FileHash,
+		FileMTime:  chunk.FileMTime,
+		FileSize:   chunk.FileSize,
 	})
 	if err != nil {
 		return "", err

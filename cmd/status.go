@@ -27,16 +27,13 @@ func newStatusCommand() *cobra.Command {
 		Short: "Show database status",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, err := config.ResolveDBPath(opts.dbPath)
-			if err != nil {
-				return err
-			}
-			existed := config.PathExists(dbPath)
 			st, _, err := openStore()
 			if err != nil {
 				return err
 			}
 			defer st.Close()
+			dbPath := st.Path()
+			existed := config.PathExists(dbPath)
 
 			counts, err := st.Counts(context.Background())
 			if err != nil {

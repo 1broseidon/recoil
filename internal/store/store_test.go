@@ -69,6 +69,82 @@ func TestAddSearchAndGetMemory(t *testing.T) {
 	}
 }
 
+func TestSearchAndListUseStructuredMetadata(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	adr, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Role:      "adr",
+		Content:   "Use the CGO-backed driver for reliable full text search.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Validity:  "active",
+		ClaimKey:  "dependency.sqlite-driver",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Role:         "decision",
+		Content:      "Rejected portable driver experiment.",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		Validity:     "rejected",
+		ClaimKey:     "dependency.sqlite-driver",
+		SupersededBy: adr.ID,
+		CreatedAt:    "2026-01-01T00:00:00Z",
+		SourcePath:   "docs/history/sqlite.md",
+		SourceAgent:  "codex",
+		SourceRef:    "test",
+		MetadataJSON: `{"kind":"test"}`,
+		Supersedes:   "",
+		ProjectID:    "",
+		SessionID:    "",
+		Room:         "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := st.Search(ctx, SearchParams{
+		Query:     "dependency.sqlite-driver",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+		Lifecycle: LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].ID != adr.ID {
+		t.Fatalf("expected active ADR from claim_key search, got %+v", results)
+	}
+	for _, result := range results {
+		if result.ID == old.ID {
+			t.Fatalf("did not expect rejected memory in current search results: %+v", results)
+		}
+	}
+
+	listed, err := st.List(ctx, ListParams{
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Role:      "adr",
+		ClaimKey:  "dependency.sqlite-driver",
+		Validity:  "active",
+		Limit:     5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || listed[0].ID != adr.ID {
+		t.Fatalf("expected exact faceted list hit, got %+v", listed)
+	}
+}
+
 func TestAddMemoryRedactsDeterministically(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))

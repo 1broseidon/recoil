@@ -116,6 +116,72 @@ func TestMineCommandJSONUsesDataEnvelope(t *testing.T) {
 	}
 }
 
+func TestMineCommandMarksChangedSourceChunksStale(t *testing.T) {
+	root := t.TempDir()
+	readme := filepath.Join(root, "README.md")
+	writeCmdTestFile(t, readme, "# Project\n\nAlpha mining decision lives here.")
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	runMineCommand(t)
+	writeCmdTestFile(t, readme, "# Project\n\nBeta mining decision replaced it.")
+	runMineCommand(t)
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alpha, err := st.Search(context.Background(), store.SearchParams{
+		Query:     "Alpha",
+		ScopeKind: sc.Kind,
+		ScopeID:   sc.ID,
+		Limit:     5,
+		Lifecycle: store.LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alpha) != 0 {
+		t.Fatalf("expected changed old chunk to be stale, got current results %+v", alpha)
+	}
+	beta, err := st.Search(context.Background(), store.SearchParams{
+		Query:     "Beta mining decision",
+		ScopeKind: sc.Kind,
+		ScopeID:   sc.ID,
+		Limit:     5,
+		Lifecycle: store.LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(beta) != 1 || beta[0].SourcePath != "README.md" {
+		t.Fatalf("expected replacement README chunk current, got %+v", beta)
+	}
+}
+
+func runMineCommand(t *testing.T) string {
+	t.Helper()
+	c := newMineCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
+}
+
 func writeCmdTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
