@@ -1,0 +1,29 @@
+# Build output
+/recoil
+/recoil.exe
+
+# Go test artifacts
+*.test
+*.out
+coverage.html
+
+# CGO shared objects
+*.so
+*.dylib
+*.dll
+
+# SQLite runtime files (live in ~/Library/..., not workspace)
+# Guarded here in case test DBs land locally
+*.db
+*.db-wal
+*.db-shm
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
