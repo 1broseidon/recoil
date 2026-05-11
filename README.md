@@ -91,6 +91,15 @@ recoil eval
 recoil eval eval/fixtures.jsonl
 ```
 
+## Local Benchmarks
+
+`make bench` runs the repeatable 10k-memory store benchmark for add, search,
+and wake backing reads.
+
+```sh
+make bench
+```
+
 ## Lifecycle Metadata
 
 Memories can carry structured lifecycle fields:

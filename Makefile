@@ -11,7 +11,7 @@ endif
 export CGO_CFLAGS
 export CGO_ENABLED := 1
 
-.PHONY: build clean install test
+.PHONY: bench build clean install test
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
@@ -21,6 +21,9 @@ install:
 
 test:
 	go test ./...
+
+bench:
+	go test -run '^$$' -bench 'BenchmarkStore.*10K' -benchmem -benchtime=50x -count=1 ./internal/store
 
 clean:
 	rm -f $(BINARY)

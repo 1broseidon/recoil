@@ -520,12 +520,29 @@ Recoil lifecycle values are still backfilled from metadata, but invalid/custom
 values such as `draft` are ignored instead of failing `add` or blocking legacy
 DB open.
 
+## Recent Build Step
+
+`task-9` added a repeatable 10k-memory local benchmark.
+
+The benchmark lives in `internal/store/store_bench_test.go` and is exposed via
+`make bench`. It seeds a deterministic 10k-memory corpus with mixed active,
+rejected, and stale lifecycle states, then measures:
+
+- `BenchmarkStoreAddAt10K`
+- `BenchmarkStoreSearch10K`
+- `BenchmarkStoreWakeReads10K`
+
+Baseline from `make bench` on Apple M4 with `-benchtime=50x`:
+
+- add at 10k: 293151 ns/op
+- search at 10k: 22508511 ns/op
+- wake backing reads at 10k: 23110512 ns/op
+
 ## Next Build Step
 
-Build `task-9` next.
-
-Goal: add a 10k local performance benchmark that proves the simple local FTS
-path remains fast enough before adding heavier retrieval machinery.
+`task-10` remains the only v0 board task, but it is intentionally low priority:
+the optional Brainfile source adapter should stay deferred unless we explicitly
+decide the brainfile-less core is strong enough.
 
 Do not build the Brainfile source adapter before the generic miner, layered
 wake, and stale lifecycle path are useful without Brainfile.
@@ -536,9 +553,9 @@ If starting a new chat, say:
 
 > Continue Recoil from `/Users/george/Projects/personal/recoil`. Read
 > `HANDOFF.md`, run `./recoil wake --max-chars 1600`, run `brainfile list`,
-> run `./recoil eval eval/fixtures.jsonl`, then start `task-9` by adding the
-> 10k local performance benchmark. Keep the product path brainfile-less;
-> canonical truths belong in direct memories or ordinary docs.
+> run `./recoil eval eval/fixtures.jsonl`, and review whether to keep deferring
+> `task-10` or add a new brainfile-less task. Keep the product path
+> brainfile-less; canonical truths belong in direct memories or ordinary docs.
 
 ## Things To Avoid
 
