@@ -207,6 +207,7 @@ func seedEvalMemories(ctx context.Context, st *store.Store, fixture recoileval.F
 		params := store.AddMemoryParams{
 			Role:         rec.Role,
 			Content:      rec.Content,
+			SourceKind:   rec.SourceKind,
 			SourceAgent:  rec.SourceAgent,
 			SourcePath:   rec.SourcePath,
 			SourceRef:    rec.SourceRef,

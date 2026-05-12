@@ -35,6 +35,7 @@ type MemoryRecord struct {
 	ID             string            `json:"id"`
 	Scope          Scope             `json:"scope"`
 	Role           string            `json:"role,omitempty"`
+	SourceKind     string            `json:"source_kind,omitempty"`
 	SourceAgent    string            `json:"source_agent,omitempty"`
 	SourcePath     string            `json:"source_path,omitempty"`
 	SourceRef      string            `json:"source_ref,omitempty"`
@@ -53,6 +54,7 @@ type CaseRecord struct {
 	ClaimKey              string   `json:"claim_key,omitempty"`
 	Validity              string   `json:"validity,omitempty"`
 	Lifecycle             string   `json:"lifecycle,omitempty"`
+	SourceKind            string   `json:"source_kind,omitempty"`
 	SourceAgent           string   `json:"source_agent,omitempty"`
 	SourcePath            string   `json:"source_path,omitempty"`
 	Limit                 int      `json:"limit,omitempty"`
