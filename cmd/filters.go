@@ -14,6 +14,7 @@ import (
 type memoryFilterOptions struct {
 	since      string
 	before     string
+	sourceKind string
 	agent      string
 	source     string
 	role       string
@@ -26,6 +27,7 @@ type memoryFilterOptions struct {
 func addMemoryFilterFlags(c *cobra.Command, opts *memoryFilterOptions) {
 	c.Flags().StringVar(&opts.since, "since", "", "filter memories created since a date or duration like 7d")
 	c.Flags().StringVar(&opts.before, "before", "", "filter memories created before a date or duration like 7d")
+	c.Flags().StringVar(&opts.sourceKind, "source-kind", "", "filter by source kind: direct, file, session_evidence, extracted_claim")
 	c.Flags().StringVar(&opts.agent, "agent", "", "filter by source agent")
 	c.Flags().StringVar(&opts.source, "source", "", "filter by source path substring")
 	c.Flags().StringVar(&opts.role, "role", "", "filter by exact role")
@@ -48,6 +50,7 @@ func searchParams(query string, sc scope.Scope, filters memoryFilterOptions, lim
 		Query:       query,
 		ScopeKind:   sc.Kind,
 		ScopeID:     sc.ID,
+		SourceKind:  strings.TrimSpace(filters.sourceKind),
 		SourceAgent: filters.agent,
 		SourcePath:  filters.source,
 		Role:        strings.TrimSpace(filters.role),
@@ -72,6 +75,7 @@ func listParams(sc scope.Scope, filters memoryFilterOptions, limit int, includeD
 	return store.ListParams{
 		ScopeKind:      sc.Kind,
 		ScopeID:        sc.ID,
+		SourceKind:     strings.TrimSpace(filters.sourceKind),
 		SourceAgent:    filters.agent,
 		SourcePath:     filters.source,
 		Role:           strings.TrimSpace(filters.role),

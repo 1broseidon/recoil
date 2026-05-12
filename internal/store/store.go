@@ -36,6 +36,7 @@ type Memory struct {
 	Hash         string  `json:"hash,omitempty"`
 	Role         string  `json:"role,omitempty"`
 	Content      string  `json:"content"`
+	SourceKind   string  `json:"source_kind,omitempty"`
 	SourceAgent  string  `json:"source_agent,omitempty"`
 	SourcePath   string  `json:"source_path,omitempty"`
 	SourceRef    string  `json:"source_ref,omitempty"`
@@ -58,6 +59,7 @@ type Memory struct {
 type AddMemoryParams struct {
 	Role         string
 	Content      string
+	SourceKind   string
 	SourceAgent  string
 	SourcePath   string
 	SourceRef    string
@@ -78,6 +80,7 @@ type SearchParams struct {
 	Query       string
 	ScopeKind   string
 	ScopeID     string
+	SourceKind  string
 	SourceAgent string
 	SourcePath  string
 	Role        string
@@ -92,6 +95,7 @@ type SearchParams struct {
 type ListParams struct {
 	ScopeKind      string
 	ScopeID        string
+	SourceKind     string
 	SourceAgent    string
 	SourcePath     string
 	Role           string
@@ -120,6 +124,7 @@ type SemanticSearchParams struct {
 	Model       string
 	ScopeKind   string
 	ScopeID     string
+	SourceKind  string
 	SourceAgent string
 	SourcePath  string
 	Role        string
@@ -227,6 +232,7 @@ func (s *Store) Path() string {
 
 func (s *Store) AddMemory(ctx context.Context, p AddMemoryParams) (*Memory, bool, error) {
 	p.Content = redact.Content(p.Content)
+	p.SourceKind = normalizeSourceKind(p.SourceKind)
 	p.ScopeKind = strings.TrimSpace(p.ScopeKind)
 	p.ScopeID = strings.TrimSpace(p.ScopeID)
 	if strings.TrimSpace(p.Content) == "" {
@@ -251,11 +257,11 @@ func (s *Store) AddMemory(ctx context.Context, p AddMemoryParams) (*Memory, bool
 
 	res, err := s.db.ExecContext(ctx, `
 			INSERT OR IGNORE INTO memories (
-				id, hash, role, content, source_agent, source_path, source_ref,
+				id, hash, role, content, source_kind, source_agent, source_path, source_ref,
 				scope_kind, scope_id, project_id, session_id, room, metadata_json,
 				validity, claim_key, supersedes, superseded_by, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, hash, p.Role, p.Content, p.SourceAgent, p.SourcePath, p.SourceRef,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, hash, p.Role, p.Content, p.SourceKind, p.SourceAgent, p.SourcePath, p.SourceRef,
 		p.ScopeKind, p.ScopeID, p.ProjectID, p.SessionID, p.Room, p.MetadataJSON,
 		lifecycle.Validity, lifecycle.ClaimKey, lifecycle.Supersedes, lifecycle.SupersededBy, createdAt,
 	)
@@ -300,6 +306,7 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	where, args, err := scopedFilter("m", memoryQueryFilter{
 		ScopeKind:   p.ScopeKind,
 		ScopeID:     p.ScopeID,
+		SourceKind:  p.SourceKind,
 		SourceAgent: p.SourceAgent,
 		SourcePath:  p.SourcePath,
 		Role:        p.Role,
@@ -326,7 +333,7 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	sqlText := `
 			SELECT
 				m.id, m.hash, COALESCE(m.role, ''), m.content,
-				COALESCE(m.source_agent, ''), COALESCE(m.source_path, ''), COALESCE(m.source_ref, ''),
+				COALESCE(m.source_kind, 'direct'), COALESCE(m.source_agent, ''), COALESCE(m.source_path, ''), COALESCE(m.source_ref, ''),
 				m.scope_kind, m.scope_id, COALESCE(m.project_id, ''), COALESCE(m.session_id, ''),
 				COALESCE(m.room, ''), COALESCE(m.metadata_json, ''),
 				COALESCE(m.validity, 'unknown'), COALESCE(m.claim_key, ''), COALESCE(m.supersedes, ''), COALESCE(m.superseded_by, ''),
@@ -344,6 +351,8 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 			- CASE WHEN lower(COALESCE(m.source_path, '')) LIKE ? THEN 1.0 ELSE 0 END
 			- CASE WHEN lower(m.content) LIKE ? THEN 1.0 ELSE 0 END
 			- CASE WHEN lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
+			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'file' THEN 0.5 ELSE 0 END
+			+ CASE WHEN COALESCE(m.source_kind, 'direct') = 'session_evidence' THEN 0.75 ELSE 0 END
 		LIMIT ?`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)
 	if err != nil {
@@ -356,7 +365,7 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		var mem Memory
 		var rank float64
 		if err := rows.Scan(
-			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
+			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
 			&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
 			&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
 			&mem.CreatedAt, &mem.TombstonedAt, &rank, &mem.Excerpt,
@@ -379,6 +388,7 @@ func EmbeddingText(mem Memory) string {
 		mem.Role,
 		strings.ReplaceAll(mem.ClaimKey, ".", " "),
 		mem.ClaimKey,
+		mem.SourceKind,
 		mem.SourceAgent,
 		strings.ReplaceAll(mem.SourcePath, "/", " "),
 		mem.SourceRef,
@@ -436,6 +446,7 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 	where, args, err := scopedFilter("", memoryQueryFilter{
 		ScopeKind:      p.ScopeKind,
 		ScopeID:        p.ScopeID,
+		SourceKind:     p.SourceKind,
 		SourceAgent:    p.SourceAgent,
 		SourcePath:     p.SourcePath,
 		Role:           p.Role,
@@ -452,7 +463,7 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 	args = append(args, p.Limit)
 	rows, err := s.db.QueryContext(ctx, `
 			SELECT id, hash, COALESCE(role, ''), content,
-				COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
+				COALESCE(source_kind, 'direct'), COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
 				scope_kind, scope_id, COALESCE(project_id, ''), COALESCE(session_id, ''),
 				COALESCE(room, ''), COALESCE(metadata_json, ''),
 				COALESCE(validity, 'unknown'), COALESCE(claim_key, ''), COALESCE(supersedes, ''), COALESCE(superseded_by, ''),
@@ -523,6 +534,7 @@ func (s *Store) SemanticSearch(ctx context.Context, p SemanticSearchParams) ([]M
 	where, args, err := scopedFilter("m", memoryQueryFilter{
 		ScopeKind:   p.ScopeKind,
 		ScopeID:     p.ScopeID,
+		SourceKind:  p.SourceKind,
 		SourceAgent: p.SourceAgent,
 		SourcePath:  p.SourcePath,
 		Role:        p.Role,
@@ -539,7 +551,7 @@ func (s *Store) SemanticSearch(ctx context.Context, p SemanticSearchParams) ([]M
 	rows, err := s.db.QueryContext(ctx, `
 			SELECT
 				m.id, m.hash, COALESCE(m.role, ''), m.content,
-				COALESCE(m.source_agent, ''), COALESCE(m.source_path, ''), COALESCE(m.source_ref, ''),
+				COALESCE(m.source_kind, 'direct'), COALESCE(m.source_agent, ''), COALESCE(m.source_path, ''), COALESCE(m.source_ref, ''),
 				m.scope_kind, m.scope_id, COALESCE(m.project_id, ''), COALESCE(m.session_id, ''),
 				COALESCE(m.room, ''), COALESCE(m.metadata_json, ''),
 				COALESCE(m.validity, 'unknown'), COALESCE(m.claim_key, ''), COALESCE(m.supersedes, ''), COALESCE(m.superseded_by, ''),
@@ -558,7 +570,7 @@ func (s *Store) SemanticSearch(ctx context.Context, p SemanticSearchParams) ([]M
 		var mem Memory
 		var vectorJSON, contentHash string
 		if err := rows.Scan(
-			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
+			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
 			&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
 			&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
 			&mem.CreatedAt, &mem.TombstonedAt, &vectorJSON, &contentHash,
@@ -695,6 +707,62 @@ func (s *Store) ForgetByFilter(ctx context.Context, p ListParams, reason string,
 	return BulkForgetResult{IDs: ids, Count: len(ids), Destroyed: destroy}, nil
 }
 
+func (s *Store) DestroySourceMemories(ctx context.Context, scopeKind, scopeID, sourceKind, sourcePath string) (BulkForgetResult, error) {
+	scopeKind = strings.TrimSpace(scopeKind)
+	scopeID = strings.TrimSpace(scopeID)
+	sourceKind = normalizeSourceKind(sourceKind)
+	sourcePath = strings.TrimSpace(filepath.ToSlash(sourcePath))
+	if scopeKind == "" || scopeID == "" || sourcePath == "" {
+		return BulkForgetResult{}, fmt.Errorf("scope and source path are required")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id
+		FROM memories
+		WHERE scope_kind = ?
+			AND scope_id = ?
+			AND COALESCE(source_kind, 'direct') = ?
+			AND COALESCE(source_path, '') = ?`,
+		scopeKind, scopeID, sourceKind, sourcePath)
+	if err != nil {
+		return BulkForgetResult{}, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return BulkForgetResult{}, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return BulkForgetResult{}, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return BulkForgetResult{}, err
+	}
+	defer tx.Rollback()
+	for _, id := range ids {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM memories WHERE id = ?`, id); err != nil {
+			return BulkForgetResult{}, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM sources
+		WHERE scope_kind = ?
+			AND scope_id = ?
+			AND kind = ?
+			AND COALESCE(path, '') = ?`,
+		scopeKind, scopeID, sourceKind, sourcePath); err != nil {
+		return BulkForgetResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return BulkForgetResult{}, err
+	}
+	return BulkForgetResult{IDs: ids, Count: len(ids), Destroyed: true}, nil
+}
+
 func (s *Store) GetMemoryByID(ctx context.Context, id string, includeDeleted bool) (*Memory, error) {
 	deletedClause := "AND tombstoned_at IS NULL"
 	if includeDeleted {
@@ -702,7 +770,7 @@ func (s *Store) GetMemoryByID(ctx context.Context, id string, includeDeleted boo
 	}
 	row := s.db.QueryRowContext(ctx, `
 			SELECT id, hash, COALESCE(role, ''), content,
-				COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
+				COALESCE(source_kind, 'direct'), COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
 				scope_kind, scope_id, COALESCE(project_id, ''), COALESCE(session_id, ''),
 				COALESCE(room, ''), COALESCE(metadata_json, ''),
 				COALESCE(validity, 'unknown'), COALESCE(claim_key, ''), COALESCE(supersedes, ''), COALESCE(superseded_by, ''),
@@ -747,10 +815,10 @@ func (s *Store) Counts(ctx context.Context) (Counts, error) {
 }
 
 func (s *Store) RefreshSource(ctx context.Context, p SourceRefreshParams) (SourceRefreshResult, error) {
-	p.Kind = strings.TrimSpace(p.Kind)
-	if p.Kind == "" {
+	if strings.TrimSpace(p.Kind) == "" {
 		p.Kind = "file"
 	}
+	p.Kind = normalizeSourceKind(p.Kind)
 	p.Path = strings.TrimSpace(filepath.ToSlash(p.Path))
 	p.Agent = strings.TrimSpace(p.Agent)
 	p.ScopeKind = strings.TrimSpace(p.ScopeKind)
@@ -758,7 +826,7 @@ func (s *Store) RefreshSource(ctx context.Context, p SourceRefreshParams) (Sourc
 	if p.Path == "" || p.ScopeKind == "" || p.ScopeID == "" {
 		return SourceRefreshResult{}, fmt.Errorf("source path and scope are required")
 	}
-	id := sourceID(p.ScopeKind, p.ScopeID, p.Agent, p.Path)
+	id := sourceID(p.Kind, p.ScopeKind, p.ScopeID, p.Agent, p.Path)
 	var previousHash string
 	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(content_hash, '') FROM sources WHERE id = ?`, id).Scan(&previousHash)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -918,9 +986,9 @@ func (s *Store) staleSourceMemoriesExcept(ctx context.Context, p SourceRefreshPa
 	return staled, nil
 }
 
-func sourceID(scopeKind, scopeID, agent, sourcePath string) string {
+func sourceID(kind, scopeKind, scopeID, agent, sourcePath string) string {
 	h := sha256.New()
-	for _, part := range []string{scopeKind, scopeID, agent, filepath.ToSlash(sourcePath)} {
+	for _, part := range []string{normalizeSourceKind(kind), scopeKind, scopeID, agent, filepath.ToSlash(sourcePath)} {
 		h.Write([]byte(part))
 		h.Write([]byte{0})
 	}
@@ -930,7 +998,7 @@ func sourceID(scopeKind, scopeID, agent, sourcePath string) string {
 func (s *Store) memoryByHash(ctx context.Context, hash string) (*Memory, error) {
 	row := s.db.QueryRowContext(ctx, `
 			SELECT id, hash, COALESCE(role, ''), content,
-				COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
+				COALESCE(source_kind, 'direct'), COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
 				scope_kind, scope_id, COALESCE(project_id, ''), COALESCE(session_id, ''),
 				COALESCE(room, ''), COALESCE(metadata_json, ''),
 				COALESCE(validity, 'unknown'), COALESCE(claim_key, ''), COALESCE(supersedes, ''), COALESCE(superseded_by, ''),
@@ -994,7 +1062,7 @@ type memoryScanner interface {
 func scanMemory(scanner memoryScanner) (Memory, error) {
 	var mem Memory
 	err := scanner.Scan(
-		&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
+		&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
 		&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
 		&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
 		&mem.CreatedAt, &mem.TombstonedAt,
@@ -1005,6 +1073,7 @@ func scanMemory(scanner memoryScanner) (Memory, error) {
 type memoryQueryFilter struct {
 	ScopeKind      string
 	ScopeID        string
+	SourceKind     string
 	SourceAgent    string
 	SourcePath     string
 	Role           string
@@ -1035,6 +1104,10 @@ func scopedFilter(alias string, filter memoryQueryFilter) (string, []any, error)
 	if filter.ScopeID != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("scope_id"))
 		args = append(args, filter.ScopeID)
+	}
+	if filter.SourceKind != "" {
+		fmt.Fprintf(&where, "\n\t\t\tAND COALESCE(%s, 'direct') = ?", col("source_kind"))
+		args = append(args, normalizeSourceKind(filter.SourceKind))
 	}
 	if filter.SourceAgent != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("source_agent"))
@@ -1093,6 +1166,7 @@ func (s *Store) migrate() error {
 			hash TEXT NOT NULL UNIQUE,
 			role TEXT,
 			content TEXT NOT NULL,
+			source_kind TEXT NOT NULL DEFAULT 'direct',
 			source_agent TEXT,
 			source_path TEXT,
 			source_ref TEXT,
@@ -1153,6 +1227,7 @@ func (s *Store) migrate() error {
 	for _, stmt := range []string{
 		`CREATE INDEX IF NOT EXISTS idx_memories_validity ON memories(validity)`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_claim_scope ON memories(scope_kind, scope_id, claim_key)`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_source_kind ON memories(scope_kind, scope_id, source_kind)`,
 		`CREATE INDEX IF NOT EXISTS idx_sources_scope_path ON sources(scope_kind, scope_id, path)`,
 		`CREATE INDEX IF NOT EXISTS idx_memory_embeddings_provider ON memory_embeddings(provider, model)`,
 	} {
@@ -1161,6 +1236,9 @@ func (s *Store) migrate() error {
 		}
 	}
 	if err := s.backfillLifecycleFromMetadata(); err != nil {
+		return err
+	}
+	if err := s.backfillSourceKind(); err != nil {
 		return err
 	}
 	if err := s.ensureFTSSchema(); err != nil {
@@ -1273,6 +1351,7 @@ func (s *Store) ensureLifecycleColumns() error {
 		name string
 		sql  string
 	}{
+		{name: "source_kind", sql: `ALTER TABLE memories ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'direct'`},
 		{name: "validity", sql: `ALTER TABLE memories ADD COLUMN validity TEXT NOT NULL DEFAULT 'unknown'`},
 		{name: "claim_key", sql: `ALTER TABLE memories ADD COLUMN claim_key TEXT`},
 		{name: "supersedes", sql: `ALTER TABLE memories ADD COLUMN supersedes TEXT`},
@@ -1376,6 +1455,26 @@ func (s *Store) backfillLifecycleFromMetadata() error {
 	return nil
 }
 
+func (s *Store) backfillSourceKind() error {
+	if _, err := s.db.Exec(`
+		UPDATE memories
+		SET source_kind = 'file'
+		WHERE COALESCE(source_kind, '') IN ('', 'direct')
+			AND metadata_json LIKE '%"kind":"file_chunk"%'
+			AND COALESCE(source_path, '') != ''`); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`
+		UPDATE memories
+		SET source_kind = 'session_evidence'
+		WHERE COALESCE(source_kind, '') IN ('', 'direct')
+			AND metadata_json LIKE '%"kind":"session_evidence"%'
+			AND COALESCE(source_path, '') != ''`); err != nil {
+		return err
+	}
+	return nil
+}
+
 type memoryLifecycle struct {
 	Validity     string
 	ClaimKey     string
@@ -1475,6 +1574,24 @@ func normalizeValidity(value string) (string, error) {
 		return value, nil
 	default:
 		return "", fmt.Errorf("invalid validity %q", value)
+	}
+}
+
+func normalizeSourceKind(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "direct"
+	}
+	value = strings.ReplaceAll(value, "-", "_")
+	switch value {
+	case "transcript", "transcripts", "session", "session_evidence":
+		return "session_evidence"
+	case "project_file", "file_chunk":
+		return "file"
+	case "extracted", "claim":
+		return "extracted_claim"
+	default:
+		return value
 	}
 }
 

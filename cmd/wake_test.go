@@ -139,6 +139,30 @@ func TestBuildWakeLayersSkipsHistoricalMemories(t *testing.T) {
 	}
 }
 
+func TestBuildWakeLayersCapsSessionEvidence(t *testing.T) {
+	recent := []store.Memory{
+		{ID: "mem_handoff_evidence", SourceKind: "session_evidence", Content: "next step is to finish auth evidence."},
+		{ID: "mem_must_not_l1", SourceKind: "session_evidence", Content: "user: must avoid refresh tokens for v0."},
+		{ID: "mem_evidence_2", SourceKind: "session_evidence", Content: "user: go with bearer auth."},
+		{ID: "mem_evidence_3", SourceKind: "session_evidence", Content: "user: prefer no refresh token endpoint."},
+		{ID: "mem_doc", SourceKind: "file", Role: "source", Content: "docs say auth uses bearer tokens."},
+	}
+	layers := buildWakeLayers("", nil, recent, 8)
+	if got := ids(layers[0].Memories); got != "mem_handoff_evidence" {
+		t.Fatalf("expected one session evidence item in L0, got %s", got)
+	}
+	if strings.Contains(ids(layers[1].Memories), "mem_must_not_l1") {
+		t.Fatalf("did not expect session evidence promoted into L1, got %+v", layers[1].Memories)
+	}
+	l2IDs := ids(layers[2].Memories)
+	if strings.Count(l2IDs, "mem_evidence") > 2 || strings.Contains(l2IDs, "mem_evidence_3") {
+		t.Fatalf("expected L2 session evidence cap of two, got %s", l2IDs)
+	}
+	if !strings.Contains(l2IDs, "mem_doc") {
+		t.Fatalf("expected ordinary file evidence to remain eligible, got %s", l2IDs)
+	}
+}
+
 func TestLayeredMemoryBlocksHonorsHardBudget(t *testing.T) {
 	layers := []wakeLayer{
 		{

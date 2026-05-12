@@ -66,6 +66,38 @@ func newMineCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if len(args) == 1 && strings.TrimSpace(args[0]) == "session-evidence" {
+				var st *store.Store
+				if !mineOpts.dryRun {
+					var err error
+					st, _, err = openStore()
+					if err != nil {
+						return err
+					}
+					defer st.Close()
+				}
+				result, err := mineSessionEvidence(context.Background(), st, sc, mineOpts, "")
+				if err != nil {
+					return err
+				}
+				w := cmd.OutOrStdout()
+				if opts.json {
+					return writeJSON(w, "mine_result", result)
+				}
+				return frontmatter(w, []kv{
+					{k: "root", v: result.Root},
+					{k: "scope", v: result.Scope},
+					{k: "scope_id", v: result.ScopeID},
+					{k: "dry_run", v: fmt.Sprintf("%t", result.DryRun)},
+					{k: "files_scanned", v: fmt.Sprintf("%d", result.FilesScanned)},
+					{k: "files_skipped", v: fmt.Sprintf("%d", result.FilesSkipped)},
+					{k: "chunks", v: fmt.Sprintf("%d", result.Chunks)},
+					{k: "added", v: fmt.Sprintf("%d", result.Added)},
+					{k: "duplicates", v: fmt.Sprintf("%d", result.Duplicates)},
+					{k: "sources", v: fmt.Sprintf("%d", result.Sources)},
+					{k: "staled", v: fmt.Sprintf("%d", result.Staled)},
+				}, mineResultLines(result))
+			}
 			path := "."
 			if len(args) == 1 {
 				path = args[0]
@@ -122,6 +154,7 @@ func newMineCommand() *cobra.Command {
 					mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
 						Role:         mineOpts.role,
 						Content:      chunk.Content,
+						SourceKind:   "file",
 						SourceAgent:  mineOpts.agent,
 						SourcePath:   chunk.SourcePath,
 						SourceRef:    chunk.SourceRef,

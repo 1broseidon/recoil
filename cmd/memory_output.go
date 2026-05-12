@@ -49,6 +49,9 @@ func memoryBlocks(memories []store.Memory, maxChars int, includeScore bool) stri
 		if mem.Role != "" {
 			fmt.Fprintf(&b, "role: %s\n", mem.Role)
 		}
+		if mem.SourceKind != "" {
+			fmt.Fprintf(&b, "source_kind: %s\n", mem.SourceKind)
+		}
 		if mem.SourceAgent != "" {
 			fmt.Fprintf(&b, "source_agent: %s\n", mem.SourceAgent)
 		}

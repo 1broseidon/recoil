@@ -129,5 +129,5 @@ func forgetParamsFromOptions(id string, opts forgetOptions) store.ForgetParams {
 }
 
 func hasBulkForgetFilter(filters memoryFilterOptions) bool {
-	return filters.agent != "" || filters.source != "" || filters.since != "" || filters.before != ""
+	return filters.agent != "" || filters.sourceKind != "" || filters.source != "" || filters.since != "" || filters.before != ""
 }

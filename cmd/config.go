@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/1broseidon/recoil/internal/config"
 	"github.com/1broseidon/recoil/internal/scope"
@@ -17,6 +19,8 @@ type configResult struct {
 	ProjectInitialized bool   `json:"project_initialized"`
 	ProjectRoot        string `json:"project_root,omitempty"`
 	ProjectMarker      string `json:"project_marker,omitempty"`
+	SettingsPath       string `json:"settings_path"`
+	SessionEvidence    bool   `json:"session_evidence_enabled"`
 	SQLiteRequiresFTS5 bool   `json:"sqlite_requires_fts5"`
 }
 
@@ -46,6 +50,14 @@ func newConfigCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			settingsPath, err := config.ResolveSettingsPath(projectScope.Root)
+			if err != nil {
+				return err
+			}
+			settings, err := config.LoadSettings(settingsPath)
+			if err != nil {
+				return err
+			}
 			result := configResult{
 				DBPath:             dbPath,
 				StateDir:           stateDir,
@@ -55,6 +67,8 @@ func newConfigCommand() *cobra.Command {
 				ProjectInitialized: projectScope.Initialized,
 				ProjectRoot:        projectScope.Root,
 				ProjectMarker:      projectScope.MarkerPath,
+				SettingsPath:       settingsPath,
+				SessionEvidence:    settings.Bool("session-evidence.enabled", false),
 				SQLiteRequiresFTS5: true,
 			}
 			w := cmd.OutOrStdout()
@@ -70,11 +84,15 @@ func newConfigCommand() *cobra.Command {
 				{k: "project_initialized", v: fmt.Sprintf("%t", result.ProjectInitialized)},
 				{k: "project_root", v: result.ProjectRoot},
 				{k: "project_marker", v: result.ProjectMarker},
+				{k: "settings_path", v: result.SettingsPath},
+				{k: "session_evidence_enabled", v: fmt.Sprintf("%t", result.SessionEvidence)},
 				{k: "sqlite_requires_fts5", v: fmt.Sprintf("%t", result.SQLiteRequiresFTS5)},
 			}, "")
 		},
 	}
 	c.AddCommand(newConfigPathCommand())
+	c.AddCommand(newConfigGetCommand())
+	c.AddCommand(newConfigSetCommand())
 	return c
 }
 
@@ -95,4 +113,79 @@ func newConfigPathCommand() *cobra.Command {
 			return err
 		},
 	}
+}
+
+func newConfigGetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get [key]",
+		Short: "Get Recoil configuration values",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path, settings, err := loadProjectSettings()
+			if err != nil {
+				return err
+			}
+			w := cmd.OutOrStdout()
+			if len(args) == 1 {
+				value, ok := settings.Get(args[0])
+				if opts.json {
+					return writeJSON(w, "config_get_result", map[string]any{"path": path, "key": args[0], "value": value, "found": ok})
+				}
+				if !ok {
+					return fmt.Errorf("config key %q is not set", args[0])
+				}
+				_, err = fmt.Fprintln(w, value)
+				return err
+			}
+			keys := make([]string, 0, len(settings.Values))
+			for key := range settings.Values {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			if opts.json {
+				return writeJSON(w, "config_get_result", map[string]any{"path": path, "values": settings.Values})
+			}
+			var lines []string
+			for _, key := range keys {
+				lines = append(lines, key+"="+settings.Values[key])
+			}
+			return frontmatter(w, []kv{{k: "path", v: path}, {k: "count", v: fmt.Sprintf("%d", len(keys))}}, strings.Join(lines, "\n"))
+		},
+	}
+}
+
+func newConfigSetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set <key> <value>",
+		Short: "Set a Recoil configuration value",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path, settings, err := loadProjectSettings()
+			if err != nil {
+				return err
+			}
+			settings.Set(args[0], args[1])
+			if err := config.SaveSettings(path, settings); err != nil {
+				return err
+			}
+			w := cmd.OutOrStdout()
+			if opts.json {
+				return writeJSON(w, "config_set_result", map[string]string{"path": path, "key": args[0], "value": args[1]})
+			}
+			return frontmatter(w, []kv{{k: "path", v: path}, {k: "key", v: args[0]}, {k: "value", v: args[1]}}, "")
+		},
+	}
+}
+
+func loadProjectSettings() (string, config.Settings, error) {
+	sc, err := scope.ProjectScope(".")
+	if err != nil {
+		return "", config.Settings{}, err
+	}
+	path, err := config.ResolveSettingsPath(sc.Root)
+	if err != nil {
+		return "", config.Settings{}, err
+	}
+	settings, err := config.LoadSettings(path)
+	return path, settings, err
 }

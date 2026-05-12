@@ -145,6 +145,65 @@ func TestSearchAndListUseStructuredMetadata(t *testing.T) {
 	}
 }
 
+func TestSourceKindFilteringAndAuthorityDemotion(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	evidence, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Role:       "source",
+		SourceKind: "session_evidence",
+		Content:    "Assistant speculation said refresh tokens might be useful.",
+		ScopeKind:  "project",
+		ScopeID:    "project-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Role:       "decision",
+		SourceKind: "direct",
+		Content:    "Confirmed operator decision: skip refresh tokens for v0.",
+		ScopeKind:  "project",
+		ScopeID:    "project-1",
+		Validity:   "active",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := st.Search(ctx, SearchParams{
+		Query:     "refresh tokens",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Limit:     5,
+		Lifecycle: LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) < 2 || results[0].ID != decision.ID {
+		t.Fatalf("expected decision to outrank session evidence, got %+v", results)
+	}
+	filtered, err := st.Search(ctx, SearchParams{
+		Query:      "refresh tokens",
+		ScopeKind:  "project",
+		ScopeID:    "project-1",
+		SourceKind: "session_evidence",
+		Limit:      5,
+		Lifecycle:  LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filtered) != 1 || filtered[0].ID != evidence.ID || filtered[0].SourceKind != "session_evidence" {
+		t.Fatalf("expected source-kind filtered evidence, got %+v", filtered)
+	}
+}
+
 func TestAddMemoryRedactsDeterministically(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))

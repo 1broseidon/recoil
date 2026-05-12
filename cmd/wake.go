@@ -192,6 +192,7 @@ func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, fi
 
 func hasExplicitWakeFilters(filters memoryFilterOptions) bool {
 	return strings.TrimSpace(filters.agent) != "" ||
+		strings.TrimSpace(filters.sourceKind) != "" ||
 		strings.TrimSpace(filters.source) != "" ||
 		strings.TrimSpace(filters.role) != "" ||
 		strings.TrimSpace(filters.claimKey) != "" ||
@@ -225,6 +226,7 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 		{Key: "l2_recent_evidence", Title: "L2 Recent Notes And Evidence"},
 	}
 	seen := make(map[string]bool)
+	sessionEvidenceByLayer := map[int]int{}
 	total := 0
 	add := func(mem store.Memory, fromQuery bool) {
 		if total >= limit || seen[mem.ID] {
@@ -234,6 +236,18 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 			return
 		}
 		layerIndex := classifyWakeMemory(mem, query, fromQuery)
+		if isSessionEvidence(mem) && !fromQuery {
+			if layerIndex == 1 {
+				layerIndex = 2
+			}
+			if layerIndex == 0 && sessionEvidenceByLayer[layerIndex] >= 1 {
+				return
+			}
+			if layerIndex == 2 && sessionEvidenceByLayer[layerIndex] >= 2 {
+				return
+			}
+			sessionEvidenceByLayer[layerIndex]++
+		}
 		layers[layerIndex].Memories = append(layers[layerIndex].Memories, mem)
 		seen[mem.ID] = true
 		total++
@@ -254,6 +268,15 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 	if fromQuery && strings.TrimSpace(query) != "" {
 		return 0
 	}
+	if isSessionEvidence(mem) {
+		if strings.Contains(content, "handoff") ||
+			strings.Contains(content, "next active task") ||
+			strings.Contains(content, "next step") ||
+			strings.Contains(content, "blocker") {
+			return 0
+		}
+		return 2
+	}
 	if strings.Contains(sourcePath, "handoff") ||
 		strings.Contains(content, "handoff") ||
 		strings.Contains(content, "next active task") ||
@@ -272,6 +295,10 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 		return 1
 	}
 	return 2
+}
+
+func isSessionEvidence(mem store.Memory) bool {
+	return strings.EqualFold(mem.SourceKind, "session_evidence")
 }
 
 func wakeLayerResults(layers []wakeLayer) []wakeLayerResult {
@@ -341,6 +368,9 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	fmt.Fprintf(&meta, "created: %s\n", mem.CreatedAt)
 	if mem.Role != "" {
 		fmt.Fprintf(&meta, "role: %s\n", mem.Role)
+	}
+	if mem.SourceKind != "" {
+		fmt.Fprintf(&meta, "source_kind: %s\n", mem.SourceKind)
 	}
 	if mem.Validity != "" {
 		fmt.Fprintf(&meta, "validity: %s\n", mem.Validity)

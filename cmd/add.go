@@ -15,6 +15,7 @@ type addOptions struct {
 	scope        scopeOptions
 	file         string
 	role         string
+	sourceKind   string
 	agent        string
 	sourcePath   string
 	sourceRef    string
@@ -58,6 +59,7 @@ func newAddCommand() *cobra.Command {
 			mem, duplicate, err := st.AddMemory(context.Background(), store.AddMemoryParams{
 				Role:         addOpts.role,
 				Content:      content,
+				SourceKind:   addOpts.sourceKind,
 				SourceAgent:  addOpts.agent,
 				SourcePath:   addOpts.sourcePath,
 				SourceRef:    addOpts.sourceRef,
@@ -84,6 +86,7 @@ func newAddCommand() *cobra.Command {
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
 				{k: "created", v: mem.CreatedAt},
+				{k: "source_kind", v: mem.SourceKind},
 				{k: "validity", v: mem.Validity},
 				{k: "claim_key", v: mem.ClaimKey},
 				{k: "supersedes", v: mem.Supersedes},
@@ -95,6 +98,7 @@ func newAddCommand() *cobra.Command {
 	addScopeFlags(c, &addOpts.scope)
 	c.Flags().StringVar(&addOpts.file, "file", "", "read memory content from a file, or '-' for stdin")
 	c.Flags().StringVar(&addOpts.role, "role", "", "role associated with the memory content")
+	c.Flags().StringVar(&addOpts.sourceKind, "source-kind", "", "source kind: direct, file, session_evidence, extracted_claim")
 	c.Flags().StringVar(&addOpts.agent, "agent", "", "source agent name")
 	c.Flags().StringVar(&addOpts.sourcePath, "source-path", "", "source file or transcript path")
 	c.Flags().StringVar(&addOpts.sourceRef, "source-ref", "", "source reference within the path")

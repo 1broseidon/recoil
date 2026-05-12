@@ -38,6 +38,7 @@ func newShowCommand() *cobra.Command {
 				{k: "supersedes", v: mem.Supersedes},
 				{k: "superseded_by", v: mem.SupersededBy},
 				{k: "role", v: mem.Role},
+				{k: "source_kind", v: mem.SourceKind},
 				{k: "source_agent", v: mem.SourceAgent},
 				{k: "source_path", v: mem.SourcePath},
 				{k: "source_ref", v: mem.SourceRef},

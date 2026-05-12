@@ -152,6 +152,13 @@ recoil forget <memory-id> --destroy
 # Mining
 recoil mine --dry-run
 recoil mine docs/
+recoil mine session-evidence --dry-run
+
+# Session evidence (opt-in)
+recoil config set session-evidence.enabled true
+recoil session-evidence ingest --agent codex --session-id sess_a8f3 --file transcript.json
+recoil session-evidence list
+recoil session-evidence forget sess_a8f3
 
 # Agent integration
 recoil hook remind
@@ -196,9 +203,9 @@ on stderr and use a local fallback scope.
 agent, source path, and source_ref, with conservative ranking boosts for
 exact metadata matches and decision-like roles. Filters: `--role`,
 `--claim-key`, `--validity`, `--current`, `--historical`, `--since`,
-`--before`, `--source`, `--agent`. `wake` returns a layered startup view —
-current context, durable decisions/constraints, recent supporting evidence —
-bounded by `--max-chars`.
+`--before`, `--source-kind`, `--source`, `--agent`. `wake` returns a layered
+startup view — current context, durable decisions/constraints, recent
+supporting evidence — bounded by `--max-chars`.
 
 **Output.** Default is agent-readable frontmatter (the fields an agent needs
 to cite) followed by content. `--json` returns a stable envelope:
@@ -270,6 +277,43 @@ recoil add --role note --claim-key source.fixtures.eval-corpora \
   --validity active \
   "eval/corpora/ contains synthetic stress fixtures — not project guidance."
 ```
+
+## Session Evidence
+
+Session Evidence is selected, redacted evidence from an agent session. It is
+not transcript hoarding: recoil keeps compact load-bearing slices such as user
+directives, explicit choices, rejected paths, completion summaries, and handoff
+notes. Tool payloads, chatter, and unconfirmed assistant speculation are skipped.
+
+It is opt-in per project:
+
+```sh
+recoil config set session-evidence.enabled true
+```
+
+Runtime adapters can pipe transcript payloads into:
+
+```sh
+recoil session-evidence ingest --agent codex --session-id sess_a8f3 --file -
+```
+
+Ingest redacts before writing anything to disk, writes compact JSONL under the
+local recoil state directory, and mines those records with `source_kind` set to
+`session_evidence`, `role: source`, and `validity: unknown`. Evidence keeps
+session and turn provenance, but it has lower authority than explicit decisions
+and fresh project docs. `wake` caps session evidence so recent sessions cannot
+crowd out durable guidance.
+
+Operators can inspect or purge a session:
+
+```sh
+recoil session-evidence list
+recoil session-evidence show sess_a8f3
+recoil session-evidence forget sess_a8f3
+```
+
+`forget` for session evidence is a privacy purge: it removes the compact
+evidence file and hard-deletes the mined memories for that session.
 
 ## Agent Hooks
 
