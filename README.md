@@ -297,6 +297,14 @@ Runtime adapters can pipe transcript payloads into:
 recoil session-evidence ingest --agent codex --session-id sess_a8f3 --file -
 ```
 
+Supported hook installers also add a session-end capture command where the
+runtime exposes an end-of-session payload:
+
+```sh
+recoil hook install claude-code
+recoil hook install codex
+```
+
 Ingest redacts before writing anything to disk, writes compact JSONL under the
 local recoil state directory, and mines those records with `source_kind` set to
 `session_evidence`, `role: source`, and `validity: unknown`. Evidence keeps

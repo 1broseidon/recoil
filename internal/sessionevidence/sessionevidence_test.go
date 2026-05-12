@@ -75,11 +75,28 @@ func TestIngestWritesCompactEvidenceOnly(t *testing.T) {
 	if result.Selected != 1 || result.Path == "" || !strings.Contains(result.SourcePath, "session-evidence/") {
 		t.Fatalf("unexpected ingest result %+v", result)
 	}
+	if strings.Contains(result.SourcePath, "sess_sess-test") {
+		t.Fatalf("did not expect double sess_ prefix, got %q", result.SourcePath)
+	}
 	file, err := ReadFile(result.Path, stateDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(file.Records) != 1 || strings.Contains(file.Records[0].Content, "noisy log") {
 		t.Fatalf("expected compact evidence without tool payload, got %+v", file.Records)
+	}
+}
+
+func TestSelectDedupesSameSpanAcrossEvidenceTypes(t *testing.T) {
+	turns := []Turn{
+		{Index: 8, Role: "user", Content: "use the compact session evidence path and update README.md"},
+		{Index: 9, Role: "assistant", Content: "Done. I updated README.md and tests passed."},
+	}
+	records := Select(turns, Options{ScopeKind: "project", ScopeID: "project-1", SessionID: "sess-dedupe", MinChars: 20})
+	if len(records) != 1 {
+		t.Fatalf("expected same turn span to dedupe to one record, got %+v", records)
+	}
+	if got := strings.Join(records[0].EvidenceTypes, ","); got != "user_directive,completion_summary" {
+		t.Fatalf("expected merged evidence types, got %q in %+v", got, records[0])
 	}
 }

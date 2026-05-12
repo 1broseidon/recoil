@@ -40,9 +40,83 @@ func newSessionEvidenceCommand() *cobra.Command {
 from agent sessions. It stores compact evidence slices, not raw transcripts.`,
 	}
 	c.AddCommand(newSessionEvidenceIngestCommand())
+	c.AddCommand(newSessionEvidenceHookCommand())
 	c.AddCommand(newSessionEvidenceListCommand())
 	c.AddCommand(newSessionEvidenceShowCommand())
 	c.AddCommand(newSessionEvidenceForgetCommand())
+	return c
+}
+
+func newSessionEvidenceHookCommand() *cobra.Command {
+	var seOpts sessionEvidenceOptions
+	c := &cobra.Command{
+		Use:    "hook",
+		Short:  "Ingest session evidence from an agent hook payload",
+		Hidden: true,
+		Args:   cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			raw, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return err
+			}
+			payload, sessionID, ok, err := extractHookTranscript(raw)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return nil
+			}
+			sc, err := resolveScope(cmd, seOpts.scope)
+			if err != nil {
+				return err
+			}
+			settingsPath, err := config.ResolveSettingsPath(sc.Root)
+			if err != nil {
+				return err
+			}
+			settings, err := config.LoadSettings(settingsPath)
+			if err != nil {
+				return err
+			}
+			if !settings.Bool("session-evidence.enabled", false) {
+				return nil
+			}
+			stateDir, err := config.ResolveStateDir()
+			if err != nil {
+				return err
+			}
+			result, err := sessionevidence.Ingest(payload, sessionevidence.Options{
+				StateDir:    stateDir,
+				ScopeKind:   sc.Kind,
+				ScopeID:     sc.ID,
+				SourceAgent: seOpts.agent,
+				SessionID:   firstNonEmpty(seOpts.session, sessionID),
+				MinChars:    effectiveMinChars(settings, seOpts.minChars),
+			})
+			if err != nil {
+				return err
+			}
+			if result.Selected == 0 {
+				return nil
+			}
+			st, _, err := openStore()
+			if err != nil {
+				return err
+			}
+			defer st.Close()
+			_, err = mineSessionEvidence(context.Background(), st, sc, mineOptions{
+				scope:  seOpts.scope,
+				role:   "source",
+				agent:  seOpts.agent,
+				dryRun: false,
+			}, result.SourcePath)
+			return err
+		},
+	}
+	addScopeFlags(c, &seOpts.scope)
+	c.Flags().StringVar(&seOpts.agent, "agent", "codex", "source agent name")
+	c.Flags().StringVar(&seOpts.session, "session-id", "", "session ID override")
+	c.Flags().IntVar(&seOpts.minChars, "min-chars", 0, "minimum chars for non-directive evidence")
 	return c
 }
 
@@ -204,6 +278,9 @@ func newSessionEvidenceShowCommand() *cobra.Command {
 				for _, record := range file.Records {
 					fmt.Fprintf(&b, "## turn %d-%d\n", record.TurnStart, record.TurnEnd)
 					fmt.Fprintf(&b, "evidence_type: %s\n", record.EvidenceType)
+					if len(record.EvidenceTypes) > 0 {
+						fmt.Fprintf(&b, "evidence_types: %s\n", strings.Join(record.EvidenceTypes, ","))
+					}
 					fmt.Fprintf(&b, "selector_reason: %s\n", record.SelectorReason)
 					fmt.Fprintf(&b, "timestamp: %s\n\n", record.Timestamp)
 					fmt.Fprintf(&b, "%s\n\n", record.Content)
@@ -365,15 +442,16 @@ func mineSessionEvidence(ctx context.Context, st *store.Store, sc scope.Scope, m
 }
 
 type sessionEvidenceMetadata struct {
-	Kind           string `json:"kind"`
-	SessionID      string `json:"session_id"`
-	EvidenceType   string `json:"evidence_type"`
-	SelectorReason string `json:"selector_reason"`
-	TurnStart      int    `json:"turn_start"`
-	TurnEnd        int    `json:"turn_end"`
-	FileHash       string `json:"file_hash,omitempty"`
-	FileMTime      string `json:"file_mtime,omitempty"`
-	FileSize       int64  `json:"file_size,omitempty"`
+	Kind           string   `json:"kind"`
+	SessionID      string   `json:"session_id"`
+	EvidenceType   string   `json:"evidence_type"`
+	EvidenceTypes  []string `json:"evidence_types,omitempty"`
+	SelectorReason string   `json:"selector_reason"`
+	TurnStart      int      `json:"turn_start"`
+	TurnEnd        int      `json:"turn_end"`
+	FileHash       string   `json:"file_hash,omitempty"`
+	FileMTime      string   `json:"file_mtime,omitempty"`
+	FileSize       int64    `json:"file_size,omitempty"`
 }
 
 func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessionevidence.Record) (string, error) {
@@ -381,6 +459,7 @@ func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessioneviden
 		Kind:           sessionevidence.SourceKind,
 		SessionID:      record.SessionID,
 		EvidenceType:   record.EvidenceType,
+		EvidenceTypes:  record.EvidenceTypes,
 		SelectorReason: record.SelectorReason,
 		TurnStart:      record.TurnStart,
 		TurnEnd:        record.TurnEnd,
@@ -406,6 +485,75 @@ func readSessionEvidenceInput(path string) ([]byte, error) {
 		return io.ReadAll(os.Stdin)
 	}
 	return os.ReadFile(path)
+}
+
+func extractHookTranscript(raw []byte) ([]byte, string, bool, error) {
+	raw = []byte(strings.TrimSpace(string(raw)))
+	if len(raw) == 0 {
+		return nil, "", false, nil
+	}
+	if raw[0] == '[' {
+		return raw, "", true, nil
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		// JSONL transcript payloads are valid direct transcript input even when
+		// they are not a single hook object.
+		return raw, "", true, nil
+	}
+	sessionID := hookString(payload, "session_id", "sessionId", "id")
+	if hasTranscriptTurns(payload) {
+		return raw, sessionID, true, nil
+	}
+	if transcriptPath := hookString(payload, "transcript_path", "transcriptPath", "transcript_file", "transcriptFile"); transcriptPath != "" {
+		data, err := os.ReadFile(transcriptPath)
+		if err != nil {
+			return nil, sessionID, false, err
+		}
+		return data, sessionID, true, nil
+	}
+	if value, ok := payload["transcript"]; ok {
+		switch transcript := value.(type) {
+		case string:
+			transcript = strings.TrimSpace(transcript)
+			if transcript == "" {
+				return nil, sessionID, false, nil
+			}
+			if data, err := os.ReadFile(transcript); err == nil {
+				return data, sessionID, true, nil
+			}
+			return []byte(transcript), sessionID, true, nil
+		default:
+			data, err := json.Marshal(transcript)
+			if err != nil {
+				return nil, sessionID, false, err
+			}
+			return data, sessionID, true, nil
+		}
+	}
+	return nil, sessionID, false, nil
+}
+
+func hasTranscriptTurns(payload map[string]any) bool {
+	for _, key := range []string{"turns", "messages", "items", "events"} {
+		if _, ok := payload[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func hookString(payload map[string]any, keys ...string) string {
+	for _, key := range keys {
+		value, ok := payload[key]
+		if !ok {
+			continue
+		}
+		if s, ok := value.(string); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
+		}
+	}
+	return ""
 }
 
 func effectiveSettings() (config.Settings, error) {

@@ -138,13 +138,16 @@ func TestClaudeCodeHooksAreIdempotentAndPreserveUserHooks(t *testing.T) {
 	if got := countClaudeHookMarkers(hooks["SessionStart"]); got != 1 {
 		t.Fatalf("expected one Recoil SessionStart hook after repeated merge, got %d: %+v", got, hooks["SessionStart"])
 	}
+	if got := countClaudeHookCommands(hooks["SessionEnd"], claudeEvidenceCommand); got != 1 {
+		t.Fatalf("expected one Recoil SessionEnd evidence hook after repeated merge, got %d: %+v", got, hooks["SessionEnd"])
+	}
 	if got := countClaudeHookCommands(hooks["PreToolUse"], "echo user"); got != 1 {
 		t.Fatalf("expected user PreToolUse hook to survive marker cleanup, got %d: %+v", got, hooks["PreToolUse"])
 	}
 
 	removeClaudeHooks(settings)
 	hooks = settings.raw["hooks"].(map[string]any)
-	if got := countClaudeHookMarkers(hooks["SessionStart"]) + countClaudeHookMarkers(hooks["PreToolUse"]); got != 0 {
+	if got := countClaudeHookMarkers(hooks["SessionStart"]) + countClaudeHookMarkers(hooks["SessionEnd"]) + countClaudeHookMarkers(hooks["PreToolUse"]); got != 0 {
 		t.Fatalf("expected Recoil hooks removed, got marker count %d: %+v", got, hooks)
 	}
 	if got := countClaudeHookCommands(hooks["SessionStart"], "echo start"); got != 1 {
@@ -257,6 +260,9 @@ func TestCodexInstallProjectScopeWritesNativeHooksJSON(t *testing.T) {
 	if got := countHookCommands(hooks["SessionStart"], codexHookCommand); got != 1 {
 		t.Fatalf("expected one Recoil Codex SessionStart hook, got %d: %+v", got, hooks["SessionStart"])
 	}
+	if got := countHookCommands(hooks["Stop"], codexEvidenceCommand); got != 1 {
+		t.Fatalf("expected one Recoil Codex Stop evidence hook, got %d: %+v", got, hooks["Stop"])
+	}
 	if got := countHookCommands(hooks["SessionStart"], "echo start"); got != 1 {
 		t.Fatalf("expected user SessionStart hook preserved, got %d: %+v", got, hooks["SessionStart"])
 	}
@@ -274,6 +280,9 @@ func TestCodexInstallProjectScopeWritesNativeHooksJSON(t *testing.T) {
 	hooks = settings.raw["hooks"].(map[string]any)
 	if got := countHookCommands(hooks["SessionStart"], codexHookCommand); got != 0 {
 		t.Fatalf("expected Recoil Codex hook removed, got %d: %+v", got, hooks["SessionStart"])
+	}
+	if got := countHookCommands(hooks["Stop"], codexEvidenceCommand); got != 0 {
+		t.Fatalf("expected Recoil Codex evidence hook removed, got %d: %+v", got, hooks["Stop"])
 	}
 	if got := countHookCommands(hooks["SessionStart"], "echo start"); got != 1 {
 		t.Fatalf("expected user SessionStart hook preserved after uninstall, got %d: %+v", got, hooks["SessionStart"])

@@ -402,6 +402,43 @@ func TestListLifecycleCurrentAvoidsStaleRecencyCrowding(t *testing.T) {
 	}
 }
 
+func TestStaleMissingSourcesMarksOrphanFileMemoriesStale(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	mem, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Role:        "source",
+		SourceKind:  "file",
+		SourceAgent: "recoil",
+		SourcePath:  "HANDOFF.md",
+		SourceRef:   "chunk 1 lines 1-10",
+		Content:     "Deleted handoff guidance should not stay current.",
+		ScopeKind:   "project",
+		ScopeID:     "project-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	staled, err := st.StaleMissingSources(ctx, "project", "project-1", "recoil", []string{"README.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if staled != 1 {
+		t.Fatalf("expected one orphan file memory staled, got %d", staled)
+	}
+	got, err := st.GetMemoryByID(ctx, mem.ID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Validity != "stale" {
+		t.Fatalf("expected orphan file memory stale, got %+v", got)
+	}
+}
+
 func TestAddMemoryPersistsLifecycleMetadata(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))

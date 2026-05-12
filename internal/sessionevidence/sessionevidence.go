@@ -44,18 +44,19 @@ type Turn struct {
 }
 
 type Record struct {
-	Version        int    `json:"version"`
-	SessionID      string `json:"session_id"`
-	SourceAgent    string `json:"source_agent"`
-	ScopeKind      string `json:"scope_kind"`
-	ScopeID        string `json:"scope_id"`
-	TurnStart      int    `json:"turn_start"`
-	TurnEnd        int    `json:"turn_end"`
-	EvidenceType   string `json:"evidence_type"`
-	SelectorReason string `json:"selector_reason"`
-	Timestamp      string `json:"timestamp"`
-	Redacted       bool   `json:"redacted"`
-	Content        string `json:"content"`
+	Version        int      `json:"version"`
+	SessionID      string   `json:"session_id"`
+	SourceAgent    string   `json:"source_agent"`
+	ScopeKind      string   `json:"scope_kind"`
+	ScopeID        string   `json:"scope_id"`
+	TurnStart      int      `json:"turn_start"`
+	TurnEnd        int      `json:"turn_end"`
+	EvidenceType   string   `json:"evidence_type"`
+	EvidenceTypes  []string `json:"evidence_types,omitempty"`
+	SelectorReason string   `json:"selector_reason"`
+	Timestamp      string   `json:"timestamp"`
+	Redacted       bool     `json:"redacted"`
+	Content        string   `json:"content"`
 }
 
 type File struct {
@@ -183,7 +184,7 @@ func ParseTurns(data []byte) ([]Turn, string, error) {
 func Select(turns []Turn, opts Options) []Record {
 	opts = normalizeOptions(opts)
 	var records []Record
-	seenRanges := map[string]bool{}
+	spanIndexes := map[string]int{}
 	for i, turn := range turns {
 		role := strings.ToLower(strings.TrimSpace(turn.Role))
 		switch role {
@@ -196,12 +197,7 @@ func Select(turns []Turn, opts Options) []Record {
 			if !meetsFloor(evidenceType, content, opts.MinChars) {
 				continue
 			}
-			key := fmt.Sprintf("%d:%d:%s", start, end, evidenceType)
-			if seenRanges[key] {
-				continue
-			}
-			seenRanges[key] = true
-			records = append(records, buildRecord(turns, opts, start, end, evidenceType, reason, content))
+			records = addOrMergeRecord(records, spanIndexes, buildRecord(turns, opts, start, end, evidenceType, reason, content))
 		case "assistant":
 			evidenceType, reason := classifyAssistant(turns, i)
 			if evidenceType == "" {
@@ -211,12 +207,7 @@ func Select(turns []Turn, opts Options) []Record {
 			if !meetsFloor(evidenceType, content, opts.MinChars) {
 				continue
 			}
-			key := fmt.Sprintf("%d:%d:%s", start, end, evidenceType)
-			if seenRanges[key] {
-				continue
-			}
-			seenRanges[key] = true
-			records = append(records, buildRecord(turns, opts, start, end, evidenceType, reason, content))
+			records = addOrMergeRecord(records, spanIndexes, buildRecord(turns, opts, start, end, evidenceType, reason, content))
 		}
 	}
 	return records
@@ -457,11 +448,38 @@ func buildRecord(turns []Turn, opts Options, start, end int, evidenceType, reaso
 		TurnStart:      start,
 		TurnEnd:        end,
 		EvidenceType:   evidenceType,
+		EvidenceTypes:  []string{evidenceType},
 		SelectorReason: reason,
 		Timestamp:      timestamp,
 		Redacted:       true,
 		Content:        redact.Content(content),
 	}
+}
+
+func addOrMergeRecord(records []Record, spanIndexes map[string]int, next Record) []Record {
+	key := fmt.Sprintf("%d:%d", next.TurnStart, next.TurnEnd)
+	if idx, ok := spanIndexes[key]; ok {
+		records[idx].EvidenceTypes = appendUniqueString(records[idx].EvidenceTypes, next.EvidenceType)
+		if !strings.Contains(records[idx].SelectorReason, next.SelectorReason) {
+			records[idx].SelectorReason = records[idx].SelectorReason + "; " + next.SelectorReason
+		}
+		return records
+	}
+	spanIndexes[key] = len(records)
+	return append(records, next)
+}
+
+func appendUniqueString(values []string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return values
+	}
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 func meetsFloor(evidenceType, content string, minChars int) bool {
@@ -489,7 +507,7 @@ func writeRecords(records []Record, opts Options) (string, string, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", "", err
 	}
-	name := fmt.Sprintf("sess_%s-%s.jsonl", sanitize(opts.SessionID), opts.Now.Format("20060102T150405Z"))
+	name := fmt.Sprintf("%s-%s.jsonl", sessionFilePrefix(opts.SessionID), opts.Now.Format("20060102T150405Z"))
 	path := filepath.Join(dir, name)
 	var b strings.Builder
 	enc := json.NewEncoder(&b)
@@ -503,6 +521,14 @@ func writeRecords(records []Record, opts Options) (string, string, error) {
 		return "", "", err
 	}
 	return path, sourcePathForFile(path, opts.StateDir), nil
+}
+
+func sessionFilePrefix(sessionID string) string {
+	clean := sanitize(sessionID)
+	if strings.HasPrefix(clean, "sess_") || strings.HasPrefix(clean, "sess-") || strings.HasPrefix(clean, "sess.") || clean == "sess" {
+		return clean
+	}
+	return "sess_" + clean
 }
 
 func evidenceScopeDir(stateDir, scopeID string) (string, error) {

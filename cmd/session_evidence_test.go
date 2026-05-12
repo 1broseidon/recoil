@@ -175,3 +175,16 @@ func TestMineSessionEvidenceCommandDryRun(t *testing.T) {
 		t.Fatalf("expected dry-run session evidence mine output, got:\n%s", out.String())
 	}
 }
+
+func TestExtractHookTranscriptFromPathPayload(t *testing.T) {
+	transcript := filepath.Join(t.TempDir(), "transcript.json")
+	writeCmdTestFile(t, transcript, `[{"turn_index":1,"role":"user","content":"go with compact evidence"}]`)
+	payload := []byte(`{"session_id":"sess-hook","transcript_path":"` + strings.ReplaceAll(transcript, `\`, `\\`) + `"}`)
+	data, sessionID, ok, err := extractHookTranscript(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || sessionID != "sess-hook" || !strings.Contains(string(data), "compact evidence") {
+		t.Fatalf("unexpected hook extraction ok=%t session=%q data=%s", ok, sessionID, string(data))
+	}
+}

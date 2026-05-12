@@ -62,9 +62,9 @@ func newHookInstallCommand(uninstall bool) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Long: `Supported agents:
-  claude-code   native SessionStart hook in Claude settings
+  claude-code   native SessionStart/SessionEnd hooks in Claude settings
   opencode      managed OpenCode plugin
-  codex         native SessionStart hook in Codex hooks.json
+  codex         native SessionStart/Stop hooks in Codex hooks.json
   codex-agents  managed AGENTS.md instruction block compatibility fallback`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,6 +80,7 @@ const hookReminderText = `Recoil memory guidance:
 - At session start in a project, run ` + "`recoil wake --max-chars 1600`" + ` and treat the result as sourced working context.
 - Before making or explaining a durable decision, run ` + "`recoil search \"<topic>\"`" + `.
 - Before compaction or handoff, store durable conclusions with ` + "`recoil add --agent <agent> --role decision \"<memory>\"`" + `.
+- If Session Evidence is enabled and supported hooks are installed, session-end evidence is captured as selected redacted evidence, not raw transcript storage.
 - Use ` + "`--user`" + ` only for cross-project preferences, and ` + "`--session <id>`" + ` for one-session memories.
 - Treat Recoil results as evidence with IDs and provenance, not unquestionable truth.`
 
@@ -158,10 +159,13 @@ func lookupHookAdapter(agent string) (hookAdapter, error) {
 const (
 	recoilHookMarker       = "recoil-hook"
 	claudeHookCommand      = "recoil hook remind --format=claude-code"
+	claudeEvidenceCommand  = "recoil session-evidence hook --agent claude-code"
 	opencodePluginName     = "recoil-opencode.js"
 	opencodePluginPrefix   = "// recoil-hook managed by recoil\n// recoil-version: "
 	codexHookCommand       = "recoil hook remind --format=codex"
+	codexEvidenceCommand   = "recoil session-evidence hook --agent codex"
 	codexHookStatusMessage = "Loading Recoil memory guidance"
+	codexEvidenceStatus    = "Capturing Recoil session evidence"
 	codexManagedBlockOpen  = "<!-- recoil-hook:start -->"
 	codexManagedBlockEnd   = "<!-- recoil-hook:end -->"
 )
@@ -226,6 +230,16 @@ func mergeClaudeHooks(settings *claudeSettings) {
 			},
 		},
 	})
+	hooks["SessionEnd"] = appendUniqueMarkedHook(hooks["SessionEnd"], map[string]any{
+		"hooks": []any{
+			map[string]any{
+				"type":    "command",
+				"command": claudeEvidenceCommand,
+				"marker":  recoilHookMarker,
+				"timeout": 30,
+			},
+		},
+	})
 	settings.raw["hooks"] = hooks
 }
 
@@ -234,7 +248,7 @@ func removeClaudeHooks(settings *claudeSettings) {
 	if hooks == nil {
 		return
 	}
-	for _, key := range []string{"SessionStart", "UserPromptSubmit", "PreToolUse"} {
+	for _, key := range []string{"SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse"} {
 		arr, _ := hooks[key].([]any)
 		if arr == nil {
 			continue
@@ -506,6 +520,16 @@ func mergeCodexHooks(settings *codexHooksSettings) {
 			},
 		},
 	})
+	hooks["Stop"] = append(hookGroups(hooks["Stop"]), map[string]any{
+		"hooks": []any{
+			map[string]any{
+				"type":          "command",
+				"command":       codexEvidenceCommand,
+				"statusMessage": codexEvidenceStatus,
+				"timeout":       30,
+			},
+		},
+	})
 	settings.raw["hooks"] = hooks
 }
 
@@ -521,7 +545,14 @@ func removeCodexHooks(settings *codexHooksSettings) {
 		}
 		filtered := arr[:0]
 		for _, entry := range arr {
-			next, keep := removeCommandHooksFromGroup(entry, codexHookCommand)
+			next := entry
+			keep := true
+			for _, command := range []string{codexHookCommand, codexEvidenceCommand} {
+				next, keep = removeCommandHooksFromGroup(next, command)
+				if !keep {
+					break
+				}
+			}
 			if keep {
 				filtered = append(filtered, next)
 			}

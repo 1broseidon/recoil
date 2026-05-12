@@ -170,6 +170,63 @@ func TestMineCommandMarksChangedSourceChunksStale(t *testing.T) {
 	}
 }
 
+func TestMineCommandMarksDeletedSourceChunksStale(t *testing.T) {
+	root := t.TempDir()
+	oldPath := filepath.Join(root, "OLD.md")
+	writeCmdTestFile(t, oldPath, "# Old\n\nDeleted obelisk marker should go stale.")
+	writeCmdTestFile(t, filepath.Join(root, "README.md"), "# Project\n\nSurviving project note.")
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	runMineCommand(t)
+	if err := os.Remove(oldPath); err != nil {
+		t.Fatal(err)
+	}
+	runMineCommand(t)
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := st.Search(context.Background(), store.SearchParams{
+		Query:     "obelisk marker",
+		ScopeKind: sc.Kind,
+		ScopeID:   sc.ID,
+		Limit:     5,
+		Lifecycle: store.LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 0 {
+		t.Fatalf("expected deleted source chunk to be stale, got current results %+v", current)
+	}
+	history, err := st.Search(context.Background(), store.SearchParams{
+		Query:     "obelisk marker",
+		ScopeKind: sc.Kind,
+		ScopeID:   sc.ID,
+		Limit:     5,
+		Lifecycle: store.LifecycleHistorical,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 1 || history[0].Validity != "stale" {
+		t.Fatalf("expected stale historical deleted source, got %+v", history)
+	}
+}
+
 func runMineCommand(t *testing.T) string {
 	t.Helper()
 	c := newMineCommand()

@@ -924,6 +924,7 @@ func (s *Store) StaleMissingSources(ctx context.Context, scopeKind, scopeID, age
 			return total, err
 		}
 		staled, err := s.staleSourceMemoriesExcept(ctx, SourceRefreshParams{
+			Kind:      "file",
 			Path:      row.path,
 			Agent:     row.agent,
 			ScopeKind: scopeKind,
@@ -934,16 +935,27 @@ func (s *Store) StaleMissingSources(ctx context.Context, scopeKind, scopeID, age
 		}
 		total += staled
 	}
+	orphanStaled, err := s.staleMissingFileMemories(ctx, scopeKind, scopeID, strings.TrimSpace(agent), current)
+	if err != nil {
+		return total, err
+	}
+	total += orphanStaled
 	return total, nil
 }
 
 func (s *Store) staleSourceMemoriesExcept(ctx context.Context, p SourceRefreshParams, keepIDs []string) (int, error) {
+	p.Kind = normalizeSourceKind(p.Kind)
 	keep := make(map[string]bool, len(keepIDs))
 	for _, id := range keepIDs {
 		keep[id] = true
 	}
 	roleWhere := ""
+	kindWhere := ""
 	args := []any{p.ScopeKind, p.ScopeID, p.Agent, p.Path}
+	if p.Kind != "" && p.Kind != "direct" {
+		kindWhere = "AND COALESCE(source_kind, 'direct') = ?"
+		args = append(args, p.Kind)
+	}
 	if strings.TrimSpace(p.Role) != "" {
 		roleWhere = "AND COALESCE(role, '') = ?"
 		args = append(args, strings.TrimSpace(p.Role))
@@ -955,6 +967,7 @@ func (s *Store) staleSourceMemoriesExcept(ctx context.Context, p SourceRefreshPa
 			AND scope_id = ?
 			AND COALESCE(source_agent, '') = ?
 			AND COALESCE(source_path, '') = ?
+			`+kindWhere+`
 			AND tombstoned_at IS NULL
 			AND COALESCE(validity, 'unknown') NOT IN ('historical', 'rejected', 'superseded', 'stale', 'tombstoned')
 			`+roleWhere, args...)
@@ -984,6 +997,47 @@ func (s *Store) staleSourceMemoriesExcept(ctx context.Context, p SourceRefreshPa
 		staled++
 	}
 	return staled, nil
+}
+
+func (s *Store) staleMissingFileMemories(ctx context.Context, scopeKind, scopeID, agent string, current map[string]bool) (int, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT DISTINCT COALESCE(source_path, '')
+		FROM memories
+		WHERE scope_kind = ?
+			AND scope_id = ?
+			AND COALESCE(source_agent, '') = ?
+			AND COALESCE(source_kind, 'direct') = 'file'
+			AND COALESCE(source_path, '') != ''
+			AND tombstoned_at IS NULL
+			AND COALESCE(validity, 'unknown') NOT IN ('historical', 'rejected', 'superseded', 'stale', 'tombstoned')`,
+		scopeKind, scopeID, agent)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	total := 0
+	for rows.Next() {
+		var sourcePath string
+		if err := rows.Scan(&sourcePath); err != nil {
+			return total, err
+		}
+		if current[filepath.ToSlash(strings.TrimSpace(sourcePath))] {
+			continue
+		}
+		staled, err := s.staleSourceMemoriesExcept(ctx, SourceRefreshParams{
+			Kind:      "file",
+			Path:      sourcePath,
+			Agent:     agent,
+			ScopeKind: scopeKind,
+			ScopeID:   scopeID,
+		}, nil)
+		if err != nil {
+			return total, err
+		}
+		total += staled
+	}
+	return total, rows.Err()
 }
 
 func sourceID(kind, scopeKind, scopeID, agent, sourcePath string) string {
