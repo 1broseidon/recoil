@@ -22,6 +22,8 @@ type retrievalMode string
 const (
 	modeRecoilK5    retrievalMode = "recoil-k5"
 	modeRecoilK10   retrievalMode = "recoil-k10"
+	modeRecoilK20   retrievalMode = "recoil-k20"
+	modeRecoilK30   retrievalMode = "recoil-k30"
 	modeNoRetrieval retrievalMode = "no-retrieval"
 	modeOracle      retrievalMode = "oracle"
 	modeFullContext retrievalMode = "full-context"
@@ -168,7 +170,7 @@ func runLongMemEvalQA(args []string) error {
 
 func isValidMode(m retrievalMode) bool {
 	switch m {
-	case modeRecoilK5, modeRecoilK10, modeNoRetrieval, modeOracle, modeFullContext:
+	case modeRecoilK5, modeRecoilK10, modeRecoilK20, modeRecoilK30, modeNoRetrieval, modeOracle, modeFullContext:
 		return true
 	}
 	return false
@@ -180,6 +182,10 @@ func defaultTopK(m retrievalMode) int {
 		return 5
 	case modeRecoilK10:
 		return 10
+	case modeRecoilK20:
+		return 20
+	case modeRecoilK30:
+		return 30
 	case modeNoRetrieval:
 		return 0
 	case modeOracle:
@@ -278,7 +284,7 @@ func assembleContext(q lmeQuestion, mode retrievalMode, topK int) ([]contextSess
 		}
 		return out, nil
 
-	case modeRecoilK5, modeRecoilK10:
+	case modeRecoilK5, modeRecoilK10, modeRecoilK20, modeRecoilK30:
 		return assembleRecoilContext(q, topK)
 	}
 	return nil, fmt.Errorf("unhandled mode %s", mode)
