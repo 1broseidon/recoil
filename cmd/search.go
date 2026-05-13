@@ -3,18 +3,26 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 
+	"github.com/1broseidon/recoil/internal/embedding"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
 
 type searchOptions struct {
-	scope    scopeOptions
-	filters  memoryFilterOptions
-	limit    int
-	minimal  bool
-	maxChars int
+	scope          scopeOptions
+	filters        memoryFilterOptions
+	limit          int
+	minimal        bool
+	maxChars       int
+	hybrid         bool
+	hybridProvider string
+	hybridModel    string
+	hybridPool     int
+	fusionK        int
 }
 
 func newSearchCommand() *cobra.Command {
@@ -46,7 +54,12 @@ func newSearchCommand() *cobra.Command {
 			if !explicitLifecycle {
 				params.Lifecycle = store.LifecycleCurrent
 			}
-			current, err := st.Search(context.Background(), params)
+			var current []store.Memory
+			if searchOpts.hybrid {
+				current, err = runHybridSearch(context.Background(), st, params, searchOpts)
+			} else {
+				current, err = st.Search(context.Background(), params)
+			}
 			if err != nil {
 				return err
 			}
@@ -85,7 +98,109 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().IntVar(&searchOpts.limit, "limit", 5, "maximum number of memories to return")
 	c.Flags().BoolVar(&searchOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().IntVar(&searchOpts.maxChars, "max-chars", 4000, "maximum characters of memory content to print")
+	c.Flags().BoolVar(&searchOpts.hybrid, "hybrid", false, "fuse FTS5 and embedding similarity via RRF (requires indexed embeddings)")
+	c.Flags().StringVar(&searchOpts.hybridProvider, "hybrid-provider", embedding.OpenRouterProvider, "embedding provider for --hybrid")
+	c.Flags().StringVar(&searchOpts.hybridModel, "hybrid-model", embedding.DefaultOpenRouterModel, "embedding model for --hybrid")
+	c.Flags().IntVar(&searchOpts.hybridPool, "hybrid-pool", 50, "candidate pool size per retrieval method before fusion")
+	c.Flags().IntVar(&searchOpts.fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
 	return c
+}
+
+// runHybridSearch fuses FTS5 and embedding-similarity rankings via Reciprocal
+// Rank Fusion. The flow:
+//
+//  1. Pull a wider FTS5 candidate pool than the operator's --limit.
+//  2. Embed the query with the configured provider, then SemanticSearch over
+//     the same pool of indexed embeddings.
+//  3. RRF-fuse the two rankings (score = sum of 1/(k + rank_method)) and trim
+//     to --limit.
+//
+// We honor every filter the FTS path honors — scope, role, claim_key,
+// validity, source kind, etc. — by reusing the same store.SearchParams for
+// both legs, only swapping Query for the embedding vector on the semantic
+// side. Result: identical filter semantics across both rankings.
+func runHybridSearch(ctx context.Context, st *store.Store, p store.SearchParams, opts searchOptions) ([]store.Memory, error) {
+	pool := opts.hybridPool
+	if pool < opts.limit {
+		pool = opts.limit
+	}
+	ftsParams := p
+	ftsParams.Limit = pool
+	ftsResults, err := st.Search(ctx, ftsParams)
+	if err != nil {
+		return nil, fmt.Errorf("fts leg: %w", err)
+	}
+
+	provider, err := newEmbeddingProvider(opts.hybridProvider, opts.hybridModel)
+	if err != nil {
+		return nil, fmt.Errorf("embedding provider: %w", err)
+	}
+	queryVec, err := provider.Embed(ctx, p.Query)
+	if err != nil {
+		return nil, fmt.Errorf("embed query: %w", err)
+	}
+	semParams := store.SemanticSearchParams{
+		QueryVector: queryVec,
+		Provider:    provider.Name(),
+		Model:       provider.Model(),
+		ScopeKind:   p.ScopeKind,
+		ScopeID:     p.ScopeID,
+		SourceKind:  p.SourceKind,
+		SourceAgent: p.SourceAgent,
+		SourcePath:  p.SourcePath,
+		Role:        p.Role,
+		ClaimKey:    p.ClaimKey,
+		Validity:    p.Validity,
+		Since:       p.Since,
+		Before:      p.Before,
+		Limit:       pool,
+		Lifecycle:   p.Lifecycle,
+	}
+	semResults, err := st.SemanticSearch(ctx, semParams)
+	if err != nil {
+		return nil, fmt.Errorf("semantic leg: %w", err)
+	}
+
+	type scored struct {
+		mem   store.Memory
+		score float64
+	}
+	byID := map[string]*scored{}
+	k := float64(opts.fusionK)
+	for i, m := range ftsResults {
+		if _, ok := byID[m.ID]; !ok {
+			byID[m.ID] = &scored{mem: m}
+		}
+		byID[m.ID].score += 1.0 / (k + float64(i+1))
+	}
+	for i, m := range semResults {
+		if _, ok := byID[m.ID]; !ok {
+			byID[m.ID] = &scored{mem: m}
+		}
+		byID[m.ID].score += 1.0 / (k + float64(i+1))
+	}
+	fused := make([]scored, 0, len(byID))
+	for _, s := range byID {
+		fused = append(fused, *s)
+	}
+	sort.Slice(fused, func(i, j int) bool {
+		if math.Abs(fused[i].score-fused[j].score) < 1e-9 {
+			return fused[i].mem.CreatedAt > fused[j].mem.CreatedAt
+		}
+		return fused[i].score > fused[j].score
+	})
+	limit := opts.limit
+	if limit <= 0 {
+		limit = 5
+	}
+	if len(fused) > limit {
+		fused = fused[:limit]
+	}
+	out := make([]store.Memory, len(fused))
+	for i, f := range fused {
+		out[i] = f.mem
+	}
+	return out, nil
 }
 
 func searchMemoryBlocks(current, historical []store.Memory, maxChars int) string {

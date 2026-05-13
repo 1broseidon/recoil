@@ -367,29 +367,44 @@ recoil eval eval/fixtures.jsonl
 The eval is the gate that keeps ranking changes honest. Don't tune retrieval
 without running it.
 
-## Optional Embeddings Sidecar
+## Embeddings and Hybrid Retrieval
 
-Embeddings are intentionally **not** on the required path. The core
-experience runs through SQLite FTS5, structured metadata, lifecycle filters,
-and source freshness. Real embedding providers are kept behind a sidecar
-that has to earn its weight on the eval before it can be promoted.
+Embeddings are an opt-in retrieval layer that **fuses with** FTS5 rather
+than replacing it. The core experience still runs through SQLite FTS5,
+structured metadata, lifecycle filters, and source freshness — embeddings
+just add a semantic side channel for paraphrase-heavy queries where keyword
+match alone falls short.
 
-The initial provider is `local-hash-v1`, a deterministic local
-embedding-like provider used to validate schema, indexing, and hybrid
-retrieval mechanics without network calls or API keys.
+Two providers ship today:
+
+- `local-hash-v1` — deterministic local hash-based "embedding," no network
+  calls, useful for schema/plumbing tests and offline use.
+- `openrouter` — real embeddings via OpenRouter (default model:
+  `openai/text-embedding-3-small`). Requires `OPENROUTER_API_KEY`.
 
 ```sh
-recoil embed index
-recoil embed search "background remote sync"
-recoil eval eval/embeddings.jsonl --retrieval fts
-recoil eval eval/embeddings.jsonl --retrieval semantic
-recoil eval eval/embeddings.jsonl --retrieval hybrid
+# Index with real embeddings
+export OPENROUTER_API_KEY=sk-or-v1-...
+recoil embed index --provider openrouter --model openai/text-embedding-3-small
+
+# Hybrid search: FTS5 + cosine similarity, fused with Reciprocal Rank Fusion
+recoil search "how do we store credentials" --hybrid
+
+# Semantic-only search
+recoil embed search "background remote sync" --provider openrouter
 ```
 
-`eval/embeddings.jsonl` is intentionally separate from the default gate. It
-contains paraphrase-heavy cases where plain FTS is expected to struggle, so
-semantic and hybrid retrieval can be measured without weakening the core FTS
-baseline.
+`recoil search --hybrid` is the production path: it runs FTS5 and embedding
+similarity in parallel, fuses with RRF (k=60), and returns the top results.
+All standard filters (`--role`, `--claim-key`, `--validity`, `--current`,
+etc.) work identically on both legs. The bench harness measures the
+retrieval-only impact in `bench/RESULTS.md` (R@5 0.972 → 0.981 on
+LongMemEval_S, with the biggest gain on multi-evidence questions).
+
+`eval/embeddings.jsonl` is intentionally separate from the default gate.
+It contains paraphrase-heavy cases where plain FTS is expected to struggle,
+so semantic and hybrid retrieval can be measured without weakening the core
+FTS baseline.
 
 ## Status
 
