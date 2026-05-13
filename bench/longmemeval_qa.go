@@ -52,6 +52,8 @@ func runLongMemEvalQA(args []string) error {
 	var topK int
 	var limit int
 	var concurrency int
+	var maxTokens int
+	var reasoningEffort string
 	var verbose bool
 	var resultsPath string
 	fs, err := parseFlags("longmemeval-qa", args, func(fs *flag.FlagSet) {
@@ -61,6 +63,8 @@ func runLongMemEvalQA(args []string) error {
 		fs.IntVar(&topK, "top-k", 0, "override top-k (default: derived from --mode)")
 		fs.IntVar(&limit, "limit", 0, "only run the first N questions (0 = all)")
 		fs.IntVar(&concurrency, "concurrency", 8, "number of parallel LLM calls")
+		fs.IntVar(&maxTokens, "max-tokens", 2000, "answerer max_tokens (reasoning models need room for hidden CoT)")
+		fs.StringVar(&reasoningEffort, "reasoning-effort", "", "reasoning model effort: minimal | low | medium | high (empty = provider default)")
 		fs.BoolVar(&verbose, "verbose", false, "print per-question results")
 		fs.StringVar(&resultsPath, "out", "", "write hypothesis JSONL to this path (default: bench/results/...)")
 	})
@@ -125,7 +129,7 @@ func runLongMemEvalQA(args []string) error {
 	worker := func() {
 		defer wg.Done()
 		for j := range jobs {
-			h := scoreQuestionQA(j.q, mode, topK, model, client)
+			h := scoreQuestionQA(j.q, mode, topK, model, client, maxTokens, reasoningEffort)
 			results[j.idx] = h
 			costMu.Lock()
 			totalCost += h.CostUSD
@@ -186,7 +190,7 @@ func defaultTopK(m retrievalMode) int {
 	return 5
 }
 
-func scoreQuestionQA(q lmeQuestion, mode retrievalMode, topK int, model string, client *OpenRouterClient) answererHypothesis {
+func scoreQuestionQA(q lmeQuestion, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string) answererHypothesis {
 	h := answererHypothesis{
 		QuestionID:    q.QuestionID,
 		QuestionType:  q.QuestionType,
@@ -203,19 +207,31 @@ func scoreQuestionQA(q lmeQuestion, mode retrievalMode, topK int, model string, 
 	}
 	prompt := buildAnswererPrompt(q, contextSessions, mode)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	// Reasoning models can exhaust max_tokens entirely on hidden CoT and return
+	// content=null. We retry once with doubled budget if that happens.
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 	t0 := time.Now()
-	res, err := client.Complete(ctx, model, []ChatMessage{{Role: "user", Content: prompt}}, 0.0, 500)
+	res, err := client.CompleteWithOptions(ctx, model, []ChatMessage{{Role: "user", Content: prompt}}, 0.0, maxTokens, CompleteOptions{ReasoningEffort: reasoningEffort})
 	h.LatencyMS = time.Since(t0).Milliseconds()
 	if err != nil {
 		h.Error = err.Error()
 		return h
 	}
+	if strings.TrimSpace(res.Content) == "" && res.CompletionTok >= maxTokens-1 {
+		// Retry with double budget once.
+		res2, err2 := client.CompleteWithOptions(ctx, model, []ChatMessage{{Role: "user", Content: prompt}}, 0.0, maxTokens*2, CompleteOptions{ReasoningEffort: reasoningEffort})
+		if err2 == nil && strings.TrimSpace(res2.Content) != "" {
+			res = res2
+		}
+	}
 	h.Hypothesis = strings.TrimSpace(res.Content)
 	h.PromptTokens = res.PromptTok
 	h.CompletionTok = res.CompletionTok
 	h.CostUSD = res.CostUSD
+	if h.Hypothesis == "" {
+		h.Error = fmt.Sprintf("empty content (completion_tokens=%d, max_tokens=%d, likely reasoning exhausted budget)", res.CompletionTok, maxTokens)
+	}
 	return h
 }
 

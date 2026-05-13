@@ -166,7 +166,11 @@ func runLongMemEvalGrade(args []string) error {
 			answerStr := answerToString(q.Answer)
 			prompt := answerCheckPrompt(j.h.QuestionType, q.Question, answerStr, j.h.Hypothesis, j.h.Abstention)
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-			res, err := client.Complete(ctx, graderModel, []ChatMessage{{Role: "user", Content: prompt}}, 0.0, 10)
+			// The paper uses max_tokens=10 with gpt-4o-mini. gpt-5.x requires >=16 AND
+			// produces hidden reasoning tokens that count against the budget — we set
+			// 128 + reasoning_effort=minimal so gpt-5.x graders can still emit yes/no
+			// without blowing cost. gpt-4o-mini ignores reasoning_effort entirely.
+			res, err := client.CompleteWithOptions(ctx, graderModel, []ChatMessage{{Role: "user", Content: prompt}}, 0.0, 128, CompleteOptions{ReasoningEffort: "minimal"})
 			cancel()
 			rec := graderRecord{answererHypothesis: j.h, AutoEvalLabel: autoEvalLabel{Model: graderModel}}
 			if err != nil {

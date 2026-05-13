@@ -136,22 +136,36 @@ diagnostic that decomposes it.
 
 ### Headline QA
 
-| Answerer | Overall acc. | Incl. abstention | Cost (500q) |
-|---|---:|---:|---:|
-| `openai/gpt-4o-mini-2024-07-18` | 0.6979 | 0.6960 | $1.15 |
-| **`anthropic/claude-haiku-4.5`** | **0.7872** | **0.7940** | $8.86 |
+| Answerer | Overall acc. | Incl. abstention | Cost (500q) | Reasoning |
+|---|---:|---:|---:|---|
+| `openai/gpt-4o-mini-2024-07-18` | 0.6979 | 0.6960 | $1.15 | none |
+| `anthropic/claude-haiku-4.5` | 0.7872 | 0.7940 | $8.86 | extended thinking off |
+| **`openai/gpt-5-mini`** | **0.8170** | **0.8160** | **$2.06** | minimal |
+
+gpt-5-mini is the cost/quality frontier: +3 points over Haiku 4.5 at 4.3× lower
+cost, +12 points over gpt-4o-mini at ~1.8× the cost. The 2026 reasoning-mini
+tier dominates the 2024 chat-mini tier on this benchmark.
 
 ### Retrieval-to-answer decomposition
 
-| Category | recoil R@5 | gpt-4o-mini QA | Haiku 4.5 QA |
-|---|---:|---:|---:|
-| single-session-assistant | 1.0000 | 1.0000 | 1.0000 |
-| single-session-user | 1.0000 | 0.9688 | 0.9531 |
-| knowledge-update | 1.0000 | 0.8056 | 0.8472 |
-| temporal-reasoning | 0.9685 | 0.6378 | 0.7717 |
-| multi-session | 0.9587 | 0.4876 | 0.5950 |
-| single-session-preference | 0.8667 | 0.4000 | 0.7333 |
-| abstention | n/a | 0.6667 | 0.9000 |
+| Category | recoil R@5 | gpt-4o-mini | Haiku 4.5 | **gpt-5-mini** |
+|---|---:|---:|---:|---:|
+| single-session-assistant | 1.0000 | 1.0000 | 1.0000 | 0.9643 |
+| single-session-user | 1.0000 | 0.9688 | 0.9531 | **1.0000** |
+| knowledge-update | 1.0000 | 0.8056 | 0.8472 | **0.8611** |
+| temporal-reasoning | 0.9685 | 0.6378 | 0.7717 | **0.7953** |
+| multi-session | 0.9587 | 0.4876 | 0.5950 | **0.6281** |
+| single-session-preference | 0.8667 | 0.4000 | 0.7333 | **0.9000** |
+| abstention | n/a | 0.6667 | 0.9000 | 0.8000 |
+
+The single-session-preference jump (0.40 → 0.73 → 0.90) is the clearest signal
+of reasoning-model uplift: preference statements are usually indirect ("I find
+Postgres more reliable in my experience") and require inference rather than
+extraction. gpt-5-mini's reasoning step closes that gap almost entirely. The
+floor on multi-session (0.628 even with the strongest answerer, against R@5 of
+0.959) suggests the limit there is genuine multi-hop synthesis difficulty
+rather than the LLM choice — improving it likely needs cross-session
+provenance hints in the retrieval output, not a better answerer.
 
 ### What the gap means
 
@@ -173,11 +187,15 @@ diagnostic that decomposes it.
 
 ### Honest caveats vs published numbers
 
-- Mastra reports 94.87% QA accuracy on LongMemEval with **GPT-5-mini** as
-  answerer. Supermemory reports ~99% with an 8/12-agent ensemble. These
-  numbers use stronger answerers (or ensembles of them) than we tested.
-  A fair comparison would require swapping in GPT-5-mini as our answerer,
-  which would cost more and we haven't run.
+- Mastra reports **94.87%** QA accuracy on LongMemEval with GPT-5-mini.
+  Supermemory reports ~99% with an 8/12-agent ensemble. With the **same
+  answerer** (`openai/gpt-5-mini`) our system scores 0.817 — a 13-point gap
+  to Mastra. The gap is *not* answerer choice (we matched them); it is
+  architecture above the retrieval primitive. Likely contributors: their
+  LLM-observer pre-extracts facts at write time (we ingest verbatim), they
+  likely pass more context than top-5 (we use K=5 to match our R@5 number),
+  and their prompt scaffolding may be more sophisticated. Closing the gap
+  is an *engineering* problem, not a model problem.
 - **The QA score is not directly attributable to recoil.** It is the
   composition of (recoil retrieval) × (answerer LLM) × (Chain-of-Note prompt)
   × (gpt-4o-mini grader). The fair attribution is the decomposition table

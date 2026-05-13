@@ -25,6 +25,14 @@ type chatRequest struct {
 	Messages    []ChatMessage `json:"messages"`
 	Temperature float64       `json:"temperature"`
 	MaxTokens   int           `json:"max_tokens"`
+	// Reasoning is the OpenRouter unified field for reasoning-model controls
+	// (gpt-5.x, o-series, Claude with extended thinking). Omitted when nil so
+	// non-reasoning models aren't sent an unrecognized parameter.
+	Reasoning *reasoningParam `json:"reasoning,omitempty"`
+}
+
+type reasoningParam struct {
+	Effort string `json:"effort,omitempty"` // "minimal" | "low" | "medium" | "high"
 }
 
 type chatResponse struct {
@@ -70,13 +78,28 @@ func NewOpenRouterClient() (*OpenRouterClient, error) {
 	}, nil
 }
 
+// CompleteOptions is optional configuration for a single completion call. The
+// Reasoning field maps to OpenRouter's unified reasoning controls; non-reasoning
+// models ignore it.
+type CompleteOptions struct {
+	ReasoningEffort string // "minimal" | "low" | "medium" | "high" — empty = provider default
+}
+
 func (c *OpenRouterClient) Complete(ctx context.Context, model string, messages []ChatMessage, temperature float64, maxTokens int) (ChatResult, error) {
-	reqBody, err := json.Marshal(chatRequest{
+	return c.CompleteWithOptions(ctx, model, messages, temperature, maxTokens, CompleteOptions{})
+}
+
+func (c *OpenRouterClient) CompleteWithOptions(ctx context.Context, model string, messages []ChatMessage, temperature float64, maxTokens int, opts CompleteOptions) (ChatResult, error) {
+	req := chatRequest{
 		Model:       model,
 		Messages:    messages,
 		Temperature: temperature,
 		MaxTokens:   maxTokens,
-	})
+	}
+	if opts.ReasoningEffort != "" {
+		req.Reasoning = &reasoningParam{Effort: opts.ReasoningEffort}
+	}
+	reqBody, err := json.Marshal(req)
 	if err != nil {
 		return ChatResult{}, err
 	}
