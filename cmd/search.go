@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/1broseidon/recoil/internal/embedding"
+	"github.com/1broseidon/recoil/internal/retrieval"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +25,11 @@ type searchOptions struct {
 	hybridModel    string
 	hybridPool     int
 	fusionK        int
+}
+
+type searchScoredMemory struct {
+	mem   store.Memory
+	score float64
 }
 
 func newSearchCommand() *cobra.Command {
@@ -50,6 +57,11 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			_, settings, err := loadProjectSettings()
+			if err != nil {
+				return err
+			}
+			params.SourceQuality = effectiveSourceQualityOptions(settings)
 			explicitLifecycle := params.Lifecycle != store.LifecycleAny || params.Validity != ""
 			if !explicitLifecycle {
 				params.Lifecycle = store.LifecycleCurrent
@@ -58,7 +70,7 @@ func newSearchCommand() *cobra.Command {
 			if searchOpts.hybrid {
 				current, err = runHybridSearch(context.Background(), st, params, searchOpts)
 			} else {
-				current, err = st.Search(context.Background(), params)
+				current, err = runSignalSearch(context.Background(), st, params)
 			}
 			if err != nil {
 				return err
@@ -78,7 +90,7 @@ func newSearchCommand() *cobra.Command {
 			if !explicitLifecycle {
 				historicalParams := params
 				historicalParams.Lifecycle = store.LifecycleHistorical
-				historical, err = st.Search(context.Background(), historicalParams)
+				historical, err = runSignalSearch(context.Background(), st, historicalParams)
 				if err != nil {
 					return err
 				}
@@ -104,6 +116,369 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().IntVar(&searchOpts.hybridPool, "hybrid-pool", 50, "candidate pool size per retrieval method before fusion")
 	c.Flags().IntVar(&searchOpts.fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
 	return c
+}
+
+func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams) ([]store.Memory, error) {
+	if !p.SignalRerank {
+		return st.Search(ctx, p)
+	}
+	limit := p.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+	variants := retrieval.QueryVariants(p.Query)
+	if len(variants) <= 1 {
+		return st.Search(ctx, p)
+	}
+	pool := limit * 10
+	if pool < 50 {
+		pool = 50
+	}
+	if pool > 100 {
+		pool = 100
+	}
+	byID := map[string]*searchScoredMemory{}
+	k := 60.0
+	for vi, variant := range variants {
+		vp := p
+		vp.Query = variant
+		vp.Limit = pool
+		rows, err := st.Search(ctx, vp)
+		if err != nil {
+			return nil, err
+		}
+		weight := 1.0
+		if vi == 0 {
+			weight = 1.25
+		}
+		for ri, mem := range rows {
+			if _, ok := byID[mem.ID]; !ok {
+				byID[mem.ID] = &searchScoredMemory{mem: mem}
+			}
+			byID[mem.ID].score += weight / (k + float64(ri+1))
+		}
+	}
+	fused := make([]searchScoredMemory, 0, len(byID))
+	for _, item := range byID {
+		coverage := signalTokenCoverage(p.Query, item.mem)
+		item.score += 0.08 * coverage
+		item.score += sourcequality.ScorePriorWithOptions(p.Query, item.mem.SourcePath, item.mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+		if coverage >= 0.5 && item.mem.SourceKind == "direct" && isGuidanceRole(item.mem.Role) {
+			item.score += 0.75
+		}
+		item.mem.Score = item.score
+		fused = append(fused, *item)
+	}
+	sort.SliceStable(fused, func(i, j int) bool {
+		if math.Abs(fused[i].score-fused[j].score) < 1e-9 {
+			return fused[i].mem.CreatedAt > fused[j].mem.CreatedAt
+		}
+		return fused[i].score > fused[j].score
+	})
+	fused = filterStrictEntityResults(p.Query, fused)
+	out := diversifySignalResults(fused, limit, p.Query)
+	return expandDerivedSourceEvidence(ctx, st, p, out, limit)
+}
+
+func signalTokenCoverage(query string, mem store.Memory) float64 {
+	tokens := retrieval.SignificantTokens(query)
+	if len(tokens) == 0 {
+		return 0
+	}
+	text := strings.ToLower(strings.Join([]string{
+		mem.Content,
+		mem.Role,
+		mem.ClaimKey,
+		mem.SourceKind,
+		mem.SourceAgent,
+		mem.SourcePath,
+		mem.SourceRef,
+	}, " "))
+	hits := 0
+	for _, token := range tokens {
+		if strings.Contains(text, token) {
+			hits++
+		}
+	}
+	return float64(hits) / float64(len(tokens))
+}
+
+func filterStrictEntityResults(query string, fused []searchScoredMemory) []searchScoredMemory {
+	doctorNames := retrieval.DoctorNameTerms(query)
+	if len(doctorNames) == 0 {
+		return fused
+	}
+	var out []searchScoredMemory
+	for _, item := range fused {
+		text := strings.ToLower(item.mem.Content + " " + item.mem.SourceRef + " " + item.mem.SourcePath)
+		for _, name := range doctorNames {
+			if strings.Contains(text, name) {
+				out = append(out, item)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func diversifySignalResults(fused []searchScoredMemory, limit int, query string) []store.Memory {
+	if limit <= 0 {
+		limit = 5
+	}
+	out := make([]store.Memory, 0, limit)
+	seenID := map[string]bool{}
+	seenSource := map[string]bool{}
+	allowNegative := queryAsksForNegativeEvidence(query)
+	appendItem := func(item searchScoredMemory) {
+		if len(out) >= limit || seenID[item.mem.ID] {
+			return
+		}
+		if !allowNegative && isNegativeEvidence(item.mem) {
+			return
+		}
+		seenID[item.mem.ID] = true
+		out = append(out, item.mem)
+	}
+	for _, item := range fused {
+		source := signalSourceKey(item.mem)
+		if source == "" {
+			appendItem(item)
+			continue
+		}
+		if seenSource[source] {
+			continue
+		}
+		seenSource[source] = true
+		appendItem(item)
+	}
+	for _, item := range fused {
+		appendItem(item)
+	}
+	if len(out) == 0 && !allowNegative {
+		for _, item := range fused {
+			if len(out) >= limit || seenID[item.mem.ID] {
+				continue
+			}
+			seenID[item.mem.ID] = true
+			out = append(out, item.mem)
+		}
+	}
+	return out
+}
+
+func queryAsksForNegativeEvidence(query string) bool {
+	query = strings.ToLower(query)
+	return strings.Contains(query, " not ") ||
+		strings.Contains(query, "never") ||
+		strings.Contains(query, "avoid") ||
+		strings.Contains(query, "rejected") ||
+		strings.Contains(query, "noise")
+}
+
+func isNegativeEvidence(mem store.Memory) bool {
+	text := strings.ToLower(mem.Content)
+	for _, marker := range []string{
+		"noise:",
+		"noise note:",
+		"intentionally mention",
+		"intentionally noisy",
+		"not the user's facts",
+		"not my own",
+		"not what i am",
+		"should prefer the",
+		"do not treat",
+		"should not be used",
+		"should not override",
+	} {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func signalSourceKey(mem store.Memory) string {
+	switch {
+	case strings.TrimSpace(mem.SourcePath) != "":
+		return mem.SourceKind + ":" + mem.SourcePath
+	case strings.TrimSpace(mem.SessionID) != "":
+		return "session:" + mem.SessionID
+	default:
+		return ""
+	}
+}
+
+func expandDerivedSourceEvidence(ctx context.Context, st *store.Store, p store.SearchParams, results []store.Memory, limit int) ([]store.Memory, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	out := make([]store.Memory, 0, limit)
+	seen := map[string]bool{}
+	appendMem := func(mem store.Memory) {
+		if len(out) >= limit || seen[mem.ID] {
+			return
+		}
+		seen[mem.ID] = true
+		out = append(out, mem)
+	}
+	for _, mem := range results {
+		appendMem(mem)
+		if len(out) >= limit || strings.TrimSpace(mem.SourcePath) == "" {
+			continue
+		}
+		if isDerivedTrace(mem) {
+			parent, err := sourceEvidenceParent(ctx, st, p, mem)
+			if err != nil {
+				return nil, err
+			}
+			if parent != nil {
+				appendMem(*parent)
+			}
+			continue
+		}
+		children, err := sourceEvidenceChildren(ctx, st, p, mem)
+		if err != nil {
+			return nil, err
+		}
+		for _, child := range children {
+			appendMem(child)
+		}
+		if queryWantsSessionNeighbors(p.Query) && mem.SourceKind == "session_evidence" {
+			neighbors, err := sourceEvidenceNeighbors(ctx, st, p, mem)
+			if err != nil {
+				return nil, err
+			}
+			for _, neighbor := range neighbors {
+				appendMem(neighbor)
+			}
+		}
+	}
+	return out, nil
+}
+
+func queryWantsSessionNeighbors(query string) bool {
+	query = strings.ToLower(query)
+	return strings.Contains(query, " compared to ") ||
+		strings.Contains(query, " versus ") ||
+		strings.Contains(query, " vs ") ||
+		strings.Contains(query, "doctor")
+}
+
+func isGuidanceRole(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "adr", "decision", "constraint", "note", "preference", "rule":
+		return true
+	default:
+		return false
+	}
+}
+
+func isDerivedTrace(mem store.Memory) bool {
+	return strings.Contains(mem.MetadataJSON, `"derived_type":"`) ||
+		strings.HasPrefix(mem.Content, "Derived user profile trace:") ||
+		strings.HasPrefix(mem.Content, "Derived update trace:") ||
+		strings.HasSuffix(strings.TrimSpace(mem.SourceRef), " profile") ||
+		strings.HasSuffix(strings.TrimSpace(mem.SourceRef), " update")
+}
+
+func sourceEvidenceParent(ctx context.Context, st *store.Store, p store.SearchParams, mem store.Memory) (*store.Memory, error) {
+	parentRef := strings.TrimSpace(mem.SourceRef)
+	parentRef = strings.TrimSpace(strings.TrimSuffix(parentRef, " profile"))
+	parentRef = strings.TrimSpace(strings.TrimSuffix(parentRef, " update"))
+	candidates, err := st.List(ctx, store.ListParams{
+		ScopeKind:  p.ScopeKind,
+		ScopeID:    p.ScopeID,
+		SourceKind: mem.SourceKind,
+		SourcePath: mem.SourcePath,
+		Role:       "source",
+		Limit:      20,
+		Lifecycle:  p.Lifecycle,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range candidates {
+		if parentRef != "" && strings.TrimSpace(candidate.SourceRef) == parentRef {
+			return &candidate, nil
+		}
+	}
+	for _, candidate := range candidates {
+		if mem.SessionID == "" || candidate.SessionID == mem.SessionID {
+			return &candidate, nil
+		}
+	}
+	return nil, nil
+}
+
+func sourceEvidenceChildren(ctx context.Context, st *store.Store, p store.SearchParams, mem store.Memory) ([]store.Memory, error) {
+	if strings.TrimSpace(mem.SourceRef) == "" {
+		return nil, nil
+	}
+	candidates, err := st.List(ctx, store.ListParams{
+		ScopeKind:  p.ScopeKind,
+		ScopeID:    p.ScopeID,
+		SourceKind: mem.SourceKind,
+		SourcePath: mem.SourcePath,
+		Limit:      20,
+		Lifecycle:  p.Lifecycle,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var children []store.Memory
+	parentRef := strings.TrimSpace(mem.SourceRef)
+	for _, candidate := range candidates {
+		if candidate.ID == mem.ID || !isDerivedTrace(candidate) {
+			continue
+		}
+		childRef := strings.TrimSpace(candidate.SourceRef)
+		if childRef == parentRef+" profile" || childRef == parentRef+" update" {
+			children = append(children, candidate)
+		}
+	}
+	return children, nil
+}
+
+func sourceEvidenceNeighbors(ctx context.Context, st *store.Store, p store.SearchParams, mem store.Memory) ([]store.Memory, error) {
+	candidates, err := st.List(ctx, store.ListParams{
+		ScopeKind:  p.ScopeKind,
+		ScopeID:    p.ScopeID,
+		SourceKind: mem.SourceKind,
+		SourcePath: mem.SourcePath,
+		Role:       "source",
+		Limit:      20,
+		Lifecycle:  p.Lifecycle,
+	})
+	if err != nil {
+		return nil, err
+	}
+	type scored struct {
+		mem   store.Memory
+		score float64
+	}
+	var scoredNeighbors []scored
+	expandedQuery := retrieval.ExpandedQueryText(p.Query)
+	for _, candidate := range candidates {
+		if candidate.ID == mem.ID || isNegativeEvidence(candidate) {
+			continue
+		}
+		score := signalTokenCoverage(expandedQuery, candidate)
+		if score <= 0 {
+			continue
+		}
+		scoredNeighbors = append(scoredNeighbors, scored{mem: candidate, score: score})
+	}
+	sort.SliceStable(scoredNeighbors, func(i, j int) bool {
+		if math.Abs(scoredNeighbors[i].score-scoredNeighbors[j].score) < 1e-9 {
+			return scoredNeighbors[i].mem.CreatedAt > scoredNeighbors[j].mem.CreatedAt
+		}
+		return scoredNeighbors[i].score > scoredNeighbors[j].score
+	})
+	neighbors := make([]store.Memory, 0, len(scoredNeighbors))
+	for _, item := range scoredNeighbors {
+		neighbors = append(neighbors, item.mem)
+	}
+	return neighbors, nil
 }
 
 // runHybridSearch fuses FTS5 and embedding-similarity rankings via Reciprocal

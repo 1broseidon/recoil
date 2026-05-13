@@ -99,6 +99,118 @@ func TestSessionEvidenceIngestMineAndForget(t *testing.T) {
 	}
 }
 
+func TestSessionEvidenceIngestAddsSearchableProfileTrace(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	transcript := filepath.Join(t.TempDir(), "transcript.json")
+	writeCmdTestFile(t, transcript, `{
+		"session_id": "sess-profile",
+		"turns": [
+			{"turn_index": 1, "role": "user", "content": "I prefer deep learning for medical image analysis and I enjoy recent healthcare AI papers."},
+			{"turn_index": 2, "role": "assistant", "content": "I will keep that in mind for research suggestions."}
+		]
+	}`)
+
+	c := newSessionEvidenceCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"ingest", "--file", transcript, "--force", "--agent", "codex", "--session-id", "sess-profile"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := st.Search(context.Background(), store.SearchParams{
+		Query:     "publications conferences medical imaging",
+		ScopeKind: sc.Kind,
+		ScopeID:   sc.ID,
+		Role:      "preference",
+		Limit:     5,
+		Lifecycle: store.LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].SessionID != "sess-profile" || !strings.Contains(results[0].Content, "Derived user profile trace") {
+		t.Fatalf("expected searchable derived profile trace, got %+v", results)
+	}
+}
+
+func TestSessionEvidenceIngestAddsSearchableUpdateTrace(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	transcript := filepath.Join(t.TempDir(), "transcript.json")
+	writeCmdTestFile(t, transcript, `{
+		"session_id": "sess-update",
+		"turns": [
+			{"turn_index": 1, "role": "user", "content": "Switch to mattn/go-sqlite3 now; we no longer use modernc because FTS5 support is required."},
+			{"turn_index": 2, "role": "assistant", "content": "Understood. I will treat mattn/go-sqlite3 as the current SQLite driver."}
+		]
+	}`)
+
+	c := newSessionEvidenceCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"ingest", "--file", transcript, "--force", "--agent", "codex", "--session-id", "sess-update"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := st.Search(context.Background(), store.SearchParams{
+		Query:     "current SQLite driver modernc no longer",
+		ScopeKind: sc.Kind,
+		ScopeID:   sc.ID,
+		Role:      "decision",
+		Limit:     5,
+		Lifecycle: store.LifecycleCurrent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].SessionID != "sess-update" || !strings.Contains(results[0].Content, "Derived update trace") {
+		t.Fatalf("expected searchable derived update trace, got %+v", results)
+	}
+}
+
 func TestSessionEvidenceIngestRequiresOptInUnlessForced(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

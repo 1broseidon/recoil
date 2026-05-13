@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAddSearchAndGetMemory(t *testing.T) {
@@ -66,6 +67,82 @@ func TestAddSearchAndGetMemory(t *testing.T) {
 	}
 	if !strings.Contains(got.Content, "keyring") {
 		t.Fatalf("expected retrieved content to mention keyring, got %q", got.Content)
+	}
+}
+
+func TestSearchReranksRelativeTemporalCue(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	now := time.Now().UTC()
+	oldTarget, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Deployment milestone: CLI smoke test passed for the agent pairing flow.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		CreatedAt: now.AddDate(0, 0, -28).Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Deployment milestone: docs wording updated after a later review.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		CreatedAt: now.AddDate(0, 0, -2).Format(time.RFC3339),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := st.Search(ctx, SearchParams{
+		Query:        "deployment milestone four weeks ago",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		Limit:        1,
+		Lifecycle:    LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].ID != oldTarget.ID {
+		t.Fatalf("expected four-weeks-ago target first, got %+v", results)
+	}
+}
+
+func TestSearchSignalRerankExpandsEntityAliases(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	mem, _, err := st.AddMemory(ctx, AddMemoryParams{
+		Content:   "Follow-up appointment with Dr. Lee, the dermatologist, after a benign biopsy.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := st.Search(ctx, SearchParams{
+		Query:        "doctors visited",
+		ScopeKind:    "project",
+		ScopeID:      "project-1",
+		Limit:        5,
+		Lifecycle:    LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].ID != mem.ID {
+		t.Fatalf("expected doctor alias expansion to retrieve memory, got %+v", results)
 	}
 }
 

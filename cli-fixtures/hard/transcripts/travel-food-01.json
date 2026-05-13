@@ -1,0 +1,13 @@
+{
+  "session_id": "sess-hard-travel-food-01",
+  "turns": [
+    {"turn_index": 1, "role": "user", "content": "I am looking to use fresh basil and mint from my balcony garden in dinner recipes."},
+    {"turn_index": 2, "role": "assistant", "content": "I will remember the basil and mint dinner recipe preference."},
+    {"turn_index": 3, "role": "user", "content": "I bought a portable power bank and a wireless charging pad for travel."},
+    {"turn_index": 4, "role": "assistant", "content": "I will remember the travel charging accessories."},
+    {"turn_index": 5, "role": "user", "content": "I still remember high school debate team and advanced placement courses fondly."},
+    {"turn_index": 6, "role": "assistant", "content": "I will remember the high-school debate and AP nostalgia context."},
+    {"turn_index": 7, "role": "user", "content": "Noise: I asked for generic recipes with parsley, but parsley is not what I am growing."},
+    {"turn_index": 8, "role": "assistant", "content": "I will not treat parsley as the garden ingredient preference."}
+  ]
+}

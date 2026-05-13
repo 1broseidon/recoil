@@ -36,17 +36,18 @@ type lmeQuestion struct {
 }
 
 type questionResult struct {
-	QuestionID     string  `json:"question_id"`
-	QuestionType   string  `json:"question_type"`
-	Recall5        float64 `json:"recall_at_5"`
-	Recall10       float64 `json:"recall_at_10"`
-	HitRank        int     `json:"hit_rank"` // 1-indexed rank of first labelled answer session, 0 if none
-	IngestMillis   int64   `json:"ingest_ms"`
-	SearchMillis   int64   `json:"search_ms"`
-	NumSessions    int     `json:"num_sessions"`
-	NumAnswerSIDs  int     `json:"num_answer_sids"`
-	RetrievedCount int     `json:"retrieved_count"`
-	Abstention     bool    `json:"abstention"`
+	QuestionID     string   `json:"question_id"`
+	QuestionType   string   `json:"question_type"`
+	Recall5        float64  `json:"recall_at_5"`
+	Recall10       float64  `json:"recall_at_10"`
+	HitRank        int      `json:"hit_rank"` // 1-indexed rank of first labelled answer session, 0 if none
+	IngestMillis   int64    `json:"ingest_ms"`
+	SearchMillis   int64    `json:"search_ms"`
+	NumSessions    int      `json:"num_sessions"`
+	NumAnswerSIDs  int      `json:"num_answer_sids"`
+	RetrievedCount int      `json:"retrieved_count"`
+	Abstention     bool     `json:"abstention"`
+	RetrievedSIDs  []string `json:"retrieved_session_ids,omitempty"`
 }
 
 type benchmarkSummary struct {
@@ -77,9 +78,12 @@ func runLongMemEval(args []string) error {
 	var dataPath string
 	var topK int
 	var limit int
+	var offset int
+	var category string
 	var verbose bool
 	var resultsPath string
 	var hybridEmbedding bool
+	var deterministicFusion bool
 	var embedProvider string
 	var embedModel string
 	var ollamaHost string
@@ -93,8 +97,11 @@ func runLongMemEval(args []string) error {
 		fs.StringVar(&dataPath, "data", "", "path to longmemeval_s_cleaned.json (default: bench/.corpus/)")
 		fs.IntVar(&topK, "top-k", 10, "max retrieval depth (final fused result size when --hybrid-embedding)")
 		fs.IntVar(&limit, "limit", 0, "only run the first N questions (0 = all)")
+		fs.IntVar(&offset, "offset", 0, "skip the first N questions after category filtering")
+		fs.StringVar(&category, "category", "", "only run questions matching this question_type")
 		fs.BoolVar(&verbose, "verbose", false, "print per-question results")
 		fs.StringVar(&resultsPath, "out", "", "write results JSONL to this path (default: bench/results/...)")
+		fs.BoolVar(&deterministicFusion, "deterministic-fusion", false, "rank with transparent no-LLM feature fusion over all candidate sessions")
 		fs.BoolVar(&hybridEmbedding, "hybrid-embedding", false, "fuse FTS5 with cosine-similarity over embeddings")
 		fs.StringVar(&embedProvider, "embed-provider", "openrouter", "embedding provider: openrouter | ollama")
 		fs.StringVar(&embedModel, "embed-model", "", "embedding model (defaults: openrouter -> openai/text-embedding-3-small, ollama -> nomic-embed-text)")
@@ -119,6 +126,22 @@ func runLongMemEval(args []string) error {
 	questions, err := loadLongMemEval(resolved)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(category) != "" {
+		filtered := questions[:0]
+		for _, q := range questions {
+			if q.QuestionType == category {
+				filtered = append(filtered, q)
+			}
+		}
+		questions = filtered
+	}
+	if offset > 0 {
+		if offset >= len(questions) {
+			questions = nil
+		} else {
+			questions = questions[offset:]
+		}
 	}
 	if limit > 0 && limit < len(questions) {
 		questions = questions[:limit]
@@ -195,11 +218,11 @@ func runLongMemEval(args []string) error {
 	}
 
 	type catAggregator struct {
-		count    int
-		hit5     int
-		hit10    int
-		rrSum    float64
-		rrCount  int
+		count   int
+		hit5    int
+		hit10   int
+		rrSum   float64
+		rrCount int
 	}
 	cats := map[string]*catAggregator{}
 	overall := &catAggregator{}
@@ -210,7 +233,9 @@ func runLongMemEval(args []string) error {
 			result questionResult
 			err    error
 		)
-		if hc != nil {
+		if deterministicFusion {
+			result, err = scoreQuestionDeterministic(q, topK, verbose)
+		} else if hc != nil {
 			result, err = scoreQuestionHybrid(q, topK, hc, verbose)
 		} else {
 			result, err = scoreQuestion(q, topK, verbose)
@@ -385,6 +410,7 @@ func scoreQuestion(q lmeQuestion, topK int, verbose bool) (questionResult, error
 		ScopeID:   scopeID,
 		Limit:     topK,
 		Lifecycle: store.LifecycleAny,
+		QueryDate: q.QuestionDate,
 	})
 	if err != nil {
 		return result, fmt.Errorf("search: %w", err)
@@ -403,6 +429,7 @@ func scoreQuestion(q lmeQuestion, topK int, verbose bool) (questionResult, error
 	hitRank := 0
 	for i, mem := range rows {
 		sid := strings.TrimPrefix(mem.SourcePath, sessionPathPrefix)
+		result.RetrievedSIDs = append(result.RetrievedSIDs, sid)
 		if answerSet[sid] {
 			if hitRank == 0 {
 				hitRank = i + 1

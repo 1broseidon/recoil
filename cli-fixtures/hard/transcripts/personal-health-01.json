@@ -1,0 +1,15 @@
+{
+  "session_id": "sess-hard-health-01",
+  "turns": [
+    {"turn_index": 1, "role": "user", "content": "I had a follow-up appointment with Dr. Lee, the dermatologist, after a benign biopsy."},
+    {"turn_index": 2, "role": "assistant", "content": "That is useful health context."},
+    {"turn_index": 3, "role": "user", "content": "Dr. Smith prescribed antibiotics after the urinary tract infection."},
+    {"turn_index": 4, "role": "assistant", "content": "I will remember the separate doctor context."},
+    {"turn_index": 5, "role": "user", "content": "I was diagnosed with chronic sinusitis by Dr. Patel, the ENT specialist, and she prescribed a nasal spray."},
+    {"turn_index": 6, "role": "assistant", "content": "I will keep Dr. Patel associated with the chronic sinusitis diagnosis and nasal spray."},
+    {"turn_index": 7, "role": "user", "content": "I bought a smoker today for BBQ experiments with hickory and apple wood."},
+    {"turn_index": 8, "role": "assistant", "content": "Nice, that smoker context may matter for future BBQ questions."},
+    {"turn_index": 9, "role": "user", "content": "Noise: my neighbor Lee bought a toaster, and Smith Street has a clinic, but neither is one of my doctors."},
+    {"turn_index": 10, "role": "assistant", "content": "I will keep that as noise rather than doctor context."}
+  ]
+}

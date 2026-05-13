@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/1broseidon/recoil/internal/mine"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -39,20 +40,27 @@ type mineResult struct {
 }
 
 type mineChunkResult struct {
-	ID         string `json:"id,omitempty"`
-	SourcePath string `json:"source_path"`
-	SourceRef  string `json:"source_ref"`
-	Duplicate  bool   `json:"duplicate,omitempty"`
+	ID             string `json:"id,omitempty"`
+	SourcePath     string `json:"source_path"`
+	SourceRef      string `json:"source_ref"`
+	DocClass       string `json:"doc_class,omitempty"`
+	OperationalDoc bool   `json:"is_operational_doc,omitempty"`
+	Duplicate      bool   `json:"duplicate,omitempty"`
 }
 
 type minedMetadata struct {
-	Kind       string `json:"kind"`
-	ChunkIndex int    `json:"chunk_index"`
-	StartLine  int    `json:"start_line"`
-	EndLine    int    `json:"end_line"`
-	FileHash   string `json:"file_hash,omitempty"`
-	FileMTime  string `json:"file_mtime,omitempty"`
-	FileSize   int64  `json:"file_size,omitempty"`
+	Kind           string `json:"kind"`
+	ChunkIndex     int    `json:"chunk_index"`
+	StartLine      int    `json:"start_line"`
+	EndLine        int    `json:"end_line"`
+	FileHash       string `json:"file_hash,omitempty"`
+	FileMTime      string `json:"file_mtime,omitempty"`
+	FileSize       int64  `json:"file_size,omitempty"`
+	DocClass       string `json:"doc_class,omitempty"`
+	PathDepth      int    `json:"path_depth,omitempty"`
+	RootDoc        bool   `json:"is_root_doc,omitempty"`
+	OperationalDoc bool   `json:"is_operational_doc,omitempty"`
+	NoiseProne     bool   `json:"is_noise_prone,omitempty"`
 }
 
 func newMineCommand() *cobra.Command {
@@ -104,14 +112,25 @@ func newMineCommand() *cobra.Command {
 			} else if sc.Kind == "project" && sc.Root != "" {
 				path = sc.Root
 			}
+			_, settings, err := loadProjectSettings()
+			if err != nil {
+				return err
+			}
+			policy := effectiveMinePolicy(settings)
+			qualityOpts := effectiveSourceQualityOptions(settings)
 
 			collected, err := mine.Collect(mine.Options{
-				Path:          path,
-				SourceRoot:    sc.Root,
-				IncludeHidden: mineOpts.includeHidden,
-				MaxFileBytes:  mineOpts.maxFileBytes,
-				MaxChunkChars: mineOpts.maxChars,
-				MaxChunks:     mineOpts.limit,
+				Path:                     path,
+				SourceRoot:               sc.Root,
+				IncludeHidden:            mineOpts.includeHidden,
+				IncludeHiddenOperational: policy.IncludeHiddenOperational,
+				FollowRepoSymlinks:       policy.FollowRepoSymlinks,
+				PolicyConfigured:         true,
+				IncludePaths:             policy.IncludePaths,
+				ExcludePaths:             policy.ExcludePaths,
+				MaxFileBytes:             mineOpts.maxFileBytes,
+				MaxChunkChars:            mineOpts.maxChars,
+				MaxChunks:                mineOpts.limit,
 			})
 			if err != nil {
 				return err
@@ -142,12 +161,15 @@ func newMineCommand() *cobra.Command {
 			sourceIDs := map[string][]string{}
 			sourceChunks := map[string][]mine.Chunk{}
 			for _, chunk := range collected.Chunks {
+				info := sourcequality.ClassifyWithOptions(chunk.SourcePath, qualityOpts)
 				item := mineChunkResult{
-					SourcePath: chunk.SourcePath,
-					SourceRef:  chunk.SourceRef,
+					SourcePath:     chunk.SourcePath,
+					SourceRef:      chunk.SourceRef,
+					DocClass:       info.DocClass,
+					OperationalDoc: info.IsOperationalDoc,
 				}
 				if !mineOpts.dryRun {
-					metadata, err := mineMetadataJSON(chunk)
+					metadata, err := mineMetadataJSON(chunk, qualityOpts)
 					if err != nil {
 						return err
 					}
@@ -247,15 +269,25 @@ func newMineCommand() *cobra.Command {
 	return c
 }
 
-func mineMetadataJSON(chunk mine.Chunk) (string, error) {
+func mineMetadataJSON(chunk mine.Chunk, qualityOpts ...sourcequality.Options) (string, error) {
+	var opts sourcequality.Options
+	if len(qualityOpts) > 0 {
+		opts = qualityOpts[0]
+	}
+	info := sourcequality.ClassifyWithOptions(chunk.SourcePath, opts)
 	data, err := json.Marshal(minedMetadata{
-		Kind:       "file_chunk",
-		ChunkIndex: chunk.Index,
-		StartLine:  chunk.StartLine,
-		EndLine:    chunk.EndLine,
-		FileHash:   chunk.FileHash,
-		FileMTime:  chunk.FileMTime,
-		FileSize:   chunk.FileSize,
+		Kind:           "file_chunk",
+		ChunkIndex:     chunk.Index,
+		StartLine:      chunk.StartLine,
+		EndLine:        chunk.EndLine,
+		FileHash:       chunk.FileHash,
+		FileMTime:      chunk.FileMTime,
+		FileSize:       chunk.FileSize,
+		DocClass:       info.DocClass,
+		PathDepth:      info.PathDepth,
+		RootDoc:        info.IsRootDoc,
+		OperationalDoc: info.IsOperationalDoc,
+		NoiseProne:     info.IsNoiseProne,
 	})
 	if err != nil {
 		return "", err

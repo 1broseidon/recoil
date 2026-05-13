@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/1broseidon/recoil/internal/mine"
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 )
@@ -113,6 +114,46 @@ func TestMineCommandJSONUsesDataEnvelope(t *testing.T) {
 	}
 	if data.Chunks != 1 || len(data.Results) != 1 || data.Results[0].SourcePath != "README.md" {
 		t.Fatalf("expected one README.md result in data, got %+v", data)
+	}
+}
+
+func TestMineCommandAppliesConfigPolicyAndSourceQuality(t *testing.T) {
+	root := t.TempDir()
+	writeCmdTestFile(t, filepath.Join(root, "docs", "runbooks", "deploy.yaml"), "deploy: use staged rollout\n")
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{}
+	defer func() { opts = oldOpts }()
+
+	runConfigCommand(t, "set", "mine.include_paths", "docs/runbooks/**")
+	runConfigCommand(t, "set", "classify.override.docs/runbooks/**", "operational")
+
+	opts = globalOptions{json: true}
+	c := newMineCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"--dry-run"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	var data struct {
+		Results []mineChunkResult `json:"results"`
+	}
+	if err := json.Unmarshal(envelope["data"], &data); err != nil {
+		t.Fatal(err)
+	}
+	if len(data.Results) != 1 || data.Results[0].SourcePath != "docs/runbooks/deploy.yaml" || data.Results[0].DocClass != "operational" {
+		t.Fatalf("expected configured operational runbook, got %+v", data.Results)
 	}
 }
 
@@ -237,6 +278,25 @@ func runMineCommand(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return out.String()
+}
+
+func TestMineMetadataIncludesSourceQuality(t *testing.T) {
+	metadata, err := mineMetadataJSON(mine.Chunk{
+		SourcePath: ".github/SECURITY.md",
+		Index:      1,
+		StartLine:  1,
+		EndLine:    3,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(metadata), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["doc_class"] != "security" || got["is_operational_doc"] != true {
+		t.Fatalf("expected security source quality metadata, got %s", metadata)
+	}
 }
 
 func writeCmdTestFile(t *testing.T, path, content string) {

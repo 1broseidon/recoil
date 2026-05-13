@@ -50,6 +50,27 @@ func TestSelectSkipsAssistantSpeculationWithoutToolEvidence(t *testing.T) {
 	}
 }
 
+func TestSelectCapturesDurablePersonalFacts(t *testing.T) {
+	turns := []Turn{
+		{Index: 1, Role: "user", Content: "I had a follow-up appointment with Dr. Lee, the dermatologist, after a benign biopsy."},
+		{Index: 2, Role: "assistant", Content: "That is useful health context."},
+		{Index: 3, Role: "user", Content: "Dr. Smith prescribed antibiotics after the urinary tract infection."},
+		{Index: 4, Role: "assistant", Content: "I will remember the separate doctor context."},
+	}
+	records := Select(turns, Options{ScopeKind: "project", ScopeID: "project-1", SessionID: "sess-facts"})
+	if len(records) != 2 {
+		t.Fatalf("expected two personal fact records, got %+v", records)
+	}
+	for _, record := range records {
+		if record.EvidenceType != "personal_fact" {
+			t.Fatalf("expected personal fact evidence, got %+v", record)
+		}
+	}
+	if !strings.Contains(records[0].Content, "Dr. Lee") || !strings.Contains(records[1].Content, "Dr. Smith") {
+		t.Fatalf("expected doctor facts in selected evidence, got %+v", records)
+	}
+}
+
 func TestParseTurnsClaudeCodeJSONLShape(t *testing.T) {
 	// Real Claude Code transcript lines nest role+content inside a "message"
 	// object, with assistant content arriving as typed blocks. Evidence must

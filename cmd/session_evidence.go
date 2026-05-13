@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/1broseidon/recoil/internal/config"
+	"github.com/1broseidon/recoil/internal/retrieval"
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sessionevidence"
 	"github.com/1broseidon/recoil/internal/store"
@@ -414,6 +415,48 @@ func mineSessionEvidence(ctx context.Context, st *store.Store, sc scope.Scope, m
 				} else {
 					result.Added++
 				}
+				if profile := retrieval.ProfileText(record.Content); profile != "" {
+					profileItem, err := mineDerivedSessionTrace(ctx, st, sc, file, record, sourceAgent, derivedTrace{
+						Role:        "preference",
+						Prefix:      "Derived user profile trace: ",
+						Content:     profile,
+						DerivedType: "derived_profile",
+						SourceRef:   fmt.Sprintf("turn %d-%d profile", record.TurnStart, record.TurnEnd),
+					}, createdAt)
+					if err != nil {
+						return mineResult{}, err
+					}
+					if profileItem.ID != "" {
+						sourceIDs[file.SourcePath] = append(sourceIDs[file.SourcePath], profileItem.ID)
+						if profileItem.Duplicate {
+							result.Duplicates++
+						} else {
+							result.Added++
+						}
+						result.Results = append(result.Results, profileItem)
+					}
+				}
+				if update := retrieval.UpdateText(record.Content); update != "" {
+					updateItem, err := mineDerivedSessionTrace(ctx, st, sc, file, record, sourceAgent, derivedTrace{
+						Role:        "decision",
+						Prefix:      "Derived update trace: ",
+						Content:     update,
+						DerivedType: "derived_update",
+						SourceRef:   fmt.Sprintf("turn %d-%d update", record.TurnStart, record.TurnEnd),
+					}, createdAt)
+					if err != nil {
+						return mineResult{}, err
+					}
+					if updateItem.ID != "" {
+						sourceIDs[file.SourcePath] = append(sourceIDs[file.SourcePath], updateItem.ID)
+						if updateItem.Duplicate {
+							result.Duplicates++
+						} else {
+							result.Added++
+						}
+						result.Results = append(result.Results, updateItem)
+					}
+				}
 			}
 			result.Results = append(result.Results, item)
 		}
@@ -441,6 +484,42 @@ func mineSessionEvidence(ctx context.Context, st *store.Store, sc scope.Scope, m
 	return result, nil
 }
 
+type derivedTrace struct {
+	Role        string
+	Prefix      string
+	Content     string
+	DerivedType string
+	SourceRef   string
+}
+
+func mineDerivedSessionTrace(ctx context.Context, st *store.Store, sc scope.Scope, file sessionevidence.File, record sessionevidence.Record, sourceAgent string, trace derivedTrace, createdAt string) (mineChunkResult, error) {
+	item := mineChunkResult{SourcePath: file.SourcePath, SourceRef: trace.SourceRef}
+	metadata, err := sessionEvidenceMetadataJSON(file, record, trace.DerivedType)
+	if err != nil {
+		return mineChunkResult{}, err
+	}
+	mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:         trace.Role,
+		Content:      trace.Prefix + trace.Content,
+		SourceKind:   sessionevidence.SourceKind,
+		SourceAgent:  firstNonEmpty(record.SourceAgent, sourceAgent),
+		SourcePath:   file.SourcePath,
+		SourceRef:    item.SourceRef,
+		ScopeKind:    sc.Kind,
+		ScopeID:      sc.ID,
+		ProjectID:    sc.ProjectID,
+		SessionID:    record.SessionID,
+		MetadataJSON: metadata,
+		CreatedAt:    createdAt,
+	})
+	if err != nil {
+		return mineChunkResult{}, err
+	}
+	item.ID = mem.ID
+	item.Duplicate = duplicate
+	return item, nil
+}
+
 type sessionEvidenceMetadata struct {
 	Kind           string   `json:"kind"`
 	SessionID      string   `json:"session_id"`
@@ -452,9 +531,14 @@ type sessionEvidenceMetadata struct {
 	FileHash       string   `json:"file_hash,omitempty"`
 	FileMTime      string   `json:"file_mtime,omitempty"`
 	FileSize       int64    `json:"file_size,omitempty"`
+	DerivedType    string   `json:"derived_type,omitempty"`
 }
 
-func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessionevidence.Record) (string, error) {
+func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessionevidence.Record, derivedType ...string) (string, error) {
+	derived := ""
+	if len(derivedType) > 0 {
+		derived = strings.TrimSpace(derivedType[0])
+	}
 	data, err := json.Marshal(sessionEvidenceMetadata{
 		Kind:           sessionevidence.SourceKind,
 		SessionID:      record.SessionID,
@@ -466,6 +550,7 @@ func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessioneviden
 		FileHash:       file.Hash,
 		FileMTime:      file.ModTime,
 		FileSize:       file.Size,
+		DerivedType:    derived,
 	})
 	if err != nil {
 		return "", err

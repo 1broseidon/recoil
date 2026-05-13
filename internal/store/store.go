@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/1broseidon/recoil/internal/redact"
+	"github.com/1broseidon/recoil/internal/retrieval"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -77,19 +79,22 @@ type AddMemoryParams struct {
 }
 
 type SearchParams struct {
-	Query       string
-	ScopeKind   string
-	ScopeID     string
-	SourceKind  string
-	SourceAgent string
-	SourcePath  string
-	Role        string
-	ClaimKey    string
-	Validity    string
-	Since       string
-	Before      string
-	Limit       int
-	Lifecycle   string
+	Query         string
+	ScopeKind     string
+	ScopeID       string
+	SourceKind    string
+	SourceAgent   string
+	SourcePath    string
+	Role          string
+	ClaimKey      string
+	Validity      string
+	Since         string
+	Before        string
+	Limit         int
+	Lifecycle     string
+	QueryDate     string
+	SignalRerank  bool
+	SourceQuality sourcequality.Options
 }
 
 type ListParams struct {
@@ -317,7 +322,11 @@ func (s *Store) AddMemory(ctx context.Context, p AddMemoryParams) (*Memory, bool
 }
 
 func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
-	query := FTSQuery(p.Query)
+	ftsText := p.Query
+	if p.SignalRerank {
+		ftsText = retrieval.ExpandedQueryText(p.Query)
+	}
+	query := FTSQuery(ftsText)
 	if query == "" {
 		return nil, nil
 	}
@@ -326,6 +335,15 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	}
 	if p.Limit > 100 {
 		p.Limit = 100
+	}
+	limit := p.Limit
+	sqlLimit := limit
+	temporalCue := p.SignalRerank && retrieval.HasTemporalCue(p.Query)
+	if temporalCue {
+		sqlLimit = maxInt(limit*4, 20)
+		if sqlLimit > 100 {
+			sqlLimit = 100
+		}
 	}
 	where, args, err := scopedFilter("m", memoryQueryFilter{
 		ScopeKind:   p.ScopeKind,
@@ -352,7 +370,7 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		queryLower,
 		"%"+queryLower+"%",
 		"%"+queryLower+"%",
-		p.Limit,
+		sqlLimit,
 	)
 	sqlText := `
 			SELECT
@@ -375,8 +393,9 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 			- CASE WHEN lower(COALESCE(m.source_path, '')) LIKE ? THEN 1.0 ELSE 0 END
 			- CASE WHEN lower(m.content) LIKE ? THEN 1.0 ELSE 0 END
 			- CASE WHEN lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
-			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'file' THEN 0.5 ELSE 0 END
-			+ CASE WHEN COALESCE(m.source_kind, 'direct') = 'session_evidence' THEN 0.75 ELSE 0 END
+			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'session_evidence' THEN 0.75 ELSE 0 END
+			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'direct' THEN 0.5 ELSE 0 END
+			+ CASE WHEN COALESCE(m.source_kind, 'direct') = 'file' THEN 0.25 ELSE 0 END
 		LIMIT ?`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)
 	if err != nil {
@@ -397,14 +416,98 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 			return nil, err
 		}
 		mem.Score = retrievalScore(rank)
+		if p.SignalRerank {
+			mem.Score += sourcequality.ScorePriorWithOptions(p.Query, mem.SourcePath, mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+		}
 		results = append(results, mem)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if temporalCue && len(results) > 1 {
+		queryDate := parseFlexibleTime(p.QueryDate)
+		if queryDate.IsZero() {
+			queryDate = time.Now().UTC()
+		}
+		sort.SliceStable(results, func(i, j int) bool {
+			left := temporalSearchScore(p.Query, queryDate, results[i])
+			right := temporalSearchScore(p.Query, queryDate, results[j])
+			if math.Abs(left-right) < 1e-9 {
+				return results[i].CreatedAt > results[j].CreatedAt
+			}
+			return left > right
+		})
+		if len(results) > limit {
+			results = results[:limit]
+		}
+	}
+	if p.SignalRerank && !temporalCue && len(results) > 1 {
+		sort.SliceStable(results, func(i, j int) bool {
+			if math.Abs(results[i].Score-results[j].Score) < 1e-9 {
+				return results[i].CreatedAt > results[j].CreatedAt
+			}
+			return results[i].Score > results[j].Score
+		})
+	}
+	return results, nil
 }
 
 func retrievalScore(rank float64) float64 {
 	absRank := math.Abs(rank)
 	return absRank / (1 + absRank)
+}
+
+func temporalSearchScore(query string, queryDate time.Time, mem Memory) float64 {
+	sourceDate := parseMemoryTime(mem)
+	evidence := temporalLexicalEvidence(query, mem.Content+" "+mem.SourceRef+" "+mem.SourcePath)
+	return mem.Score + retrieval.TemporalScore(queryDate, sourceDate, query, mem.Content, "", evidence)
+}
+
+func temporalLexicalEvidence(query, source string) float64 {
+	tokens := retrieval.SignificantTokens(query)
+	if len(tokens) == 0 || strings.TrimSpace(source) == "" {
+		return 0
+	}
+	sourceLower := strings.ToLower(source)
+	hits := 0
+	for _, tok := range tokens {
+		if strings.Contains(sourceLower, tok) {
+			hits++
+		}
+	}
+	return 0.02 * float64(hits) / math.Sqrt(float64(len(tokens))+1)
+}
+
+func parseMemoryTime(mem Memory) time.Time {
+	if t := parseFlexibleTime(mem.SourceRef); !t.IsZero() {
+		return t
+	}
+	return parseFlexibleTime(mem.CreatedAt)
+}
+
+func parseFlexibleTime(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	if idx := strings.Index(value, " ("); idx > 0 {
+		if end := strings.LastIndex(value, ")"); end > idx {
+			value = strings.TrimSpace(value[:idx] + value[end+1:])
+		}
+	}
+	for _, layout := range []string{time.RFC3339, "2006/01/02 15:04", "2006/01/02", "2006-01-02"} {
+		if t, err := time.Parse(layout, value); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func EmbeddingText(mem Memory) string {

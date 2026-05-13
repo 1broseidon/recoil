@@ -105,12 +105,13 @@ type rawMessage struct {
 }
 
 var (
-	directiveRE  = regexp.MustCompile(`(?i)\b(use|skip|avoid|defer|prefer|do not|don't|go with|keep|switch to|rename|must|should)\b`)
-	choiceRE     = regexp.MustCompile(`(?i)\b(we decided|decided|chosen|choose|settled on|go with|use .{0,48} for now)\b`)
-	rejectedRE   = regexp.MustCompile(`(?i)\b(rejected|do not use|don't use|rolled back|not using|tried .{0,80} but|avoid)\b`)
-	handoffRE    = regexp.MustCompile(`(?i)\b(handoff|next step|next active task|blocker|unresolved|follow[- ]?up)\b`)
-	completionRE = regexp.MustCompile(`(?i)\b(done|completed|implemented|updated|changed|added|fixed|tests? passed|make test passed)\b`)
-	pathishRE    = regexp.MustCompile(`\b([A-Za-z0-9_./-]+\.(go|ts|tsx|js|jsx|py|md|json|yaml|yml|toml|rs|swift|kt|java|rb|php|css|html))\b`)
+	directiveRE    = regexp.MustCompile(`(?i)\b(use|skip|avoid|defer|prefer|do not|don't|go with|keep|switch to|rename|must|should)\b`)
+	choiceRE       = regexp.MustCompile(`(?i)\b(we decided|decided|chosen|choose|settled on|go with|use .{0,48} for now)\b`)
+	rejectedRE     = regexp.MustCompile(`(?i)\b(rejected|do not use|don't use|rolled back|not using|tried .{0,80} but|avoid)\b`)
+	handoffRE      = regexp.MustCompile(`(?i)\b(handoff|next step|next active task|blocker|unresolved|follow[- ]?up)\b`)
+	completionRE   = regexp.MustCompile(`(?i)\b(done|completed|implemented|updated|changed|added|fixed|tests? passed|make test passed)\b`)
+	personalFactRE = regexp.MustCompile(`(?i)\b(i (?:am|was|have|had|got|bought|visited|attended|graduated|work|prefer|like|love|enjoy|remember|recently)|my (?:doctor|physician|dermatologist|ent|sibling|brother|sister|family|role|job|setup|preference)|dr\.?\s+[A-Z][a-z]+|prescribed|appointment|biopsy|diagnosed|degree|university|college)\b`)
+	pathishRE      = regexp.MustCompile(`\b([A-Za-z0-9_./-]+\.(go|ts|tsx|js|jsx|py|md|json|yaml|yml|toml|rs|swift|kt|java|rb|php|css|html))\b`)
 )
 
 func Ingest(data []byte, opts Options) (IngestResult, error) {
@@ -381,6 +382,8 @@ func classifyUser(content string) (string, string) {
 		return "explicit_choice", "matched explicit-choice language"
 	case directiveRE.MatchString(content):
 		return "user_directive", "matched user directive language"
+	case personalFactRE.MatchString(content):
+		return "personal_fact", "matched durable personal fact language"
 	default:
 		return "", ""
 	}
@@ -499,7 +502,7 @@ func appendUniqueString(values []string, value string) []string {
 
 func meetsFloor(evidenceType, content string, minChars int) bool {
 	content = strings.TrimSpace(content)
-	if evidenceType == "user_directive" || evidenceType == "explicit_choice" || evidenceType == "rejected_path" {
+	if evidenceType == "user_directive" || evidenceType == "explicit_choice" || evidenceType == "rejected_path" || evidenceType == "personal_fact" {
 		return len(content) >= minDirectiveSize
 	}
 	return len(content) >= minChars

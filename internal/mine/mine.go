@@ -13,6 +13,9 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/1broseidon/recoil/internal/pathmatch"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 )
 
 const ignoreFileName = ".recoilignore"
@@ -23,12 +26,17 @@ const (
 )
 
 type Options struct {
-	Path          string
-	SourceRoot    string
-	IncludeHidden bool
-	MaxFileBytes  int64
-	MaxChunkChars int
-	MaxChunks     int
+	Path                     string
+	SourceRoot               string
+	IncludeHidden            bool
+	IncludeHiddenOperational bool
+	FollowRepoSymlinks       bool
+	PolicyConfigured         bool
+	IncludePaths             []string
+	ExcludePaths             []string
+	MaxFileBytes             int64
+	MaxChunkChars            int
+	MaxChunks                int
 }
 
 type File struct {
@@ -143,7 +151,7 @@ func Discover(opts Options) ([]File, string, []Skip, error) {
 		}
 		rel = filepath.ToSlash(rel)
 		if entry.IsDir() {
-			if shouldSkipDir(entry.Name(), opts.IncludeHidden) {
+			if shouldSkipDir(rel, entry.Name(), opts.IncludeHidden) {
 				skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "skipped directory"})
 				return filepath.SkipDir
 			}
@@ -158,7 +166,16 @@ func Discover(opts Options) ([]File, string, []Skip, error) {
 			return nil
 		}
 		if entry.Type()&os.ModeSymlink != 0 {
-			skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "symlink"})
+			if !opts.FollowRepoSymlinks {
+				skipped = append(skipped, Skip{Path: displayPath(p, sourceRoot), Reason: "symlink"})
+				return nil
+			}
+			file, skip := fileFromSymlink(p, root, sourceRoot, rel, opts)
+			if skip.Reason != "" {
+				skipped = append(skipped, skip)
+				return nil
+			}
+			files = append(files, file)
 			return nil
 		}
 		if entry.Name() == ignoreFileName {
@@ -280,6 +297,12 @@ func normalizeOptions(opts Options) Options {
 	if opts.MaxChunkChars <= 0 {
 		opts.MaxChunkChars = DefaultMaxChunkChars
 	}
+	if !opts.PolicyConfigured {
+		// Preserve zero-value Options behavior for callers that construct
+		// Options directly instead of going through the CLI config loader.
+		opts.IncludeHiddenOperational = true
+		opts.FollowRepoSymlinks = true
+	}
 	return opts
 }
 
@@ -296,11 +319,19 @@ func cleanDirOrFile(path string) (string, error) {
 
 func fileFromInfo(path, sourceRoot string, info fs.FileInfo, opts Options) (File, Skip) {
 	rel := displayPath(path, sourceRoot)
-	name := info.Name()
-	if !opts.IncludeHidden && strings.HasPrefix(name, ".") {
+	return fileFromInfoWithRel(path, rel, info, opts)
+}
+
+func fileFromInfoWithRel(path, rel string, info fs.FileInfo, opts Options) (File, Skip) {
+	if matchesAnyPath(rel, opts.ExcludePaths) {
+		return File{}, Skip{Path: rel, Reason: "configured exclude"}
+	}
+	forcedInclude := matchesAnyPath(rel, opts.IncludePaths)
+	if !opts.IncludeHidden && !forcedInclude && isHiddenPath(rel) &&
+		(!opts.IncludeHiddenOperational || !sourcequality.OperationalHiddenPath(rel)) {
 		return File{}, Skip{Path: rel, Reason: "hidden file"}
 	}
-	if !isSupportedTextPath(name) {
+	if !forcedInclude && !isSupportedTextPath(rel) {
 		return File{}, Skip{Path: rel, Reason: "unsupported extension"}
 	}
 	if info.Size() > opts.MaxFileBytes {
@@ -312,6 +343,24 @@ func fileFromInfo(path, sourceRoot string, info fs.FileInfo, opts Options) (File
 		Size:    info.Size(),
 		ModTime: info.ModTime().UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}, Skip{}
+}
+
+func fileFromSymlink(path, root, sourceRoot, rel string, opts Options) (File, Skip) {
+	target, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return File{}, Skip{Path: displayPath(path, sourceRoot), Reason: "symlink"}
+	}
+	if !pathWithin(root, target) {
+		return File{}, Skip{Path: displayPath(path, sourceRoot), Reason: "symlink outside root"}
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		return File{}, Skip{Path: displayPath(path, sourceRoot), Reason: err.Error()}
+	}
+	if info.IsDir() {
+		return File{}, Skip{Path: displayPath(path, sourceRoot), Reason: "symlink directory"}
+	}
+	return fileFromInfoWithRel(target, rel, info, opts)
 }
 
 func displayPath(path, sourceRoot string) string {
@@ -402,8 +451,8 @@ func hasIgnoreSentinel(dir string) bool {
 	return false
 }
 
-func shouldSkipDir(name string, includeHidden bool) bool {
-	if !includeHidden && strings.HasPrefix(name, ".") {
+func shouldSkipDir(rel, name string, includeHidden bool) bool {
+	if !includeHidden && strings.HasPrefix(name, ".") && !isOperationalHiddenDir(rel) {
 		return true
 	}
 	switch name {
@@ -417,10 +466,62 @@ func shouldSkipDir(name string, includeHidden bool) bool {
 }
 
 func isSupportedTextPath(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	if isOperationalTextBase(base) {
+		return true
+	}
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".md", ".markdown", ".mdown", ".txt", ".text", ".rst", ".adoc", ".asciidoc", ".org":
 		return true
 	default:
 		return false
 	}
+}
+
+func pathWithin(root, target string) bool {
+	root, _ = filepath.Abs(root)
+	target, _ = filepath.Abs(target)
+	rel, err := filepath.Rel(root, target)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func isHiddenPath(rel string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		if strings.HasPrefix(part, ".") {
+			return true
+		}
+	}
+	return false
+}
+
+func isOperationalHiddenDir(rel string) bool {
+	rel = strings.Trim(filepath.ToSlash(rel), "/")
+	return rel == ".github" ||
+		rel == ".well-known" ||
+		strings.HasSuffix(rel, "/.well-known")
+}
+
+func isOperationalTextBase(base string) bool {
+	return base == "agents" ||
+		base == "claude" ||
+		base == "readme" ||
+		base == "security" ||
+		base == "security_contacts" ||
+		strings.HasPrefix(base, "contributing") ||
+		strings.HasPrefix(base, "developers")
+}
+
+func matchesAnyPath(rel string, patterns []string) bool {
+	rel = filepath.ToSlash(strings.TrimPrefix(rel, "./"))
+	for _, pattern := range patterns {
+		pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+		pattern = strings.TrimPrefix(pattern, "./")
+		if pattern == "" {
+			continue
+		}
+		if pathmatch.Match(pattern, rel) {
+			return true
+		}
+	}
+	return false
 }

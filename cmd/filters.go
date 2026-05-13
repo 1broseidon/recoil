@@ -47,19 +47,20 @@ func searchParams(query string, sc scope.Scope, filters memoryFilterOptions, lim
 		return store.SearchParams{}, err
 	}
 	return store.SearchParams{
-		Query:       query,
-		ScopeKind:   sc.Kind,
-		ScopeID:     sc.ID,
-		SourceKind:  strings.TrimSpace(filters.sourceKind),
-		SourceAgent: filters.agent,
-		SourcePath:  filters.source,
-		Role:        strings.TrimSpace(filters.role),
-		ClaimKey:    strings.TrimSpace(filters.claimKey),
-		Validity:    strings.TrimSpace(filters.validity),
-		Since:       since,
-		Before:      before,
-		Limit:       limit,
-		Lifecycle:   lifecycle,
+		Query:        query,
+		ScopeKind:    sc.Kind,
+		ScopeID:      sc.ID,
+		SourceKind:   strings.TrimSpace(filters.sourceKind),
+		SourceAgent:  filters.agent,
+		SourcePath:   filters.source,
+		Role:         strings.TrimSpace(filters.role),
+		ClaimKey:     strings.TrimSpace(filters.claimKey),
+		Validity:     strings.TrimSpace(filters.validity),
+		Since:        since,
+		Before:       before,
+		Limit:        limit,
+		Lifecycle:    lifecycle,
+		SignalRerank: true,
 	}, nil
 }
 

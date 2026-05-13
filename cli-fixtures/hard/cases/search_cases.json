@@ -1,0 +1,99 @@
+[
+  {
+    "id": "current-driver-not-rejected",
+    "command": ["search", "--limit", "5", "current sqlite driver FTS5"],
+    "must": ["mattn/go-sqlite3"],
+    "must_not": ["Rejected modernc sqlite driver"]
+  },
+  {
+    "id": "local-first-no-daemon",
+    "command": ["search", "--limit", "5", "hosted service daemon v0"],
+    "must": ["local-first", "no daemon"],
+    "must_not": []
+  },
+  {
+    "id": "session-minchars-update",
+    "command": ["search", "--limit", "5", "current session evidence min chars default"],
+    "must": ["200", "120 captured too much"],
+    "must_not": []
+  },
+  {
+    "id": "cli-gate-commands",
+    "command": ["search", "--limit", "5", "CLI accuracy gate product commands"],
+    "must": ["init", "session-evidence ingest", "wake --json"],
+    "must_not": []
+  },
+  {
+    "id": "doctor-three-facts",
+    "command": ["search", "--limit", "6", "Which doctors were Lee Smith and Patel connected to?"],
+    "must": ["Dr. Lee", "Dr. Smith", "Dr. Patel"],
+    "must_not": ["neighbor Lee"]
+  },
+  {
+    "id": "sinusitis-ent",
+    "command": ["search", "--limit", "5", "chronic sinusitis ENT nasal spray"],
+    "must": ["Dr. Patel", "nasal spray"],
+    "must_not": []
+  },
+  {
+    "id": "siblings-and-bookclub",
+    "command": ["search", "--limit", "5", "siblings book club 10 women 4 men non-binary"],
+    "must": ["3 sisters", "one brother", "10 women", "4 men", "non-binary"],
+    "must_not": ["12 women and 2 men"]
+  },
+  {
+    "id": "career-age-degree",
+    "command": ["search", "--limit", "5", "how old am I compared to graduation from college"],
+    "must": ["32", "age 25", "UC Berkeley"],
+    "must_not": []
+  },
+  {
+    "id": "marketing-cert-preference",
+    "command": ["search", "--limit", "5", "which marketing certification should I start with"],
+    "must": ["HubSpot", "Coursera"],
+    "must_not": []
+  },
+  {
+    "id": "garden-herbs",
+    "command": ["search", "--limit", "5", "homegrown herbs dinner recipes basil mint"],
+    "must": ["basil", "mint", "dinner recipes"],
+    "must_not": ["parsley is not"]
+  },
+  {
+    "id": "charging-accessories",
+    "command": ["search", "--limit", "5", "travel charging accessories power battery"],
+    "must": ["portable power bank", "wireless charging pad"],
+    "must_not": []
+  },
+  {
+    "id": "bbq-smoker-purchase",
+    "command": ["search", "--limit", "5", "kitchen appliance bought BBQ hickory apple"],
+    "must": ["smoker", "hickory", "apple wood"],
+    "must_not": []
+  },
+  {
+    "id": "role-filter-decision",
+    "command": ["search", "--role", "decision", "--limit", "5", "sqlite driver"],
+    "must": ["mattn/go-sqlite3"],
+    "must_not": []
+  },
+  {
+    "id": "wake-local-first",
+    "command": ["wake", "--limit", "6", "local first daemon hosted service"],
+    "must": ["local-first", "no daemon"],
+    "must_not": []
+  },
+  {
+    "id": "wake-medical-profile",
+    "command": ["wake", "--limit", "6", "medical imaging publications"],
+    "must": ["Derived user profile trace", "medical image"],
+    "must_not": []
+  },
+  {
+    "id": "negative-empty-unknown-person",
+    "command": ["search", "--limit", "5", "Dr. Alvarez cardiologist appointment"],
+    "must": [],
+    "must_not": ["Dr. Alvarez"],
+    "expect_empty": true
+  }
+]

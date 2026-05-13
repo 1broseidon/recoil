@@ -374,6 +374,7 @@ func assembleRecoilContext(q lmeQuestion, topK int) ([]contextSession, error) {
 		ScopeID:   scopeID,
 		Limit:     topK,
 		Lifecycle: store.LifecycleAny,
+		QueryDate: q.QuestionDate,
 	})
 	if err != nil {
 		return nil, err

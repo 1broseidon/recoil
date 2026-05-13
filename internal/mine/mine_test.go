@@ -53,6 +53,103 @@ func TestCollectHonorsRecoilignorePatternsAndSentinel(t *testing.T) {
 	}
 }
 
+func TestCollectIncludesOperationalHiddenSecurityDoc(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".github", "SECURITY.md"), "# Security Policy\n\nReport vulnerabilities here.")
+	writeFile(t, filepath.Join(root, ".github", "pull_request_template.md"), "ordinary hidden repo template")
+
+	result, err := Collect(Options{Path: root, SourceRoot: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := chunkPaths(result.Chunks)
+	if got != ".github/SECURITY.md" {
+		t.Fatalf("unexpected mined paths: %s", got)
+	}
+}
+
+func TestCollectCanDisableOperationalHiddenSecurityDoc(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".github", "SECURITY.md"), "# Security Policy\n\nReport vulnerabilities here.")
+
+	result, err := Collect(Options{
+		Path:                     root,
+		SourceRoot:               root,
+		IncludeHiddenOperational: false,
+		FollowRepoSymlinks:       true,
+		PolicyConfigured:         true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := chunkPaths(result.Chunks); got != "" {
+		t.Fatalf("expected hidden security doc to be skipped, got %s", got)
+	}
+}
+
+func TestCollectFollowsSafeTextSymlink(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "apps", "docs", "public", ".well-known", "security.txt")
+	writeFile(t, target, "Contact: https://hackerone.com/example\n")
+	if err := os.Symlink(filepath.ToSlash(filepath.Join("apps", "docs", "public", ".well-known", "security.txt")), filepath.Join(root, "SECURITY.md")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	result, err := Collect(Options{Path: root, SourceRoot: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := chunkPaths(result.Chunks)
+	if got != "SECURITY.md,apps/docs/public/.well-known/security.txt" {
+		t.Fatalf("unexpected mined paths: %s", got)
+	}
+}
+
+func TestCollectCanDisableRepoSymlinks(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "docs", "security.md")
+	writeFile(t, target, "Security contact lives here.\n")
+	if err := os.Symlink(filepath.ToSlash(filepath.Join("docs", "security.md")), filepath.Join(root, "SECURITY.md")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	result, err := Collect(Options{
+		Path:                     root,
+		SourceRoot:               root,
+		IncludeHiddenOperational: true,
+		FollowRepoSymlinks:       false,
+		PolicyConfigured:         true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := chunkPaths(result.Chunks); got != "docs/security.md" {
+		t.Fatalf("unexpected mined paths: %s", got)
+	}
+}
+
+func TestCollectHonorsConfiguredIncludeAndExcludePaths(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "docs", "runbooks", "deploy.yaml"), "deploy: carefully\n")
+	writeFile(t, filepath.Join(root, "docs", "generated", "README.md"), "generated docs\n")
+
+	result, err := Collect(Options{
+		Path:                     root,
+		SourceRoot:               root,
+		IncludeHiddenOperational: true,
+		FollowRepoSymlinks:       true,
+		PolicyConfigured:         true,
+		IncludePaths:             []string{"docs/runbooks/**"},
+		ExcludePaths:             []string{"docs/generated/**"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := chunkPaths(result.Chunks); got != "docs/runbooks/deploy.yaml" {
+		t.Fatalf("unexpected mined paths: %s", got)
+	}
+}
+
 func TestChunkTextAddsStableLineRefs(t *testing.T) {
 	text := strings.Join([]string{
 		"# Heading",
@@ -93,4 +190,12 @@ func writeFile(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func chunkPaths(chunks []Chunk) string {
+	var paths []string
+	for _, chunk := range chunks {
+		paths = append(paths, chunk.SourcePath)
+	}
+	return strings.Join(paths, ",")
 }

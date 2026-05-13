@@ -148,6 +148,7 @@ func scoreQuestionHybrid(q lmeQuestion, topK int, hc *hybridConfig, verbose bool
 		ScopeID:   scopeID,
 		Limit:     hc.ftsPoolSize,
 		Lifecycle: store.LifecycleAny,
+		QueryDate: q.QuestionDate,
 	})
 	if err != nil {
 		return result, fmt.Errorf("fts search: %w", err)
@@ -261,6 +262,7 @@ func scoreQuestionHybrid(q lmeQuestion, topK int, hc *hybridConfig, verbose bool
 	}
 	hitRank := 0
 	for i, f := range fusedList {
+		result.RetrievedSIDs = append(result.RetrievedSIDs, f.sid)
 		if answerSet[f.sid] && hitRank == 0 {
 			hitRank = i + 1
 		}
@@ -313,6 +315,7 @@ func applyFTSOnlyRanking(result *questionResult, rows []store.Memory, q lmeQuest
 	hitRank := 0
 	for i, mem := range rows {
 		sid := strings.TrimPrefix(mem.SourcePath, sessionPathPrefix)
+		result.RetrievedSIDs = append(result.RetrievedSIDs, sid)
 		if answerSet[sid] && hitRank == 0 {
 			hitRank = i + 1
 		}

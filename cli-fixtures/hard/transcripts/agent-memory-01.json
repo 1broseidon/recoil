@@ -1,0 +1,17 @@
+{
+  "session_id": "sess-hard-agent-memory-01",
+  "turns": [
+    {"turn_index": 1, "role": "user", "content": "I prefer deep learning for medical image analysis and I enjoy recent healthcare AI papers."},
+    {"turn_index": 2, "role": "assistant", "content": "I will keep medical imaging research preferences in mind for publication and conference suggestions."},
+    {"turn_index": 3, "role": "user", "content": "Switch to mattn/go-sqlite3 now; we no longer use modernc because FTS5 support is required for reliable search."},
+    {"turn_index": 4, "role": "assistant", "content": "Understood. I will treat mattn/go-sqlite3 as the current SQLite driver."},
+    {"turn_index": 5, "role": "user", "content": "I prefer avoiding hosted services for v0. Keep Recoil local-first and do not add a daemon."},
+    {"turn_index": 6, "role": "assistant", "content": "I will keep v0 local-first with no daemon or hosted service."},
+    {"turn_index": 7, "role": "user", "content": "Actually change the session evidence min-chars default to 200; 120 captured too much routine chatter."},
+    {"turn_index": 8, "role": "assistant", "content": "Noted. The current session-evidence minimum should be 200 chars."},
+    {"turn_index": 9, "role": "user", "content": "Noise note: sqlite examples in old blog posts mention modernc and hosted sync, but that is not project guidance."},
+    {"turn_index": 10, "role": "assistant", "content": "I will not treat that noise as current project guidance."},
+    {"turn_index": 11, "role": "user", "content": "For release notes, remember that the CLI accuracy gate should run init, add, session-evidence ingest, search --json, and wake --json."},
+    {"turn_index": 12, "role": "assistant", "content": "Got it. The CLI-only gate covers those product commands."}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "session_id": "sess-hard-network-01",
+  "turns": [
+    {"turn_index": 1, "role": "user", "content": "I have 3 sisters and one brother, and my weekly book club has 10 women, 4 men, and 1 non-binary member."},
+    {"turn_index": 2, "role": "assistant", "content": "I will remember that family and book club context."},
+    {"turn_index": 3, "role": "user", "content": "I graduated from UC Berkeley at age 25 with a business administration degree focused on marketing."},
+    {"turn_index": 4, "role": "assistant", "content": "I will remember the Berkeley business degree and graduation age."},
+    {"turn_index": 5, "role": "user", "content": "I am currently 32 and working as a Digital Marketing Specialist at TechSavvy Inc."},
+    {"turn_index": 6, "role": "assistant", "content": "I will keep your current role and age in mind for career questions."},
+    {"turn_index": 7, "role": "user", "content": "I prefer starting with the HubSpot Content Marketing Certification before the longer Coursera specialization."},
+    {"turn_index": 8, "role": "assistant", "content": "I will remember HubSpot first, Coursera later."},
+    {"turn_index": 9, "role": "user", "content": "Noise: A sample book club survey had 12 women and 2 men, but that was not my own club."},
+    {"turn_index": 10, "role": "assistant", "content": "I will not confuse that sample survey with your own club."}
+  ]
+}

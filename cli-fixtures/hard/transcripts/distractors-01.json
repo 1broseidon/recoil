@@ -1,0 +1,13 @@
+{
+  "session_id": "sess-hard-distractors-01",
+  "turns": [
+    {"turn_index": 1, "role": "user", "content": "Can you explain how SQLite works in general and compare it to PostgreSQL?"},
+    {"turn_index": 2, "role": "assistant", "content": "SQLite is embedded while PostgreSQL is a client-server database."},
+    {"turn_index": 3, "role": "user", "content": "What are common medical specialists, such as dermatologists, ENTs, and primary care doctors?"},
+    {"turn_index": 4, "role": "assistant", "content": "Dermatologists focus on skin, ENTs on ear nose throat, and primary care covers general health."},
+    {"turn_index": 5, "role": "user", "content": "What are typical book club demographics in public surveys?"},
+    {"turn_index": 6, "role": "assistant", "content": "Many surveys find more women than men in book clubs, but exact ratios vary."},
+    {"turn_index": 7, "role": "user", "content": "Can you list common BBQ equipment like smokers, grills, thermometers, and tongs?"},
+    {"turn_index": 8, "role": "assistant", "content": "A smoker, grill, thermometer, and tongs are common BBQ equipment."}
+  ]
+}

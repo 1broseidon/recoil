@@ -3,9 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 
 	"github.com/1broseidon/recoil/internal/scope"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -63,6 +66,11 @@ func newWakeCommand() *cobra.Command {
 			}
 			defer st.Close()
 
+			_, settings, err := loadProjectSettings()
+			if err != nil {
+				return err
+			}
+			qualityOpts := effectiveSourceQualityOptions(settings)
 			ctx := context.Background()
 			fetchLimit := wakeFetchLimit(wakeOpts.limit)
 			var queryResults []store.Memory
@@ -74,18 +82,19 @@ func newWakeCommand() *cobra.Command {
 				if params.Validity == "" && params.Lifecycle == store.LifecycleAny {
 					params.Lifecycle = store.LifecycleCurrent
 				}
-				found, err := st.Search(ctx, params)
+				params.SourceQuality = qualityOpts
+				found, err := runSignalSearch(ctx, st, params)
 				if err != nil {
 					return err
 				}
 				queryResults = found
 			}
 
-			recent, err := wakeRecentMemories(ctx, st, sc, wakeOpts.filters, fetchLimit, wakeOpts.limit)
+			recent, err := wakeRecentMemories(ctx, st, sc, wakeOpts.filters, fetchLimit, wakeOpts.limit, qualityOpts)
 			if err != nil {
 				return err
 			}
-			layers := buildWakeLayers(query, queryResults, recent, wakeOpts.limit)
+			layers := buildWakeLayers(query, queryResults, recent, wakeOpts.limit, qualityOpts)
 			results := flattenWakeLayers(layers)
 
 			w := cmd.OutOrStdout()
@@ -127,7 +136,7 @@ func newWakeCommand() *cobra.Command {
 	return c
 }
 
-func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, filters memoryFilterOptions, fetchLimit, displayLimit int) ([]store.Memory, error) {
+func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, filters memoryFilterOptions, fetchLimit, displayLimit int, qualityOpts ...sourcequality.Options) ([]store.Memory, error) {
 	if hasExplicitWakeFilters(filters) {
 		params, err := listParams(sc, filters, fetchLimit, false)
 		if err != nil {
@@ -175,6 +184,14 @@ func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, fi
 	if err := list(func(p *store.ListParams) { p.SourcePath = "HANDOFF.md" }, 2); err != nil {
 		return nil, err
 	}
+	for _, sourcePath := range sourcequality.OperationalSourcePaths() {
+		if err := list(func(p *store.ListParams) {
+			p.SourceKind = "file"
+			p.SourcePath = sourcePath
+		}, 2); err != nil {
+			return nil, err
+		}
+	}
 	l1Quota := quota / 2
 	if l1Quota < 3 {
 		l1Quota = 3
@@ -216,10 +233,16 @@ func wakeFetchLimit(limit int) int {
 	return fetchLimit
 }
 
-func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int) []wakeLayer {
+func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, qualityOpts ...sourcequality.Options) []wakeLayer {
 	if limit <= 0 {
 		limit = 8
 	}
+	var quality sourcequality.Options
+	if len(qualityOpts) > 0 {
+		quality = qualityOpts[0]
+	}
+	queryResults = rankWakeCandidates(queryResults, query, quality)
+	recent = rankWakeCandidates(recent, wakePolicyQuery(query), quality)
 	layers := []wakeLayer{
 		{Key: "l0_current_context", Title: "L0 Current Context"},
 		{Key: "l1_decisions_constraints", Title: "L1 Decisions And Constraints"},
@@ -259,6 +282,30 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 		add(mem, false)
 	}
 	return layers
+}
+
+func rankWakeCandidates(memories []store.Memory, query string, quality sourcequality.Options) []store.Memory {
+	if len(memories) <= 1 {
+		return memories
+	}
+	ranked := append([]store.Memory(nil), memories...)
+	for i := range ranked {
+		ranked[i].Score += sourcequality.ScorePriorWithOptions(query, ranked[i].SourcePath, ranked[i].MetadataJSON, sourcequality.ModeWake, quality)
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if math.Abs(ranked[i].Score-ranked[j].Score) < 1e-9 {
+			return ranked[i].CreatedAt > ranked[j].CreatedAt
+		}
+		return ranked[i].Score > ranked[j].Score
+	})
+	return ranked
+}
+
+func wakePolicyQuery(query string) string {
+	if strings.TrimSpace(query) != "" {
+		return query
+	}
+	return "agent onboarding before editing contribute security tests work in this repo"
 }
 
 func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
