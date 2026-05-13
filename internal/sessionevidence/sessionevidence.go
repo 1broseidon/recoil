@@ -88,14 +88,20 @@ type rawTranscript struct {
 }
 
 type rawTurn struct {
-	TurnIndex int    `json:"turn_index"`
-	Index     int    `json:"index"`
-	Role      string `json:"role"`
-	Content   any    `json:"content"`
-	Timestamp string `json:"timestamp"`
-	ToolName  string `json:"tool_name"`
-	Name      string `json:"name"`
-	Type      string `json:"type"`
+	TurnIndex int         `json:"turn_index"`
+	Index     int         `json:"index"`
+	Role      string      `json:"role"`
+	Content   any         `json:"content"`
+	Timestamp string      `json:"timestamp"`
+	ToolName  string      `json:"tool_name"`
+	Name      string      `json:"name"`
+	Type      string      `json:"type"`
+	Message   *rawMessage `json:"message"`
+}
+
+type rawMessage struct {
+	Role    string `json:"role"`
+	Content any    `json:"content"`
 }
 
 var (
@@ -328,7 +334,20 @@ func firstRawTurns(transcript rawTranscript) []rawTurn {
 func normalizeTurns(raw []rawTurn) []Turn {
 	turns := make([]Turn, 0, len(raw))
 	for i, item := range raw {
-		content := strings.TrimSpace(contentString(item.Content))
+		role := strings.ToLower(strings.TrimSpace(item.Role))
+		contentValue := item.Content
+		if item.Message != nil {
+			if role == "" {
+				role = strings.ToLower(strings.TrimSpace(item.Message.Role))
+			}
+			if contentValue == nil {
+				contentValue = item.Message.Content
+			}
+		}
+		if role == "" {
+			role = strings.ToLower(strings.TrimSpace(item.Type))
+		}
+		content := strings.TrimSpace(contentString(contentValue))
 		if content == "" {
 			continue
 		}
@@ -338,10 +357,6 @@ func normalizeTurns(raw []rawTurn) []Turn {
 		}
 		if index == 0 {
 			index = i + 1
-		}
-		role := strings.ToLower(strings.TrimSpace(item.Role))
-		if role == "" {
-			role = strings.ToLower(strings.TrimSpace(item.Type))
 		}
 		toolName := firstNonEmpty(item.ToolName, item.Name)
 		if role == "tool" && toolName == "" {
@@ -564,13 +579,18 @@ func contentString(value any) string {
 		}
 		return strings.Join(parts, "\n")
 	case map[string]any:
+		if t, ok := v["type"].(string); ok {
+			switch strings.ToLower(strings.TrimSpace(t)) {
+			case "thinking", "tool_use", "tool_result", "image", "redacted_thinking":
+				return ""
+			}
+		}
 		for _, key := range []string{"text", "content", "message"} {
 			if text := contentString(v[key]); text != "" {
 				return text
 			}
 		}
-		data, _ := json.Marshal(v)
-		return string(data)
+		return ""
 	default:
 		data, _ := json.Marshal(v)
 		return string(data)

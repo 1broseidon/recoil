@@ -50,6 +50,36 @@ func TestSelectSkipsAssistantSpeculationWithoutToolEvidence(t *testing.T) {
 	}
 }
 
+func TestParseTurnsClaudeCodeJSONLShape(t *testing.T) {
+	// Real Claude Code transcript lines nest role+content inside a "message"
+	// object, with assistant content arriving as typed blocks. Evidence must
+	// extract the text turns and drop thinking / tool_use / tool_result blocks
+	// even though they appear inside the same message.
+	data := []byte(`{"type":"user","message":{"role":"user","content":"go with bearer tokens for v0, skip refresh tokens"},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"weighing options","signature":"sig-abc"},{"type":"text","text":"Understood. I will skip refresh tokens. tests passed in cmd/auth_test.go"}]},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:01Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"thinking-only turn","signature":"sig-def"}]},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:02Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"build output"}]},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:03Z"}
+`)
+	turns, _, err := ParseTurns(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected 2 text turns (thinking-only + tool_result dropped), got %d: %+v", len(turns), turns)
+	}
+	if turns[0].Role != "user" || !strings.Contains(turns[0].Content, "bearer tokens") {
+		t.Fatalf("unexpected user turn: %+v", turns[0])
+	}
+	if turns[1].Role != "assistant" || !strings.Contains(turns[1].Content, "tests passed") {
+		t.Fatalf("unexpected assistant turn: %+v", turns[1])
+	}
+	for _, leak := range []string{"signature", "sig-abc", "thinking", "weighing options", "tool_result", "build output"} {
+		if strings.Contains(turns[1].Content, leak) {
+			t.Fatalf("internal block leaked into evidence content (%q): %q", leak, turns[1].Content)
+		}
+	}
+}
+
 func TestIngestWritesCompactEvidenceOnly(t *testing.T) {
 	payload := []map[string]any{
 		{"turn_index": 1, "role": "user", "content": "go with CGO sqlite for FTS5 support"},
