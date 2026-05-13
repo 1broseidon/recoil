@@ -3,194 +3,168 @@
 **Question:** What exactly is needed to close the ~10pp QA gap from recoil
 (0.8489 at K=10 minimal) to Mastra's published 0.9487 on LongMemEval_S?
 
-**Answer:** Configuration routing, not retrieval improvement.
-The data shows a 0.9511 ceiling is reachable with the existing retrieval
-primitive and existing models, by choosing the right K + reasoning effort
-per question. Mastra-level accuracy is a routing problem, not a write-time
-fact-extraction problem.
+**Honest answer (as of 2026-05-13):** We don't know yet. Of the
+production-realistic mechanisms we tested — bigger K, more reasoning,
+LLM-rerank — none close the gap. The best single configuration we
+measured is **K=10 + reasoning=medium = 0.8894**, still 6 points short.
+The simple LLM-rerank we tested actually regressed to 0.8489 because
+the reranker over-filtered.
 
-**Budget spent on this analysis:** ~$20 of $25 in OpenRouter calls.
+**Budget spent on this analysis:** ~$26 of $25 (slight overrun for the
+production rerank validation).
+
+The earlier draft of this document claimed the gap was a "routing problem"
+based on a 0.9511 oracle-picker upper bound. **That framing was wrong.**
+An oracle picker has access to ground-truth labels; recoil in production
+doesn't. When we built and ran an actual production-realistic router
+(LLM-rerank with no peeking), the score went *down*, not up. The oracle
+ceiling is informative as a theoretical limit but is not directly
+achievable by the mechanisms we tried.
 
 ---
 
-## 1. The decomposed gap
+## 1. Failure decomposition (still valid)
 
-Starting from the K=10 + gpt-5-mini + reasoning=minimal baseline (0.8489),
-the 71 non-abstention failures decompose by mechanism:
+71 non-abstention failures at K=10 minimal break down by mechanism:
 
-| Bucket | Count | What this means |
+| Bucket | Count | What it means |
 |---|---:|---|
-| Fixed by oracle AND full-context | 19 | retrieval missed, both fixes work |
-| Fixed by oracle only | 30 | retrieval missed; full-context can't rescue (noise dominates) |
+| Fixed by oracle AND full-context | 19 | retrieval missed; both fixes work |
+| Fixed by oracle only | 30 | retrieval missed; full-context can't rescue |
 | Fixed by full-context only | 1 | LLM needed more context, not better retrieval |
 | Neither fixes it | 21 | reasoning-bounded at minimal effort |
 
-**49 of 71 failures (69%) are retrieval-fixable.** Of those, 30 are fixable
-only by oracle — meaning passing every session via full-context actively
-*hurts* the LLM on these cases.
+Per-category, multi-session and temporal-reasoning are the leaky buckets.
 
-Per-category, multi-session is overwhelmingly the leaky bucket:
+## 2. What we tried, and what each tells us
 
-| Question type | k10 misses | Fixed by oracle | Reasoning-bounded |
-|---|---:|---:|---:|
-| multi-session | 37 | 29 (78%) | 7 |
-| temporal-reasoning | 25 | 15 (60%) | 10 |
-| knowledge-update | 7 | 3 | 4 |
-| single-session-* | 2 | 2 | 0 |
+| Mechanism | Tested how | Result | What it proved |
+|---|---|---:|---|
+| Higher K (more candidates) | K=20 minimal vs K=10 minimal | -0.6pp | More context past 10 hurts: noise outweighs signal |
+| Higher reasoning effort | K=10 medium vs K=10 minimal | +4.0pp | Internal noise filtering by the LLM works, up to a cap |
+| Combine both | K=20 medium vs K=10 medium | -0.4pp | Even with more thinking, K=20 still hurts |
+| Cheaper answerer | deepseek-v4-flash K=20 | 0.8723 | Strong cost frontier, ~13× cheaper, still ~6pp short |
+| LLM-rerank | K=20 → deepseek-v4-flash → top-5 → gpt-5-mini medium | **-4.0pp from k10med** | **Simple rerank made things worse** |
 
-## 2. Why "just retrieve more" doesn't work
+The rerank attempt is the new data point. The reranker fired on 79% of
+questions (the other 20% errored out and fell through to raw K=20). When
+it fired, it picked aggressively — 269 of 371 firings kept just 1-2
+sessions. For questions that genuinely need 3-5 evidence sessions
+(multi-session, temporal-reasoning), this over-filters.
 
-The natural fix would be K=20. We ran it:
+Rerank vs K=10 medium baseline:
+- 16 questions rescued (rerank correct, k10med wrong)
+- 35 questions lost (rerank wrong, k10med correct)
+- Net -19 = -4pp regression
 
-| K | Multi-session | Overall | Cost |
-|---|---:|---:|---:|
-| 10 (minimal) | 0.694 | 0.8489 | $3.55 |
-| **20 (minimal)** | **0.760** (+6.6pp) | **0.8426** (-0.6pp) | $6.79 |
+## 3. The production cost ladder, all measured
 
-K=20 gains 14 multi-session questions but loses 30 others to noise. Same
-question types flip opposite directions: 13 temporal regressions vs 10
-gains, 8 knowledge-update regressions vs 3 gains. The optimal K is
-*question-specific*, not retrieval-uniform.
-
-## 3. Why "more reasoning" partly works
-
-Same retrieval, more thinking:
-
-| K | Reasoning | Overall | Multi-session | Cost |
-|---|---|---:|---:|---:|
-| 10 | minimal | 0.8489 | 0.694 | $3.55 |
-| **10** | **medium** | **0.8894** (+4.0pp) | **0.802** (+10.8pp) | $4.17 |
-| 20 | medium | 0.8851 (-0.4pp from K=10) | 0.810 | $7.44 |
-
-Medium reasoning rescues many multi-session and temporal cases by doing
-*internal noise filtering*. But K=20 with medium still doesn't beat K=10
-with medium — extra context still hurts the LLM, even with more thinking
-budget.
-
-**The gpt-5-mini ceiling is K=10 medium = 0.8894.** Five points short of
-Mastra. No configuration of gpt-5-mini alone reaches it.
-
-## 4. The cost/quality contender: deepseek-v4-flash
-
-| Config | Overall | Cost | Notes |
+| Mode | Overall | Cost / 500q | Notes |
 |---|---:|---:|---|
-| deepseek-v4-flash K=10 | 0.8553 | ~$0.30 | beats gpt-5-mini minimal at 13× lower cost |
-| **deepseek-v4-flash K=20** | **0.8723** | **~$0.50** | new cost-quality frontier |
-| deepseek-v4-flash K=10 medium | 0.8660 | ~$0.50 | reasoning effort less effective here |
+| no-retrieval (floor) | 0.0468 | $0.25 | LLM cold |
+| gpt-4o-mini K=5 | 0.6979 | $1.15 | 2024 baseline |
+| Haiku 4.5 K=5 | 0.7872 | $8.86 | |
+| gpt-5-mini full-context | 0.7809 | $14.12 | "throw everything in" hurts |
+| gpt-5-mini K=5 minimal | 0.8170 | $2.09 | |
+| gpt-5-mini K=20 minimal | 0.8426 | $6.79 | |
+| gpt-5-mini K=10 minimal | 0.8489 | $3.55 | |
+| **rerank K=20→5** (production) | **0.8489** | $5.40 | **simple rerank doesn't help** |
+| deepseek-v4-flash K=10 | 0.8553 | ~$0.30 | |
+| deepseek-v4-flash K=10 medium | 0.8660 | ~$0.50 | |
+| **deepseek-v4-flash K=20** | **0.8723** | **~$0.50** | cost frontier |
+| gpt-5-mini K=20 medium | 0.8851 | $7.44 | |
+| **gpt-5-mini K=10 medium** | **0.8894** | **$4.17** | **best production-realistic** |
+| oracle gpt-5-mini minimal | 0.9191 | $0.90 | requires labels — not production |
+| theoretical 4-config picker (oracle) | 0.9511 | n/a | requires labels — **not achievable** |
+| Mastra (published) | 0.9487 | n/a | the target |
 
-deepseek-v4-flash at K=20 lands ~2pp behind gpt-5-mini K=10 medium for
-**8× lower cost**. For production, it's the obvious primary answerer.
+## 4. What this means
 
-## 5. The ceiling that closes the gap
+**recoil's current production frontier is K=10 + reasoning=medium = 0.8894
+on gpt-5-mini, or 0.8723 on deepseek-v4-flash K=20 at ~$0.50.**
 
-The key insight: **each configuration succeeds on a different subset of
-questions**. If we knew which config to use per question, the upper bound
-would be the union:
+Neither closes the gap to Mastra. The 6pp residual gap is *real* — it's
+not "if only we routed better." It's "we don't currently have a query-time
+mechanism that picks the right context per question without peeking."
 
-| Picker | Accuracy | Notes |
-|---|---:|---|
-| K=10 + K=20 (minimal only) | 0.9064 | already +2pp over K=10 medium |
-| K=10 + K=20 (medium only) | 0.9277 | within 2pp of Mastra |
-| **All 4 gpt-5-mini configs** | **0.9511** | **above Mastra's 0.9487** |
-| All 4 gpt-5-mini + 3 deepseek | 0.9638 | well above Mastra |
-| Oracle retrieval (gpt-5-mini min) | 0.9191 | perfect retrieval still loses some |
-| **Mastra (published)** | **0.9487** | the target |
+This forces a re-evaluation of the architectural options. Two
+candidate paths remain, both untested by us:
 
-**The 0.9511 line is the load-bearing number.** It means recoil's existing
-retrieval primitive, paired with gpt-5-mini in four different
-(K, reasoning) configurations, already contains enough correct answers to
-beat Mastra — *if* we could pick the right config per question.
+### Path A — write-time fact extraction (Mastra's actual approach)
 
-This is not a retrieval problem. It is not a model-capability problem. It
-is a **routing problem**.
+Have an LLM extract structured facts from each session at write time.
+Store facts indexed by their semantic content (claims, dates, entities).
+At query time, retrieve relevant facts and expand to full sessions for the
+answerer.
 
-## 6. What this proves about Mastra
+This is the architecture I dismissed earlier as "not required." The data
+now suggests it may genuinely be the path to 0.95. The dismissal was
+based on the oracle picker, which is not achievable.
 
-Mastra publishes 0.9487 with GPT-5-mini and an "observational memory"
-architecture that uses an LLM at write time to extract facts. The data
-above shows that fact-extraction at write time is not required to reach
-0.9487 — a router over recoil's existing FTS retrieval, with two
-K-values and two reasoning levels, mathematically exceeds Mastra's score.
+The cost: an LLM call per session at ingest time. For typical
+agent-session loads (a handful of sessions per day) this is cheap — maybe
+$0.01 per session with deepseek-v4-flash. The architectural cost is
+larger: it adds an LLM dependency to the write path, which recoil
+explicitly ruled out as a v0 design principle.
 
-That doesn't mean Mastra is doing anything wrong — write-time extraction
-is one valid way to reduce noise. It means **it isn't the only way**, and
-specifically it isn't required for recoil to compete.
+### Path B — smarter query-time architecture (untested ideas)
 
-## 7. What to build, in order
+Several untested mechanisms could plausibly close the gap without a
+write-path LLM:
 
-### Tier 1 — guaranteed gains, cheap
+1. **Better rerank prompt**: target a higher minimum picks (e.g. always
+   keep 3-5 even if some are uncertain). Our rerank picked 1-2 too
+   aggressively on 269/371 firings.
+2. **Hybrid retrieval**: FTS5 + embedding similarity, fuse with RRF.
+   recoil already has the embeddings sidecar (`internal/embedding/`)
+   for this; it's currently optional and unused.
+3. **Query expansion**: rewrite the user's question into 2-3 sub-queries
+   targeting different aspects, run each, union the results. Particularly
+   relevant for multi-session questions.
+4. **Iterative retrieval**: retrieve → first-pass answer → use answer to
+   formulate refinement query → second retrieve → final answer. Costly
+   (2× LLM calls) but production-realistic.
 
-**Question-aware K selection.** Cheap heuristic on the question text
-classifies it into "single-session" (uses K=5) or "multi-evidence"
-(uses K=10-20). No LLM call needed for classification — simple text
-features (presence of "how many", "list", "compare", "first ... then ...")
-correlate strongly with multi-session questions. Expected gain: +2-3pp
-over K=10 medium baseline. Cost: ~zero.
+None of these have been tested. Each is a real engineering project.
+None are guaranteed to close the gap.
 
-### Tier 2 — best architectural fit
+## 5. Honest recommendation
 
-**LLM-rerank with deepseek-v4-flash.** Retrieve K=20-30 from FTS, send
-candidates + question to deepseek-v4-flash, have it return the 5 most
-relevant session IDs, pass only those to gpt-5-mini medium as the answerer.
-Cost: rerank step at ~$0.001/q ($0.50 for 500). Expected gain:
-+3-5pp from filtering noise. Stays consistent with recoil's "no LLM in
-write path" principle — the LLM is invoked at *query* time, not at *write*
-time. Composable with existing FTS retrieval. No schema changes.
+**Stop the gap-closing chase at v0.** The production-realistic frontier
+is 0.8894 (K=10 medium), within reach of every Claude/OpenAI-pricing user
+for ~$4 per 500 questions. The 6pp gap to Mastra is a v1 architecture
+question, not a v0 retrieval-tuning question.
 
-### Tier 3 — ensemble (the upper bound)
+The honest pitch for recoil v0 is:
+- 0.972 retrieval R@5 on LongMemEval_S — competitive with the published
+  frontier (MemPal raw 0.966), no embeddings, no LLM, no extraction.
+- 0.889 end-to-end QA accuracy with gpt-5-mini at reasoning=medium —
+  within 6pp of Mastra without a write-time LLM dependency.
+- 0.872 with deepseek-v4-flash at ~$0.50 per 500q — 13× cheaper than
+  the gpt-5-mini config for ~2pp accuracy cost.
 
-**Run two configs in parallel, pick by confidence or by a tie-breaker
-LLM call.** Run K=10 medium AND K=20 medium for every question; pick the
-hypothesis with higher self-reported confidence, or call a cheap arbiter.
-Cost: ~2× answerer cost. Upper bound: 0.9277 with two configs, up to
-0.9511 with four.
+For v1, the data points to two paths to evaluate seriously:
+1. **Hybrid retrieval** (FTS5 + embeddings, query-time fusion) — uses
+   recoil's existing sidecar, no write-path LLM. This is the
+   smallest-blast-radius experiment.
+2. **Write-time fact extraction** (Mastra's approach) — adds an LLM to
+   the write path, breaks v0 principle, but probably the most direct
+   route to ≥0.94.
 
-### Tier 4 — explicit fact extraction (Mastra's approach)
+Run hybrid retrieval first. If it doesn't close the gap, then evaluate
+whether Mastra-style fact extraction is worth the architectural cost.
 
-**LLM extracts structured facts at write time**, stored alongside the
-verbatim session. Retrieval queries the fact index, then expands to the
-full session. Higher quality on the inference-heavy categories (preference,
-indirect statements), but adds an LLM dependency to the write path —
-breaks recoil's no-LLM-in-write principle. Only worth pursuing if Tier 2
-and Tier 3 don't reach the target.
+## 6. What to take away from this exercise
 
-## 8. Recommendation
+The most important meta-finding: **theoretical ceilings calculated from
+existing run data (oracle pickers, union-of-correct, etc.) tell you what
+*could* be true if you had ground truth — they do not tell you what is
+*reachable* in production.** It is easy to fall into the trap of citing a
+union ceiling as a "result" when it is actually a label-leaked best-case.
 
-**Build Tier 1 + Tier 2.** Question-aware K selection is essentially free
-and probably worth 2-3pp. LLM-rerank with deepseek-v4-flash for the
-candidate filtering step adds another 3-5pp at ~$0.001/q. Combined
-expected accuracy: 0.92-0.94 at a marginal cost increase of <$1 per 500
-questions.
-
-Skip Tier 3 unless someone explicitly asks for the absolute top number;
-the ensemble doubles cost for the last 1-2pp.
-
-Skip Tier 4 unless retrieval-side improvements stop working. The
-retrieval-side path (Tier 1 + Tier 2) preserves recoil's foundational
-property: deterministic writes, no LLM in the write path, no daemon, just
-a single binary plus a query-time reranker. Tier 4 would compromise that
-property for a feature the data shows is not required.
-
-## 9. Total cost ladder, all measured
-
-| Mode | Overall | Cost / 500q |
-|---|---:|---:|
-| no-retrieval (floor) | 0.0468 | $0.25 |
-| gpt-4o-mini K=5 | 0.6979 | $1.15 |
-| Haiku 4.5 K=5 | 0.7872 | $8.86 |
-| gpt-5-mini full-context | 0.7809 | $14.12 |
-| gpt-5-mini K=5 minimal | 0.8170 | $2.09 |
-| gpt-5-mini K=20 minimal | 0.8426 | $6.79 |
-| gpt-5-mini K=10 minimal | 0.8489 | $3.55 |
-| **deepseek-v4-flash K=10** | **0.8553** | **~$0.30** |
-| deepseek-v4-flash K=10 medium | 0.8660 | ~$0.50 |
-| **deepseek-v4-flash K=20** | **0.8723** | **~$0.50** |
-| gpt-5-mini K=20 medium | 0.8851 | $7.44 |
-| **gpt-5-mini K=10 medium** | **0.8894** | **$4.17** |
-| oracle (perfect retrieval) gpt-5-mini minimal | 0.9191 | $0.90 |
-| **theoretical ceiling (4-config picker) gpt-5-mini** | **0.9511** | (sum) |
-| **Mastra (published)** | **0.9487** | n/a |
-
-The cheapest defensible production config is **deepseek-v4-flash at K=20,
-0.8723, ~$0.50 per 500 questions**. Adding LLM-rerank brings it into the
-~0.92-0.94 band at marginal additional cost.
+This document originally claimed the gap was a routing problem fixable
+by Tier 1 + Tier 2 cheap mechanisms. The production rerank we built
+falsified that claim. The honest answer is that we don't have a v0
+architecture that reaches Mastra's number, and the path to it is a v1
+question that requires deciding whether to break the no-LLM-in-write-path
+principle.

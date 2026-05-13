@@ -38,6 +38,10 @@ type answererHypothesis struct {
 	Hypothesis    string  `json:"hypothesis"`
 	RetrievalMode string  `json:"retrieval_mode"`
 	AnswererModel string  `json:"answerer_model"`
+	RerankModel   string  `json:"rerank_model,omitempty"`
+	RerankTop     int     `json:"rerank_top,omitempty"`
+	RerankCostUSD float64 `json:"rerank_cost_usd,omitempty"`
+	RerankPicked  []int   `json:"rerank_picked,omitempty"`
 	TopK          int     `json:"top_k"`
 	PromptTokens  int     `json:"prompt_tokens"`
 	CompletionTok int     `json:"completion_tokens"`
@@ -56,17 +60,21 @@ func runLongMemEvalQA(args []string) error {
 	var concurrency int
 	var maxTokens int
 	var reasoningEffort string
+	var rerankModel string
+	var rerankTop int
 	var verbose bool
 	var resultsPath string
 	fs, err := parseFlags("longmemeval-qa", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&dataPath, "data", "", "path to longmemeval_s_cleaned.json (default: bench/.corpus/)")
 		fs.StringVar(&model, "answerer", "openai/gpt-4o-mini-2024-07-18", "answerer model (OpenRouter slug)")
-		fs.StringVar(&modeStr, "mode", string(modeRecoilK5), "retrieval mode: recoil-k5 | recoil-k10 | no-retrieval | oracle | full-context")
+		fs.StringVar(&modeStr, "mode", string(modeRecoilK5), "retrieval mode: recoil-k5 | recoil-k10 | recoil-k20 | recoil-k30 | no-retrieval | oracle | full-context")
 		fs.IntVar(&topK, "top-k", 0, "override top-k (default: derived from --mode)")
 		fs.IntVar(&limit, "limit", 0, "only run the first N questions (0 = all)")
 		fs.IntVar(&concurrency, "concurrency", 8, "number of parallel LLM calls")
 		fs.IntVar(&maxTokens, "max-tokens", 2000, "answerer max_tokens (reasoning models need room for hidden CoT)")
 		fs.StringVar(&reasoningEffort, "reasoning-effort", "", "reasoning model effort: minimal | low | medium | high (empty = provider default)")
+		fs.StringVar(&rerankModel, "rerank-model", "", "if set, rerank the retrieved candidates with this model (e.g. deepseek/deepseek-v4-flash) before passing to the answerer")
+		fs.IntVar(&rerankTop, "rerank-top", 5, "after rerank, keep this many top candidates")
 		fs.BoolVar(&verbose, "verbose", false, "print per-question results")
 		fs.StringVar(&resultsPath, "out", "", "write hypothesis JSONL to this path (default: bench/results/...)")
 	})
@@ -131,7 +139,7 @@ func runLongMemEvalQA(args []string) error {
 	worker := func() {
 		defer wg.Done()
 		for j := range jobs {
-			h := scoreQuestionQA(j.q, mode, topK, model, client, maxTokens, reasoningEffort)
+			h := scoreQuestionQA(j.q, mode, topK, model, client, maxTokens, reasoningEffort, rerankModel, rerankTop)
 			results[j.idx] = h
 			costMu.Lock()
 			totalCost += h.CostUSD
@@ -196,7 +204,7 @@ func defaultTopK(m retrievalMode) int {
 	return 5
 }
 
-func scoreQuestionQA(q lmeQuestion, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string) answererHypothesis {
+func scoreQuestionQA(q lmeQuestion, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string, rerankModel string, rerankTop int) answererHypothesis {
 	h := answererHypothesis{
 		QuestionID:    q.QuestionID,
 		QuestionType:  q.QuestionType,
@@ -211,6 +219,34 @@ func scoreQuestionQA(q lmeQuestion, mode retrievalMode, topK int, model string, 
 		h.Error = err.Error()
 		return h
 	}
+
+	// Optional rerank step: ask a cheap LLM to filter the retrieved candidates
+	// down to the top N most relevant. The reranker NEVER sees ground-truth
+	// answer_session_ids — it picks based on the question text alone, so this
+	// is production-realistic (matches what recoil does in the wild).
+	if rerankModel != "" && len(contextSessions) > rerankTop {
+		h.RerankModel = rerankModel
+		h.RerankTop = rerankTop
+		picked, rerankCost, rerankErr := rerankCandidates(client, rerankModel, q, contextSessions, rerankTop)
+		h.RerankCostUSD = rerankCost
+		if rerankErr == nil {
+			h.RerankPicked = picked
+			filtered := make([]contextSession, 0, len(picked))
+			for _, idx := range picked {
+				if idx >= 0 && idx < len(contextSessions) {
+					filtered = append(filtered, contextSessions[idx])
+				}
+			}
+			if len(filtered) > 0 {
+				contextSessions = filtered
+			}
+		} else {
+			// Surface the rerank error so we can see it, but don't fail the
+			// question — fall through with the unfiltered K candidates.
+			h.Error = "rerank_failed: " + rerankErr.Error()
+		}
+	}
+
 	prompt := buildAnswererPrompt(q, contextSessions, mode)
 
 	// Reasoning models can exhaust max_tokens entirely on hidden CoT and return
