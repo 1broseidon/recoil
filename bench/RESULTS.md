@@ -103,7 +103,7 @@ All five fail predictably; none indicate a methodology bug.
   Alternative formats (with date headers, with turn timestamps) are likely to
   shift the temporal-reasoning number.
 
-### Reproducing
+### Reproducing retrieval
 
 ```sh
 # 1. Get the dataset (~277 MB)
@@ -118,5 +118,93 @@ CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go build -o /tmp/recoil-bench ./bench/
 /tmp/recoil-bench longmemeval
 ```
 
-Outputs land in `bench/results/longmemeval_<timestamp>.{jsonl,md}` and
-`longmemeval_<timestamp>_summary.json`.
+## LongMemEval_S — end-to-end QA
+
+The retrieval number above answers "did recoil surface the right session in
+top-K." The QA number answers "given recoil's retrieval, did the system
+produce a correct final answer." QA is the user-visible outcome; R@K is the
+diagnostic that decomposes it.
+
+- Dataset: same `longmemeval_s_cleaned.json` (500 questions, 30 abstention)
+- Retrieval: recoil FTS5, top-5 (matches headline R@5)
+- Prompt: paper-default `history_format=json`, `useronly=false`, Chain-of-Note
+  ("Answer step by step: first extract all the relevant information, and then
+  reason over the information to get the answer.")
+- Grader: `openai/gpt-4o-mini-2024-07-18`, paper-exact prompts copied verbatim
+  from `evaluate_qa.py` (5 per-question-type templates + abstention template)
+- Transport: OpenRouter, single `OPENROUTER_API_KEY`
+
+### Headline QA
+
+| Answerer | Overall acc. | Incl. abstention | Cost (500q) |
+|---|---:|---:|---:|
+| `openai/gpt-4o-mini-2024-07-18` | 0.6979 | 0.6960 | $1.15 |
+| **`anthropic/claude-haiku-4.5`** | **0.7872** | **0.7940** | $8.86 |
+
+### Retrieval-to-answer decomposition
+
+| Category | recoil R@5 | gpt-4o-mini QA | Haiku 4.5 QA |
+|---|---:|---:|---:|
+| single-session-assistant | 1.0000 | 1.0000 | 1.0000 |
+| single-session-user | 1.0000 | 0.9688 | 0.9531 |
+| knowledge-update | 1.0000 | 0.8056 | 0.8472 |
+| temporal-reasoning | 0.9685 | 0.6378 | 0.7717 |
+| multi-session | 0.9587 | 0.4876 | 0.5950 |
+| single-session-preference | 0.8667 | 0.4000 | 0.7333 |
+| abstention | n/a | 0.6667 | 0.9000 |
+
+### What the gap means
+
+- **Retrieval is mostly solved.** recoil's R@5 = 0.972 means the right session
+  is in top-5 nearly always. The categories where retrieval drops (preference
+  0.867, multi-session 0.959) are also the categories where QA drops the
+  hardest. Retrieval is the floor; reasoning is the ceiling.
+- **The answerer dominates the QA score.** Same recoil chunks fed to two
+  different models gave a 9-point spread (0.698 vs 0.787). The biggest gains
+  came in the categories that require multi-hop reasoning (multi-session
+  +10pp), indirect preference inference (preference +33pp), and abstention
+  judgment (+23pp). These are not retrieval problems.
+- **Cost vs accuracy trade is steep.** Haiku 4.5 is ~7.7× more expensive than
+  gpt-4o-mini and buys +9 accuracy points. That's a real choice, not a
+  free lunch.
+- **Per-question latency.** Haiku 4.5 was actually *faster* (p50 = 4.0s) than
+  gpt-4o-mini (p50 = 6.5s) at this prompt size, despite higher per-token cost.
+  The full Haiku run took 4 minutes; gpt-4o-mini took 7 minutes.
+
+### Honest caveats vs published numbers
+
+- Mastra reports 94.87% QA accuracy on LongMemEval with **GPT-5-mini** as
+  answerer. Supermemory reports ~99% with an 8/12-agent ensemble. These
+  numbers use stronger answerers (or ensembles of them) than we tested.
+  A fair comparison would require swapping in GPT-5-mini as our answerer,
+  which would cost more and we haven't run.
+- **The QA score is not directly attributable to recoil.** It is the
+  composition of (recoil retrieval) × (answerer LLM) × (Chain-of-Note prompt)
+  × (gpt-4o-mini grader). The fair attribution is the decomposition table
+  above: recoil's contribution is the R@5 column, which is 0.972.
+- This run did not test recoil's lifecycle features. Every memory ingested was
+  fresh, `validity: unknown`, no claim_key, no supersession. The lifecycle
+  hypothesis (does supersession improve grounding?) remains untested.
+
+### Reproducing QA
+
+```sh
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+# Answerer pass (recoil retrieval + LLM)
+/tmp/recoil-bench longmemeval-qa \
+  --mode recoil-k5 \
+  --answerer anthropic/claude-haiku-4.5 \
+  --concurrency 10
+
+# Grade the hypotheses (LLM-as-judge, paper-exact prompts)
+/tmp/recoil-bench longmemeval-grade \
+  --hyp bench/results/qa_recoil-k5_anthropic_claude-haiku-45_*.jsonl \
+  --grader openai/gpt-4o-mini-2024-07-18 \
+  --concurrency 10
+```
+
+Per-run artifacts land in `bench/results/`. The graded JSONL matches
+LongMemEval's `eval_results` schema, so the official Python `evaluate_qa.py`
+can also consume our hypothesis JSONL directly if exact paper-grading
+parity is needed.

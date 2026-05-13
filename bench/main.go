@@ -31,6 +31,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "longmemeval: %v\n", err)
 			os.Exit(1)
 		}
+	case "longmemeval-qa":
+		if err := runLongMemEvalQA(args); err != nil {
+			fmt.Fprintf(os.Stderr, "longmemeval-qa: %v\n", err)
+			os.Exit(1)
+		}
+	case "longmemeval-grade":
+		if err := runLongMemEvalGrade(args); err != nil {
+			fmt.Fprintf(os.Stderr, "longmemeval-grade: %v\n", err)
+			os.Exit(1)
+		}
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -44,7 +54,9 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "recoil bench harness")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Subcommands:")
-	fmt.Fprintln(os.Stderr, "  longmemeval    LongMemEval (recall@5, recall@10, per-type breakdown)")
+	fmt.Fprintln(os.Stderr, "  longmemeval         LongMemEval retrieval (recall@5, recall@10, per-type)")
+	fmt.Fprintln(os.Stderr, "  longmemeval-qa      LongMemEval QA: retrieval -> answerer LLM -> hypothesis JSONL")
+	fmt.Fprintln(os.Stderr, "  longmemeval-grade   Grade hypothesis JSONL with LLM-as-judge (paper-exact prompts)")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Run with -h on any subcommand for its flags.")
 }
