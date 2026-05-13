@@ -14,6 +14,7 @@ import (
 )
 
 const openRouterURL = "https://openrouter.ai/api/v1/chat/completions"
+const openRouterEmbedURL = "https://openrouter.ai/api/v1/embeddings"
 
 type ChatMessage struct {
 	Role    string `json:"role"`
@@ -157,6 +158,85 @@ func (c *OpenRouterClient) CompleteWithOptions(ctx context.Context, model string
 		}, nil
 	}
 	return ChatResult{}, fmt.Errorf("openrouter exhausted retries: %w", lastErr)
+}
+
+// Embed sends one or more inputs to OpenRouter's /v1/embeddings endpoint and
+// returns the per-input vectors plus the total cost in USD as reported by
+// OpenRouter. Batching is supported by the spec (array of strings); we forward
+// it unchanged and let the caller decide batch size — typical models accept
+// up to 2048 inputs per call.
+func (c *OpenRouterClient) Embed(ctx context.Context, model string, inputs []string) ([][]float64, float64, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"model": model,
+		"input": inputs,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			delay := time.Duration(math.Pow(2, float64(attempt))) * time.Second
+			select {
+			case <-ctx.Done():
+				return nil, 0, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterEmbedURL, bytes.NewReader(reqBody))
+		if err != nil {
+			return nil, 0, err
+		}
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("HTTP-Referer", c.referer)
+		req.Header.Set("X-Title", c.title)
+		resp, err := c.httpc.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			continue
+		}
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("openrouter embeddings %d: %s", resp.StatusCode, truncBody(body))
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, 0, fmt.Errorf("openrouter embeddings %d: %s", resp.StatusCode, truncBody(body))
+		}
+		var parsed struct {
+			Data []struct {
+				Embedding []float64 `json:"embedding"`
+				Index     int       `json:"index"`
+			} `json:"data"`
+			Usage struct {
+				PromptTokens int     `json:"prompt_tokens"`
+				TotalTokens  int     `json:"total_tokens"`
+				Cost         float64 `json:"cost"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal(body, &parsed); err != nil {
+			return nil, 0, fmt.Errorf("decode embeddings response: %w (body=%s)", err, truncBody(body))
+		}
+		if len(parsed.Data) != len(inputs) {
+			return nil, parsed.Usage.Cost, fmt.Errorf("openrouter returned %d embeddings, expected %d", len(parsed.Data), len(inputs))
+		}
+		// Embeddings come back with Index set; sort by Index to match input order.
+		out := make([][]float64, len(inputs))
+		for _, e := range parsed.Data {
+			if e.Index < 0 || e.Index >= len(out) {
+				continue
+			}
+			out[e.Index] = e.Embedding
+		}
+		return out, parsed.Usage.Cost, nil
+	}
+	return nil, 0, fmt.Errorf("openrouter embeddings exhausted retries: %w", lastErr)
 }
 
 func truncBody(b []byte) string {

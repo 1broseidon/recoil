@@ -79,12 +79,22 @@ func runLongMemEval(args []string) error {
 	var limit int
 	var verbose bool
 	var resultsPath string
+	var hybridEmbedding bool
+	var embedModel string
+	var fusionK int
+	var ftsPool int
+	var embedPool int
 	fs, err := parseFlags("longmemeval", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&dataPath, "data", "", "path to longmemeval_s_cleaned.json (default: bench/.corpus/)")
-		fs.IntVar(&topK, "top-k", 10, "max retrieval depth")
+		fs.IntVar(&topK, "top-k", 10, "max retrieval depth (final fused result size when --hybrid-embedding)")
 		fs.IntVar(&limit, "limit", 0, "only run the first N questions (0 = all)")
 		fs.BoolVar(&verbose, "verbose", false, "print per-question results")
 		fs.StringVar(&resultsPath, "out", "", "write results JSONL to this path (default: bench/results/...)")
+		fs.BoolVar(&hybridEmbedding, "hybrid-embedding", false, "fuse FTS5 with cosine-similarity over embeddings (requires OPENROUTER_API_KEY)")
+		fs.StringVar(&embedModel, "embed-model", "openai/text-embedding-3-small", "embedding model slug (OpenRouter)")
+		fs.IntVar(&fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
+		fs.IntVar(&ftsPool, "fts-pool", 50, "FTS candidate pool for fusion")
+		fs.IntVar(&embedPool, "embed-pool", 50, "embedding candidate pool for fusion")
 	})
 	if err != nil {
 		return err
@@ -105,13 +115,34 @@ func runLongMemEval(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "loaded %d questions\n", len(questions))
 
+	var hc *hybridConfig
+	if hybridEmbedding {
+		client, err := NewOpenRouterClient()
+		if err != nil {
+			return fmt.Errorf("hybrid-embedding requires OPENROUTER_API_KEY: %w", err)
+		}
+		hc = &hybridConfig{
+			client:        client,
+			embedModel:    embedModel,
+			fusionK:       fusionK,
+			ftsPoolSize:   ftsPool,
+			embedPoolSize: embedPool,
+		}
+		fmt.Fprintf(os.Stderr, "hybrid retrieval: embed-model=%s rrf-k=%d fts-pool=%d embed-pool=%d\n",
+			embedModel, fusionK, ftsPool, embedPool)
+	}
+
 	outDir, err := resultsDir()
 	if err != nil {
 		return err
 	}
 	runID := time.Now().UTC().Format("20060102T150405Z")
 	if resultsPath == "" {
-		resultsPath = filepath.Join(outDir, fmt.Sprintf("longmemeval_%s.jsonl", runID))
+		suffix := ""
+		if hybridEmbedding {
+			suffix = "_hybrid"
+		}
+		resultsPath = filepath.Join(outDir, fmt.Sprintf("longmemeval%s_%s.jsonl", suffix, runID))
 	}
 	resultsFile, err := os.Create(resultsPath)
 	if err != nil {
@@ -140,7 +171,15 @@ func runLongMemEval(args []string) error {
 	latencies := make([]float64, 0, len(questions))
 
 	for i, q := range questions {
-		result, err := scoreQuestion(q, topK, verbose)
+		var (
+			result questionResult
+			err    error
+		)
+		if hc != nil {
+			result, err = scoreQuestionHybrid(q, topK, hc, verbose)
+		} else {
+			result, err = scoreQuestion(q, topK, verbose)
+		}
 		if err != nil {
 			return fmt.Errorf("question %s: %w", q.QuestionID, err)
 		}
