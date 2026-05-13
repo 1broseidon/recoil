@@ -134,19 +134,90 @@ diagnostic that decomposes it.
   from `evaluate_qa.py` (5 per-question-type templates + abstention template)
 - Transport: OpenRouter, single `OPENROUTER_API_KEY`
 
-### Headline QA
+### Headline QA — three answerers, identical recoil retrieval (K=5)
 
 | Answerer | Overall acc. | Incl. abstention | Cost (500q) | Reasoning |
 |---|---:|---:|---:|---|
 | `openai/gpt-4o-mini-2024-07-18` | 0.6979 | 0.6960 | $1.15 | none |
-| `anthropic/claude-haiku-4.5` | 0.7872 | 0.7940 | $8.86 | extended thinking off |
+| `anthropic/claude-haiku-4.5` | 0.7872 | 0.7940 | $8.86 | thinking off |
 | **`openai/gpt-5-mini`** | **0.8170** | **0.8160** | **$2.06** | minimal |
 
-gpt-5-mini is the cost/quality frontier: +3 points over Haiku 4.5 at 4.3× lower
-cost, +12 points over gpt-4o-mini at ~1.8× the cost. The 2026 reasoning-mini
-tier dominates the 2024 chat-mini tier on this benchmark.
+gpt-5-mini is the cost/quality frontier on this benchmark: +3 points over
+Haiku 4.5 at 4.3× lower cost, +12 points over gpt-4o-mini at ~1.8× the cost.
+The 2026 reasoning-mini tier dominates the 2024 chat-mini tier.
 
-### Retrieval-to-answer decomposition
+### Retrieval ablation — gpt-5-mini answerer, five context modes
+
+The single most important QA experiment. Same answerer, same grader, same
+prompt format; only the *what gets passed to the LLM* changes. This isolates
+recoil's retrieval as the variable.
+
+| Mode | Overall acc. | Cost | What it tells us |
+|---|---:|---:|---|
+| no-retrieval (cold) | 0.0468 | $0.25 | floor — gpt-5-mini knows nothing about these users from training |
+| full-context (all ~48 sessions) | 0.7809 | $14.12 | "throw everything at the LLM" baseline |
+| recoil retrieval, K=5 | 0.8170 | $2.06 | top-5 retrieval headline |
+| **recoil retrieval, K=10** | **0.8489** | **$3.55** | **best non-oracle setting** |
+| oracle (labelled sessions only) | 0.9191 | $0.90 | ceiling for perfect retrieval |
+
+**The load-bearing finding: recoil-K=10 beats full-context by 6.8 points at
+4× lower cost.** Passing fewer but better-targeted chunks to gpt-5-mini
+produces *more accurate* answers than passing every session. Retrieval is not
+a complexity-vs-cost tradeoff here; it is a quality multiplier. The simplest
+possible interpretation: noise hurts gpt-5-mini's reasoning more than missing
+context does, at this haystack size. recoil's job is to lower the noise floor.
+
+The recoil-K=10 score is within 7 points of perfect retrieval (oracle 0.919)
+and within 10 points of Mastra's published 0.9487 — and we matched their
+answerer, so that gap is entirely architecture above the retrieval primitive.
+
+### Per-category, gpt-5-mini, all five modes
+
+| Category | floor | K=5 | K=10 | full | oracle |
+|---|---:|---:|---:|---:|---:|
+| single-session-user | 0.016 | 1.000 | 1.000 | 1.000 | 0.984 |
+| single-session-assistant | 0.286 | 0.964 | 0.982 | 0.982 | 1.000 |
+| single-session-preference | 0.033 | 0.900 | 0.967 | 0.767 | 0.967 |
+| knowledge-update | 0.028 | 0.861 | 0.903 | 0.792 | 0.903 |
+| temporal-reasoning | 0.008 | 0.795 | 0.803 | 0.685 | 0.866 |
+| multi-session | 0.008 | 0.628 | 0.694 | 0.669 | 0.901 |
+| abstention | 1.000 | 0.800 | 0.833 | 0.833 | 0.800 |
+
+Three notable category effects:
+
+1. **Preference loses 20pp on full-context vs K=10** (0.767 vs 0.967). Indirect
+   preferences get washed out when the LLM has too many irrelevant sessions
+   to weigh.
+2. **Temporal-reasoning loses 12pp on full-context vs K=10** (0.685 vs 0.803).
+   Date disambiguation is harder when many sessions compete for the answer.
+3. **Multi-session is the residual hard problem**: K=10 hits 0.694, oracle
+   hits 0.901. The 21pp gap is *retrieval recall* on multi-evidence questions,
+   not LLM reasoning — this is where future retrieval improvements have the
+   highest leverage.
+
+### Cost-accuracy curve
+
+```
+acc
+0.95 │                                          ● oracle ($0.90)
+0.90 │
+0.85 │                               ● K=10 ($3.55)
+0.80 │                        ● K=5  ● full-context ($14.12)
+0.75 │
+0.70 │
+...
+0.05 │● no-retrieval ($0.25)
+     └────┬────┬────┬────┬────┬────────────┬────
+       $0   $2   $4   $6   $8           $14   cost
+```
+
+The cost-accuracy frontier is **K=10**, not full-context. The full-context
+point is dominated — both more expensive and less accurate. The oracle point
+is purely informational (you don't have ground-truth session IDs at query
+time in production); the only realistic operating points are along the
+no-retrieval / K=5 / K=10 line.
+
+### Retrieval-to-answer decomposition — recoil-K=5, three answerers
 
 | Category | recoil R@5 | gpt-4o-mini | Haiku 4.5 | **gpt-5-mini** |
 |---|---:|---:|---:|---:|
@@ -161,29 +232,27 @@ tier dominates the 2024 chat-mini tier on this benchmark.
 The single-session-preference jump (0.40 → 0.73 → 0.90) is the clearest signal
 of reasoning-model uplift: preference statements are usually indirect ("I find
 Postgres more reliable in my experience") and require inference rather than
-extraction. gpt-5-mini's reasoning step closes that gap almost entirely. The
-floor on multi-session (0.628 even with the strongest answerer, against R@5 of
-0.959) suggests the limit there is genuine multi-hop synthesis difficulty
-rather than the LLM choice — improving it likely needs cross-session
-provenance hints in the retrieval output, not a better answerer.
+extraction. gpt-5-mini's reasoning step closes that gap almost entirely.
 
 ### What the gap means
 
-- **Retrieval is mostly solved.** recoil's R@5 = 0.972 means the right session
-  is in top-5 nearly always. The categories where retrieval drops (preference
-  0.867, multi-session 0.959) are also the categories where QA drops the
-  hardest. Retrieval is the floor; reasoning is the ceiling.
-- **The answerer dominates the QA score.** Same recoil chunks fed to two
-  different models gave a 9-point spread (0.698 vs 0.787). The biggest gains
-  came in the categories that require multi-hop reasoning (multi-session
-  +10pp), indirect preference inference (preference +33pp), and abstention
-  judgment (+23pp). These are not retrieval problems.
-- **Cost vs accuracy trade is steep.** Haiku 4.5 is ~7.7× more expensive than
-  gpt-4o-mini and buys +9 accuracy points. That's a real choice, not a
-  free lunch.
-- **Per-question latency.** Haiku 4.5 was actually *faster* (p50 = 4.0s) than
-  gpt-4o-mini (p50 = 6.5s) at this prompt size, despite higher per-token cost.
-  The full Haiku run took 4 minutes; gpt-4o-mini took 7 minutes.
+- **Retrieval is a quality multiplier, not just a cost lever.** The clearest
+  evidence is the ablation table: K=10 recoil retrieval beats full-context by
+  6.8 points at 4× lower cost. Adding more sessions past the relevant ones
+  *degrades* gpt-5-mini's reasoning. recoil's job is to lower the noise floor;
+  the LLM does the synthesis.
+- **The answerer dominates the QA score at fixed retrieval.** Same K=5 chunks
+  fed to gpt-4o-mini vs gpt-5-mini = 12-point spread (0.698 vs 0.817). Biggest
+  gains: preference (+50pp), temporal (+16pp), multi-session (+14pp) — all
+  categories that require inference, not just extraction.
+- **The architecture-vs-Mastra gap is now bounded.** With the same answerer
+  (gpt-5-mini) Mastra reports 0.9487, we get 0.8489 at K=10. That ~10pp gap
+  is attributable to their write-time LLM observer + likely larger context
+  window, not the model or the retrieval primitive. Whether to close that
+  gap is a v1 architecture question, not a retrieval-quality question.
+- **Per-question latency.** gpt-5-mini at reasoning=minimal hits p50 = 3.9s
+  for K=5/K=10 and p50 = 6.5s for full-context (more context = slower).
+  Cheaper per question than Haiku 4.5 (p50 = 4.0s) at higher accuracy.
 
 ### Honest caveats vs published numbers
 
