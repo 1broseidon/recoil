@@ -230,6 +230,30 @@ func (s *Store) Path() string {
 	return s.path
 }
 
+func (s *Store) Backup(dest string) error {
+	dest = strings.TrimSpace(dest)
+	if dest == "" {
+		return fmt.Errorf("backup destination is required")
+	}
+	if dest == s.path {
+		return fmt.Errorf("backup destination must differ from source")
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		return err
+	}
+	if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if _, err := s.db.Exec("VACUUM INTO ?", dest); err != nil {
+		return err
+	}
+	tightenStorePermissions(dest)
+	return nil
+}
+
 func (s *Store) AddMemory(ctx context.Context, p AddMemoryParams) (*Memory, bool, error) {
 	p.Content = redact.Content(p.Content)
 	p.SourceKind = normalizeSourceKind(p.SourceKind)

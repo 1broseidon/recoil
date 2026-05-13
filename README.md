@@ -170,6 +170,10 @@ recoil hook install codex
 recoil embed index
 recoil embed search "background sync"
 
+# Resilience
+recoil backup
+recoil backup --out /path/to/synced-folder --max 5
+
 # Quality gates
 recoil eval
 recoil eval eval/fixtures.jsonl

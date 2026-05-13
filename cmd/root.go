@@ -47,6 +47,7 @@ func init() {
 	rootCmd.AddCommand(newSupersedeCommand())
 	rootCmd.AddCommand(newMineCommand())
 	rootCmd.AddCommand(newSessionEvidenceCommand())
+	rootCmd.AddCommand(newBackupCommand())
 	rootCmd.AddCommand(newEmbedCommand())
 	rootCmd.AddCommand(newEvalCommand())
 	rootCmd.AddCommand(newStatusCommand())
