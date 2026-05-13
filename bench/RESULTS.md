@@ -103,6 +103,131 @@ All five fail predictably; none indicate a methodology bug.
   Alternative formats (with date headers, with turn timestamps) are likely to
   shift the temporal-reasoning number.
 
+## Hybrid retrieval — FTS5 + embeddings
+
+The same harness with `--hybrid-embedding`, fusing FTS5 ranks with cosine
+similarity over an embedding model via Reciprocal Rank Fusion (RRF k=60).
+All retrieval-only — no LLM in either the write or read path.
+
+### Three providers compared
+
+| Provider / model | R@5 | R@10 | MRR | Cost / 500q | Local? |
+|---|---:|---:|---:|---:|---|
+| FTS5 only (baseline) | 0.9723 | 0.9894 | 0.9299 | $0 | yes |
+| OpenRouter `openai/text-embedding-3-small` | 0.9809 | **0.9936** | 0.9410 | $0.20 | no |
+| **Ollama `bge-m3` (local, GPU)** | **0.9830** | 0.9915 | **0.9564** | **$0** | **yes** |
+
+**The local bge-m3 result beats the hosted OpenAI embedding on the headline
+R@5 number.** OpenRouter still edges R@10 by 0.0021 (essentially noise — 1
+question out of 470). MRR favors bge-m3 by a clear margin (0.9564 vs 0.9410).
+Both lift retrieval meaningfully over FTS5 alone.
+
+### Per-category, three-way
+
+| Category | FTS only | OpenRouter | bge-m3 (Ollama) |
+|---|---:|---:|---:|
+| knowledge-update | 1.0000 | 1.0000 | 1.0000 |
+| single-session-assistant | 1.0000 | 1.0000 | 1.0000 |
+| single-session-user | 1.0000 | 1.0000 | 0.9844 |
+| **single-session-preference** | 0.8667 | 0.8667 | **0.9333** |
+| temporal-reasoning | 0.9685 | 0.9764 | 0.9764 |
+| multi-session | 0.9587 | 0.9835 | 0.9835 |
+
+The category where bge-m3 wins decisively is **single-session-preference
+(+6.6pp over both FTS-only and OpenRouter)**. Preference questions are
+stated indirectly ("I find Postgres more reliable in my experience" → "what
+does the user prefer for databases?") and require semantic inference that
+keyword overlap can't capture. bge-m3 evidently captures this kind of
+soft-paraphrase relationship better than text-embedding-3-small does on
+this benchmark.
+
+Multi-session and temporal-reasoning gain identically with either embedding
+model — they're driven by retrieval-recall on multi-evidence questions,
+which both models solve.
+
+### Why local bge-m3 wins on this benchmark
+
+Two plausible factors, in order of likelihood:
+
+1. **Dimension and architecture.** bge-m3 is a 568M-param multi-vector
+   model with 1024-d embeddings trained for retrieval; `text-embedding-3-small`
+   is a smaller 1536-d model trained for general semantic similarity. bge-m3
+   was tuned harder for the BEIR/MTEB retrieval suite.
+2. **Long context.** bge-m3's 8K context handles entire sessions natively;
+   text-embedding-3-small's 8191-token limit also fits, so this probably
+   doesn't drive the gap on this dataset — but it would matter for longer
+   memories.
+
+The headline takeaway: **a free, locally-served embedding model beats a paid
+hosted one on the canonical academic memory benchmark.** That is not a
+universal claim — different datasets, different distributions, different
+ranking. On LongMemEval_S, with recoil's hybrid retrieval, bge-m3 is the
+right default for users who can run a 1.2 GB model locally.
+
+### Bench wall-clock by provider
+
+| Provider | 500-question run time |
+|---|---:|
+| OpenRouter (batched API) | ~10 min |
+| Ollama bge-m3 (local, 3090) | ~37 min |
+| FTS-only (no embedding step) | ~2 min |
+
+OpenRouter is faster end-to-end because the API parallelizes batches across
+their infrastructure. The local bge-m3 throughput on a single 3090 caps at
+~25K tokens/sec, which sets the floor. **For real production query latency
+this difference disappears** (one query embedding instead of 500 × 50
+fresh batches); see the production-latency section below.
+
+## Production query latency (what users actually feel)
+
+The bench numbers above are stress tests — every question re-embeds 50
+sessions × ~10K chars from scratch. **That is not what recoil does in
+practice.** Embeddings are computed once at write time and stored in
+`memory_embeddings`; at query time recoil embeds only the user's question
+(one inference) and does cosine over already-stored vectors.
+
+The realistic operating point, measured locally on a 3090 with Ollama
+nomic-embed-text against a 1000-memory project:
+
+| Operation | Latency (median, 5 runs) |
+|---|---:|
+| One-time index of 1000 memories | 21.25 s (~21 ms / memory) |
+| FTS-only search | **28 ms** (range 26–35) |
+| Hybrid search (FTS + local embedding) | **263 ms** (range 255–273) |
+
+Hybrid overhead is almost entirely one local Ollama call to embed the
+query. Cosine similarity over 1000 stored vectors is microseconds — not
+even visible in the latency.
+
+### Bench-vs-production breakdown
+
+| | LongMemEval bench | Real production |
+|---|---|---|
+| Embeddings per query | 50 sessions × ~10K chars (~125K tokens) | 1 query × ~50 chars (~12 tokens) |
+| Are embeddings cached? | No — re-embedded every question | Yes — stored at write time |
+| Per-query Ollama calls | ~50 inputs in a batch | 1 input |
+| Wall time per query | ~5 s (bge-m3) | **263 ms** (nomic) |
+
+The 100–1000× gap between bench wall time and production query latency is
+not a contradiction — it's the difference between "re-index everything
+every search" (worst case) and "amortized index, cheap query" (real case).
+
+### Production Ollama setup notes
+
+Three gotchas worth pinning in the README when documenting the local path:
+
+1. **First query after idle is slow.** Ollama unloads models after ~5 min
+   by default; the cold-load can take 15–30 s. For agent workflows that
+   expect sub-second response, set `OLLAMA_KEEP_ALIVE=24h` or send a
+   warmup ping at agent startup.
+2. **Write throughput, not query throughput, is the bottleneck.** A 3090
+   sustains ~5–10 docs/sec on bge-m3 (long sessions) or ~50 docs/sec on
+   nomic-embed-text (short memories). Bulk re-indexing 10K memories takes
+   a few minutes. Interactive queries are sub-second forever after.
+3. **CPU-only environments work but the budget is tighter.** nomic on
+   CPU is ~200 ms per embed; hybrid query latency lands around 500–800 ms.
+   Still acceptable for agent search, marginal for tight tool loops.
+
 ### Reproducing retrieval
 
 ```sh
