@@ -80,7 +80,12 @@ func runLongMemEval(args []string) error {
 	var verbose bool
 	var resultsPath string
 	var hybridEmbedding bool
+	var embedProvider string
 	var embedModel string
+	var ollamaHost string
+	var maxEmbedChars int
+	var chunkChars int
+	var chunkOverlap int
 	var fusionK int
 	var ftsPool int
 	var embedPool int
@@ -90,8 +95,13 @@ func runLongMemEval(args []string) error {
 		fs.IntVar(&limit, "limit", 0, "only run the first N questions (0 = all)")
 		fs.BoolVar(&verbose, "verbose", false, "print per-question results")
 		fs.StringVar(&resultsPath, "out", "", "write results JSONL to this path (default: bench/results/...)")
-		fs.BoolVar(&hybridEmbedding, "hybrid-embedding", false, "fuse FTS5 with cosine-similarity over embeddings (requires OPENROUTER_API_KEY)")
-		fs.StringVar(&embedModel, "embed-model", "openai/text-embedding-3-small", "embedding model slug (OpenRouter)")
+		fs.BoolVar(&hybridEmbedding, "hybrid-embedding", false, "fuse FTS5 with cosine-similarity over embeddings")
+		fs.StringVar(&embedProvider, "embed-provider", "openrouter", "embedding provider: openrouter | ollama")
+		fs.StringVar(&embedModel, "embed-model", "", "embedding model (defaults: openrouter -> openai/text-embedding-3-small, ollama -> nomic-embed-text)")
+		fs.StringVar(&ollamaHost, "ollama-host", "", "Ollama base URL (default: http://localhost:11434, overridable via OLLAMA_HOST)")
+		fs.IntVar(&maxEmbedChars, "max-embed-chars", 0, "truncate each embedding input to this many chars (default: 6000 for ollama, unlimited for openrouter)")
+		fs.IntVar(&chunkChars, "chunk-chars", 0, "chunk each session into windows of this many chars (max-pool cosine over chunks). 0 = truncate via --max-embed-chars instead")
+		fs.IntVar(&chunkOverlap, "chunk-overlap", 500, "overlap between adjacent chunks in chars (when --chunk-chars > 0)")
 		fs.IntVar(&fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
 		fs.IntVar(&ftsPool, "fts-pool", 50, "FTS candidate pool for fusion")
 		fs.IntVar(&embedPool, "embed-pool", 50, "embedding candidate pool for fusion")
@@ -117,19 +127,44 @@ func runLongMemEval(args []string) error {
 
 	var hc *hybridConfig
 	if hybridEmbedding {
-		client, err := NewOpenRouterClient()
-		if err != nil {
-			return fmt.Errorf("hybrid-embedding requires OPENROUTER_API_KEY: %w", err)
-		}
+		resolvedModel := embedModel
 		hc = &hybridConfig{
-			client:        client,
-			embedModel:    embedModel,
+			embedProvider: embedProvider,
+			ollamaHost:    ollamaHost,
+			maxEmbedChars: maxEmbedChars,
+			chunkChars:    chunkChars,
+			chunkOverlap:  chunkOverlap,
 			fusionK:       fusionK,
 			ftsPoolSize:   ftsPool,
 			embedPoolSize: embedPool,
 		}
-		fmt.Fprintf(os.Stderr, "hybrid retrieval: embed-model=%s rrf-k=%d fts-pool=%d embed-pool=%d\n",
-			embedModel, fusionK, ftsPool, embedPool)
+		switch embedProvider {
+		case "openrouter", "":
+			if resolvedModel == "" {
+				resolvedModel = "openai/text-embedding-3-small"
+			}
+			client, err := NewOpenRouterClient()
+			if err != nil {
+				return fmt.Errorf("embed-provider=openrouter requires OPENROUTER_API_KEY: %w", err)
+			}
+			hc.client = client
+			hc.embedProvider = "openrouter"
+		case "ollama":
+			if resolvedModel == "" {
+				resolvedModel = "nomic-embed-text"
+			}
+			if hc.maxEmbedChars == 0 {
+				// nomic-embed-text caps at 2048 tokens (~8000 chars). 6000 leaves
+				// headroom for tokenization overhead and rarely costs much signal
+				// since key turns tend to be near the start of a session.
+				hc.maxEmbedChars = 6000
+			}
+		default:
+			return fmt.Errorf("unknown --embed-provider %q (supported: openrouter, ollama)", embedProvider)
+		}
+		hc.embedModel = resolvedModel
+		fmt.Fprintf(os.Stderr, "hybrid retrieval: provider=%s model=%s rrf-k=%d fts-pool=%d embed-pool=%d max-embed-chars=%d\n",
+			hc.embedProvider, hc.embedModel, fusionK, ftsPool, embedPool, hc.maxEmbedChars)
 	}
 
 	outDir, err := resultsDir()

@@ -16,11 +16,65 @@ import (
 // hybridConfig carries the knobs for hybrid retrieval. The defaults
 // (RRF k=60, pools of 50) match common BEIR/MTEB practice.
 type hybridConfig struct {
-	client        *OpenRouterClient
+	client        *OpenRouterClient // used when embedProvider == "openrouter"
+	embedProvider string            // "openrouter" | "ollama"
 	embedModel    string
-	fusionK       int // RRF constant; 60 is the standard
-	ftsPoolSize   int // FTS top-K considered for fusion
-	embedPoolSize int // embedding top-K considered for fusion
+	ollamaHost    string // only used when embedProvider == "ollama"
+	maxEmbedChars int    // per-input cap before embedding (0 = no truncation)
+	chunkChars    int    // when > 0, split each session into chunks of this size and max-pool cosine over chunks
+	chunkOverlap  int    // overlap between adjacent chunks (chars)
+	fusionK       int    // RRF constant; 60 is the standard
+	ftsPoolSize   int    // FTS top-K considered for fusion
+	embedPoolSize int    // embedding top-K considered for fusion
+}
+
+// truncForEmbedding caps a single embedding input to maxChars. Truncates from
+// the end; loses tail context for very long sessions.
+func truncForEmbedding(s string, maxChars int) string {
+	if maxChars <= 0 || len(s) <= maxChars {
+		return s
+	}
+	return s[:maxChars]
+}
+
+// chunkText splits a string into windows of chunkSize chars with overlap chars
+// of overlap between adjacent windows. Standard sliding-window chunking —
+// preserves all content (no data loss), unlike truncation. If the input is
+// shorter than chunkSize, returns it as a single chunk.
+func chunkText(s string, chunkSize, overlap int) []string {
+	if chunkSize <= 0 || len(s) <= chunkSize {
+		return []string{s}
+	}
+	if overlap < 0 || overlap >= chunkSize {
+		overlap = chunkSize / 10
+	}
+	step := chunkSize - overlap
+	chunks := make([]string, 0, (len(s)/step)+1)
+	for i := 0; i < len(s); i += step {
+		end := i + chunkSize
+		if end > len(s) {
+			end = len(s)
+		}
+		chunks = append(chunks, s[i:end])
+		if end == len(s) {
+			break
+		}
+	}
+	return chunks
+}
+
+// embedBatch dispatches the batched embedding call to the configured
+// provider. Both branches return (vectors, costUSD, error); Ollama always
+// reports 0 cost since it's local.
+func (hc *hybridConfig) embedBatch(ctx context.Context, inputs []string) ([][]float64, float64, error) {
+	switch hc.embedProvider {
+	case "ollama":
+		return ollamaEmbedBatch(ctx, hc.ollamaHost, hc.embedModel, inputs)
+	case "openrouter", "":
+		return hc.client.Embed(ctx, hc.embedModel, inputs)
+	default:
+		return nil, 0, fmt.Errorf("unknown embed-provider %q", hc.embedProvider)
+	}
 }
 
 // scoreQuestionHybrid retrieves with FTS5 + embeddings and fuses via RRF.
@@ -109,9 +163,27 @@ func scoreQuestionHybrid(q lmeQuestion, topK int, hc *hybridConfig, verbose bool
 	// Embedding ranks
 	embedCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	// Embed query + all sessions in one batched call.
-	allInputs := append([]string{q.Question}, contents...)
-	vectors, _, err := hc.client.Embed(embedCtx, hc.embedModel, allInputs)
+	// Embed query + all session content. If chunkChars is set, each session is
+	// split into windows and the per-session similarity becomes the MAX cosine
+	// across its chunks — this lets short-context models (nomic 2K,
+	// embeddinggemma 2K) compete with long-context ones (bge-m3 8K) by ensuring
+	// no content is silently dropped. With chunkChars=0 we fall back to
+	// truncating with maxEmbedChars (simpler but lossy on tail-heavy sessions).
+	allInputs := []string{truncForEmbedding(q.Question, hc.maxEmbedChars)}
+	chunkOwners := []int{-1} // session index for each input; -1 marks the query slot
+	for i, c := range contents {
+		var chunks []string
+		if hc.chunkChars > 0 {
+			chunks = chunkText(c, hc.chunkChars, hc.chunkOverlap)
+		} else {
+			chunks = []string{truncForEmbedding(c, hc.maxEmbedChars)}
+		}
+		for _, chunk := range chunks {
+			allInputs = append(allInputs, chunk)
+			chunkOwners = append(chunkOwners, i)
+		}
+	}
+	vectors, _, err := hc.embedBatch(embedCtx, allInputs)
 	if err != nil {
 		// Fall back to FTS-only on embedding failure.
 		result.SearchMillis = time.Since(t1).Milliseconds()
@@ -122,18 +194,23 @@ func scoreQuestionHybrid(q lmeQuestion, topK int, hc *hybridConfig, verbose bool
 		return result, nil
 	}
 	queryVec := vectors[0]
-	sessionVecs := vectors[1:]
 
 	type scored struct {
 		sid   string
 		score float64
 	}
-	embedScored := make([]scored, 0, len(sessionVecs))
-	for i, v := range sessionVecs {
-		if len(v) == 0 {
-			continue
+	// Per-session max cosine across that session's chunks.
+	bestPerSession := make(map[int]float64, len(contents))
+	for j := 1; j < len(vectors); j++ {
+		owner := chunkOwners[j]
+		sim := cosine(queryVec, vectors[j])
+		if cur, ok := bestPerSession[owner]; !ok || sim > cur {
+			bestPerSession[owner] = sim
 		}
-		embedScored = append(embedScored, scored{sid: sids[i], score: cosine(queryVec, v)})
+	}
+	embedScored := make([]scored, 0, len(bestPerSession))
+	for i, score := range bestPerSession {
+		embedScored = append(embedScored, scored{sid: sids[i], score: score})
 	}
 	sort.Slice(embedScored, func(i, j int) bool { return embedScored[i].score > embedScored[j].score })
 	if len(embedScored) > hc.embedPoolSize {

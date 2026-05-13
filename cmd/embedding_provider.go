@@ -17,7 +17,9 @@ func newEmbeddingProvider(providerName, model string) (embedding.Provider, error
 		return embedding.NewLocalProvider(model), nil
 	case embedding.OpenRouterProvider:
 		return embedding.NewOpenRouterProvider(model)
+	case embedding.OllamaProvider:
+		return embedding.NewOllamaProvider(model)
 	default:
-		return nil, fmt.Errorf("unsupported embedding provider %q (supported: local, openrouter)", providerName)
+		return nil, fmt.Errorf("unsupported embedding provider %q (supported: local, ollama, openrouter)", providerName)
 	}
 }
