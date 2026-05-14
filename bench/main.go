@@ -56,6 +56,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "locomo-qa: %v\n", err)
 			os.Exit(1)
 		}
+	case "locomo-extract":
+		if err := runLoCoMoExtract(args); err != nil {
+			fmt.Fprintf(os.Stderr, "locomo-extract: %v\n", err)
+			os.Exit(1)
+		}
+	case "locomo-profiles":
+		if err := runLoCoMoProfiles(args); err != nil {
+			fmt.Fprintf(os.Stderr, "locomo-profiles: %v\n", err)
+			os.Exit(1)
+		}
 	case "locomo-grade":
 		if err := runLoCoMoGrade(args); err != nil {
 			fmt.Fprintf(os.Stderr, "locomo-grade: %v\n", err)
@@ -90,6 +100,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  locomo              LoCoMo retrieval (turn-grain + session-grain recall@5/10, per-category)")
 	fmt.Fprintln(os.Stderr, "  beam                BEAM retrieval (turn-grain recall@5/10, per-category, --scale=100K|500K|1M|10M)")
 	fmt.Fprintln(os.Stderr, "  locomo-qa           LoCoMo end-to-end: retrieval -> answerer LLM -> hypothesis JSONL")
+	fmt.Fprintln(os.Stderr, "  locomo-extract      LoCoMo fact extraction: produce extracted-facts JSONL for --facts injection")
 	fmt.Fprintln(os.Stderr, "  locomo-grade        Grade LoCoMo hypothesis JSONL with LLM-as-judge")
 	fmt.Fprintln(os.Stderr, "  beam-qa             BEAM end-to-end: retrieval -> answerer LLM -> hypothesis JSONL")
 	fmt.Fprintln(os.Stderr, "  beam-grade          Grade BEAM hypothesis JSONL with LLM-as-judge")

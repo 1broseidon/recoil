@@ -39,8 +39,8 @@ type locomoHypothesis struct {
 }
 
 func runLoCoMoQA(args []string) error {
-	var dataPath, model, modeStr, resultsPath, reasoningEffort string
-	var topK, limit, concurrency, maxTokens, maxQuestions int
+	var dataPath, model, modeStr, resultsPath, reasoningEffort, factsPath, profilesPath string
+	var topK, limit, concurrency, maxTokens, maxQuestions, factsTopK, profilesTopK int
 	var verbose, hybridEmbedding bool
 	var embedProvider, embedModel, ollamaHost string
 	var maxEmbedChars, chunkChars, chunkOverlap, fusionK, ftsPool, embedPool int
@@ -66,6 +66,10 @@ func runLoCoMoQA(args []string) error {
 		fs.IntVar(&fusionK, "fusion-k", 60, "RRF fusion constant")
 		fs.IntVar(&ftsPool, "fts-pool", 50, "FTS candidate pool size before fusion")
 		fs.IntVar(&embedPool, "embed-pool", 50, "embedding candidate pool")
+		fs.StringVar(&factsPath, "facts", "", "optional path to extracted-facts JSONL (produced by locomo-extract) to inject alongside raw turns")
+		fs.IntVar(&factsTopK, "facts-topk", 0, "if >0, do a dedicated fact-only retrieval pass for top-N facts and add them as a separate context block (in addition to top-K raw turns). Recommended: 5.")
+		fs.StringVar(&profilesPath, "profiles", "", "optional path to entity-profiles JSONL (produced by locomo-profiles) to inject as dense entity_profile memories")
+		fs.IntVar(&profilesTopK, "profiles-topk", 0, "if >0, do a dedicated entity-profile retrieval pass for top-N profiles and add them as a separate context block")
 	})
 	if err != nil {
 		return err
@@ -107,6 +111,32 @@ func runLoCoMoQA(args []string) error {
 		records = records[:limit]
 	}
 
+	var factsBySample map[string][]locomoFactRecord
+	if factsPath != "" {
+		factsBySample, err = loadLoCoMoFacts(factsPath)
+		if err != nil {
+			return fmt.Errorf("load facts: %w", err)
+		}
+		total := 0
+		for _, fs := range factsBySample {
+			total += len(fs)
+		}
+		fmt.Fprintf(os.Stderr, "loaded %d facts across %d records from %s\n", total, len(factsBySample), factsPath)
+	}
+
+	var profilesBySample map[string][]locomoProfileRecord
+	if profilesPath != "" {
+		profilesBySample, err = loadLoCoMoProfiles(profilesPath)
+		if err != nil {
+			return fmt.Errorf("load profiles: %w", err)
+		}
+		total := 0
+		for _, ps := range profilesBySample {
+			total += len(ps)
+		}
+		fmt.Fprintf(os.Stderr, "loaded %d entity profiles across %d records from %s\n", total, len(profilesBySample), profilesPath)
+	}
+
 	// Pre-build (record, qa, ingested turns) tuples. We need the turn map keyed
 	// by dia_id so we can rebuild context for each question after retrieval.
 	preps := make([]*locomoPrepared, 0, len(records))
@@ -145,6 +175,64 @@ func runLoCoMoQA(args []string) error {
 					ScopeID:    scopeID,
 					Validity:   "unknown",
 					MetadataJSON: fmt.Sprintf(`{"session_date":%q,"speaker":%q}`, sess.Date, turn.Speaker),
+				})
+				if err != nil {
+					st.Close()
+					os.RemoveAll(tmpDir)
+					return err
+				}
+			}
+		}
+		// Inject extracted facts (if provided) as additional memories so the
+		// FTS+embed retrieval can surface a one-line summary instead of
+		// requiring the relevant raw turn to land in top-K. Stored as
+		// SourceKind=extracted_fact and Role=fact for downstream auditing.
+		if facts := factsBySample[rec.SampleID]; len(facts) > 0 {
+			for _, f := range facts {
+				ref := f.SessionID + ":" + f.Subject + ":" + f.Predicate
+				if len(ref) > 80 {
+					ref = ref[:80]
+				}
+				evJSON, _ := json.Marshal(f.EvidenceIDs)
+				meta := fmt.Sprintf(`{"session_date":%q,"subject":%q,"predicate":%q,"object":%q,"evidence_dia_ids":%s}`,
+					f.SessionDate, f.Subject, f.Predicate, f.Object, string(evJSON))
+				_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+					Role:         "fact",
+					Content:      f.FactText,
+					SourceKind:   "extracted_fact",
+					SourcePath:   "fact/" + f.SessionID,
+					SourceRef:    ref,
+					ScopeKind:    "project",
+					ScopeID:      scopeID,
+					Validity:     "active",
+					MetadataJSON: meta,
+				})
+				if err != nil {
+					st.Close()
+					os.RemoveAll(tmpDir)
+					return err
+				}
+			}
+		}
+		// Inject entity profiles (Track C). One dense memory per entity so a
+		// single retrieval brings back the entity's full biographical context.
+		if profs := profilesBySample[rec.SampleID]; len(profs) > 0 {
+			for _, p := range profs {
+				ref := p.Entity
+				if len(ref) > 80 {
+					ref = ref[:80]
+				}
+				meta := fmt.Sprintf(`{"entity":%q,"fact_count":%d}`, p.Entity, p.FactCount)
+				_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+					Role:         "profile",
+					Content:      p.Profile,
+					SourceKind:   "entity_profile",
+					SourcePath:   "entity/" + p.Entity,
+					SourceRef:    ref,
+					ScopeKind:    "project",
+					ScopeID:      scopeID,
+					Validity:     "active",
+					MetadataJSON: meta,
 				})
 				if err != nil {
 					st.Close()
@@ -199,7 +287,7 @@ func runLoCoMoQA(args []string) error {
 	worker := func() {
 		defer wg.Done()
 		for j := range jobs {
-			h := scoreLoCoMoQA(j.prep, j.qa, j.qIndex, mode, topK, model, client, maxTokens, reasoningEffort, hc)
+			h := scoreLoCoMoQA(j.prep, j.qa, j.qIndex, mode, topK, model, client, maxTokens, reasoningEffort, hc, factsTopK, profilesTopK)
 			results[j.idx] = h
 			costMu.Lock()
 			totalCost += h.CostUSD
@@ -256,7 +344,7 @@ type locomoPrepared struct {
 	scopeID     string
 }
 
-func scoreLoCoMoQA(p *locomoPrepared, qa locomoQA, qIndex int, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string, hc *hybridConfig) locomoHypothesis {
+func scoreLoCoMoQA(p *locomoPrepared, qa locomoQA, qIndex int, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string, hc *hybridConfig, factsTopK, profilesTopK int) locomoHypothesis {
 	h := locomoHypothesis{
 		SampleID:      p.rec.SampleID,
 		QuestionIndex: qIndex,
@@ -309,7 +397,95 @@ func scoreLoCoMoQA(p *locomoPrepared, qa locomoQA, qIndex int, mode retrievalMod
 		rows = rows[:topK]
 	}
 
-	prompt := buildLoCoMoPrompt(qa, rows)
+	// Strip extracted_fact and entity_profile rows out of the raw-turns
+	// leg so they don't crowd out actual turns; they re-enter via their
+	// dedicated legs.
+	if factsTopK > 0 || profilesTopK > 0 {
+		var nonAux []store.Memory
+		for _, r := range rows {
+			if r.SourceKind == "extracted_fact" || r.SourceKind == "entity_profile" {
+				continue
+			}
+			nonAux = append(nonAux, r)
+		}
+		rows = nonAux
+	}
+
+	var profileRows []store.Memory
+	if profilesTopK > 0 {
+		pPoolLimit := profilesTopK
+		if hc != nil && hc.ftsPoolSize > pPoolLimit {
+			pPoolLimit = hc.ftsPoolSize
+		}
+		if pPoolLimit > 100 {
+			pPoolLimit = 100
+		}
+		pRows, perr := p.st.Search(ctx, store.SearchParams{
+			Query:        qa.Question,
+			ScopeKind:    "project",
+			ScopeID:      p.scopeID,
+			SourceKind:   "entity_profile",
+			Limit:        pPoolLimit,
+			Lifecycle:    store.LifecycleAny,
+			SignalRerank: true,
+		})
+		if perr == nil && len(pRows) > 0 {
+			if hc != nil && len(pRows) > 1 {
+				ctxEmb, cancelEmb := context.WithTimeout(ctx, 60*time.Second)
+				reranked, rerr := hybridRerankCandidates(ctxEmb, hc, qa.Question, pRows, profilesTopK)
+				cancelEmb()
+				if rerr == nil {
+					pRows = reranked
+				} else if len(pRows) > profilesTopK {
+					pRows = pRows[:profilesTopK]
+				}
+			} else if len(pRows) > profilesTopK {
+				pRows = pRows[:profilesTopK]
+			}
+			profileRows = pRows
+		}
+	}
+
+	var factRows []store.Memory
+	if factsTopK > 0 {
+		fPoolLimit := factsTopK
+		if hc != nil && hc.ftsPoolSize > fPoolLimit {
+			fPoolLimit = hc.ftsPoolSize
+		}
+		if fPoolLimit > 100 {
+			fPoolLimit = 100
+		}
+		fRows, ferr := p.st.Search(ctx, store.SearchParams{
+			Query:        qa.Question,
+			ScopeKind:    "project",
+			ScopeID:      p.scopeID,
+			SourceKind:   "extracted_fact",
+			Limit:        fPoolLimit,
+			Lifecycle:    store.LifecycleAny,
+			SignalRerank: true,
+		})
+		if ferr == nil && len(fRows) > 0 {
+			// Apply hybrid embedding rerank to the fact pool too, so semantic
+			// matches (e.g. "Caroline is a single parent" for "what is
+			// Caroline's relationship status?") surface despite zero keyword
+			// overlap.
+			if hc != nil && len(fRows) > 1 {
+				ctxEmb, cancelEmb := context.WithTimeout(ctx, 60*time.Second)
+				reranked, rerr := hybridRerankCandidates(ctxEmb, hc, qa.Question, fRows, factsTopK)
+				cancelEmb()
+				if rerr == nil {
+					fRows = reranked
+				} else if len(fRows) > factsTopK {
+					fRows = fRows[:factsTopK]
+				}
+			} else if len(fRows) > factsTopK {
+				fRows = fRows[:factsTopK]
+			}
+			factRows = fRows
+		}
+	}
+
+	prompt := buildLoCoMoPrompt(qa, rows, factRows, profileRows)
 	cctx, cancel := context.WithTimeout(ctx, 180*time.Second)
 	defer cancel()
 	t0 := time.Now()
@@ -339,12 +515,29 @@ func scoreLoCoMoQA(p *locomoPrepared, qa locomoQA, qIndex int, mode retrievalMod
 // LongMemEval Chain-of-Note recipe but turn-grained. Session date is parsed
 // out of MetadataJSON and inlined per turn so temporal-reasoning questions can
 // resolve "yesterday" / "last year" against an absolute reference date.
-func buildLoCoMoPrompt(qa locomoQA, rows []store.Memory) string {
+func buildLoCoMoPrompt(qa locomoQA, rows []store.Memory, factRows []store.Memory, profileRows []store.Memory) string {
 	var b strings.Builder
 	b.WriteString("I will give you several turns from a long-running conversation between two people. ")
 	b.WriteString("Each turn is tagged with the date the session occurred. ")
+	if len(factRows) > 0 || len(profileRows) > 0 {
+		b.WriteString("You may also see pre-extracted facts and/or entity profiles distilled from earlier turns — treat them as an index but cite the underlying turns when reasoning. ")
+	}
 	b.WriteString("Please answer the question based on the relevant turns. ")
 	b.WriteString("Answer step by step: first extract relevant facts (resolving relative dates like \"yesterday\" or \"last year\" against the session date), then reason to the final answer.\n\n")
+	if len(profileRows) > 0 {
+		b.WriteString("Entity profiles:\n")
+		for _, m := range profileRows {
+			fmt.Fprintf(&b, "\n%s\n", strings.TrimSpace(m.Content))
+		}
+		b.WriteString("\n")
+	}
+	if len(factRows) > 0 {
+		b.WriteString("Pre-extracted facts:\n")
+		for i, m := range factRows {
+			fmt.Fprintf(&b, "- [F%d] %s\n", i+1, strings.TrimSpace(m.Content))
+		}
+		b.WriteString("\n")
+	}
 	b.WriteString("Retrieved turns:\n")
 	for i, m := range rows {
 		sessionDate := extractSessionDate(m.MetadataJSON)
