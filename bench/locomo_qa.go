@@ -40,7 +40,7 @@ type locomoHypothesis struct {
 
 func runLoCoMoQA(args []string) error {
 	var dataPath, model, modeStr, resultsPath, reasoningEffort string
-	var topK, limit, concurrency, maxTokens int
+	var topK, limit, concurrency, maxTokens, maxQuestions int
 	var verbose, hybridEmbedding bool
 	var embedProvider, embedModel, ollamaHost string
 	var maxEmbedChars, chunkChars, chunkOverlap, fusionK, ftsPool, embedPool int
@@ -50,6 +50,7 @@ func runLoCoMoQA(args []string) error {
 		fs.StringVar(&modeStr, "mode", "recoil-k10", "retrieval mode: recoil-k5 | recoil-k10 | recoil-k20 | recoil-k30")
 		fs.IntVar(&topK, "top-k", 0, "override top-k (default derived from --mode)")
 		fs.IntVar(&limit, "limit", 0, "only run the first N records (0 = all 10)")
+		fs.IntVar(&maxQuestions, "max-questions", 0, "global cap on total questions to score (0 = no cap). Useful for fast smoke tests.")
 		fs.IntVar(&concurrency, "concurrency", 8, "parallel LLM calls")
 		fs.IntVar(&maxTokens, "max-tokens", 2000, "answerer max_tokens")
 		fs.StringVar(&reasoningEffort, "reasoning-effort", "", "reasoning effort: minimal | low | medium | high")
@@ -218,11 +219,20 @@ func runLoCoMoQA(args []string) error {
 		go worker()
 	}
 	idx := 0
+	enqueued := 0
+outer:
 	for _, p := range preps {
 		for qi, qa := range p.rec.QA {
+			if maxQuestions > 0 && enqueued >= maxQuestions {
+				break outer
+			}
 			jobs <- job{idx: idx, prep: p, qa: qa, qIndex: qi}
 			idx++
+			enqueued++
 		}
+	}
+	if maxQuestions > 0 && enqueued < len(results) {
+		results = results[:enqueued]
 	}
 	close(jobs)
 	wg.Wait()
@@ -326,23 +336,43 @@ func scoreLoCoMoQA(p *locomoPrepared, qa locomoQA, qIndex int, mode retrievalMod
 }
 
 // buildLoCoMoPrompt formats the retrieved turns into a prompt mirroring the
-// LongMemEval Chain-of-Note recipe but turn-grained.
+// LongMemEval Chain-of-Note recipe but turn-grained. Session date is parsed
+// out of MetadataJSON and inlined per turn so temporal-reasoning questions can
+// resolve "yesterday" / "last year" against an absolute reference date.
 func buildLoCoMoPrompt(qa locomoQA, rows []store.Memory) string {
 	var b strings.Builder
 	b.WriteString("I will give you several turns from a long-running conversation between two people. ")
+	b.WriteString("Each turn is tagged with the date the session occurred. ")
 	b.WriteString("Please answer the question based on the relevant turns. ")
-	b.WriteString("Answer step by step: first extract relevant facts, then reason to the answer.\n\n")
+	b.WriteString("Answer step by step: first extract relevant facts (resolving relative dates like \"yesterday\" or \"last year\" against the session date), then reason to the final answer.\n\n")
 	b.WriteString("Retrieved turns:\n")
 	for i, m := range rows {
-		fmt.Fprintf(&b, "\n### Turn %d (dia_id=%s, session=%s):\n%s\n",
-			i+1, m.SourceRef, strings.TrimPrefix(m.SourcePath, "session/"), m.Content)
+		sessionDate := extractSessionDate(m.MetadataJSON)
+		fmt.Fprintf(&b, "\n### Turn %d (dia_id=%s, session=%s, session_date=%s):\n%s\n",
+			i+1, m.SourceRef, strings.TrimPrefix(m.SourcePath, "session/"), sessionDate, m.Content)
 	}
 	if qa.Category == 5 {
-		fmt.Fprintf(&b, "\nQuestion: %s\nIf the retrieved turns do not contain the answer, respond \"I don't know\" or \"the information is not available.\"\nAnswer (step by step):", qa.Question)
+		fmt.Fprintf(&b, "\nQuestion: %s\nIf the retrieved turns do not contain enough information to answer, respond \"I don't know\" or \"the information is not available.\"\nAnswer (step by step), then on the final line write \"Final answer: <concise answer>\":", qa.Question)
 	} else {
-		fmt.Fprintf(&b, "\nQuestion: %s\nAnswer (step by step):", qa.Question)
+		fmt.Fprintf(&b, "\nQuestion: %s\nAnswer (step by step), then on the final line write \"Final answer: <concise answer>\":", qa.Question)
 	}
 	return b.String()
+}
+
+// extractSessionDate pulls the session_date string out of the metadata JSON
+// we wrote at ingest time. Returns "" if not present so the prompt degrades
+// gracefully.
+func extractSessionDate(metadataJSON string) string {
+	var m struct {
+		SessionDate string `json:"session_date"`
+	}
+	if metadataJSON == "" {
+		return ""
+	}
+	if err := json.Unmarshal([]byte(metadataJSON), &m); err != nil {
+		return ""
+	}
+	return m.SessionDate
 }
 
 func locomoGoldAnswer(qa locomoQA) string {

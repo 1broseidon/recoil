@@ -39,7 +39,7 @@ type beamHypothesis struct {
 
 func runBEAMQA(args []string) error {
 	var dataDir, scale, model, modeStr, resultsPath, reasoningEffort string
-	var topK, limit, concurrency, maxTokens int
+	var topK, limit, concurrency, maxTokens, maxQuestions int
 	var verbose, hybridEmbedding bool
 	var embedProvider, embedModel, ollamaHost string
 	var maxEmbedChars, chunkChars, chunkOverlap, fusionK, ftsPool, embedPool int
@@ -50,6 +50,7 @@ func runBEAMQA(args []string) error {
 		fs.StringVar(&modeStr, "mode", "recoil-k10", "retrieval mode (recoil-k5/10/20/30)")
 		fs.IntVar(&topK, "top-k", 0, "override top-k")
 		fs.IntVar(&limit, "limit", 0, "only run the first N conversations")
+		fs.IntVar(&maxQuestions, "max-questions", 0, "global cap on total questions to score (0 = no cap). Useful for fast smoke tests.")
 		fs.IntVar(&concurrency, "concurrency", 8, "parallel LLM calls")
 		fs.IntVar(&maxTokens, "max-tokens", 2000, "answerer max_tokens")
 		fs.StringVar(&reasoningEffort, "reasoning-effort", "", "reasoning effort: minimal | low | medium | high")
@@ -193,6 +194,7 @@ func runBEAMQA(args []string) error {
 	jobs := make(chan job, concurrency*2)
 	var allJobs []job
 	idx := 0
+outer:
 	for _, p := range preps {
 		cats := make([]string, 0, len(p.probing))
 		for k := range p.probing {
@@ -201,6 +203,9 @@ func runBEAMQA(args []string) error {
 		sort.Strings(cats)
 		for _, cat := range cats {
 			for _, qa := range p.probing[cat] {
+				if maxQuestions > 0 && idx >= maxQuestions {
+					break outer
+				}
 				allJobs = append(allJobs, job{idx: idx, prep: p, cat: cat, qa: qa})
 				idx++
 			}
@@ -346,19 +351,34 @@ func scoreBEAMQA(st *store.Store, scopeID, convID, scale, cat string, qa beamQue
 func buildBEAMPrompt(cat string, qa beamQuestion, rows []store.Memory) string {
 	var b strings.Builder
 	b.WriteString("I will give you several retrieved turns from a long-running conversation. ")
+	b.WriteString("Each turn is tagged with the time_anchor (the date associated with the conversation batch the turn came from). ")
 	b.WriteString("Please answer the question based on the retrieved context. ")
-	b.WriteString("Answer step by step: first extract the relevant facts, then reason to the answer.\n\n")
+	b.WriteString("Answer step by step: first extract relevant facts (resolving any relative dates against the time_anchor), then reason to the final answer.\n\n")
 	b.WriteString("Retrieved turns:\n")
 	for i, m := range rows {
-		fmt.Fprintf(&b, "\n### Turn %d (chat_id=%s):\n%s\n", i+1, m.SourceRef, m.Content)
+		anchor := extractBEAMTimeAnchor(m.MetadataJSON)
+		fmt.Fprintf(&b, "\n### Turn %d (chat_id=%s, time_anchor=%s):\n%s\n", i+1, m.SourceRef, anchor, m.Content)
 	}
 	switch cat {
 	case "abstention":
-		fmt.Fprintf(&b, "\nQuestion: %s\nIf the retrieved turns do not contain the answer, respond that the information is unavailable.\nAnswer (step by step):", qa.Question)
+		fmt.Fprintf(&b, "\nQuestion: %s\nIf the retrieved turns do not contain enough information to answer, state that the information is unavailable.\nAnswer (step by step), then on the final line write \"Final answer: <concise answer>\":", qa.Question)
 	case "contradiction_resolution":
-		fmt.Fprintf(&b, "\nQuestion: %s\nIf the retrieved turns contain contradictory statements, state the contradiction and ask for clarification rather than choosing one.\nAnswer (step by step):", qa.Question)
+		fmt.Fprintf(&b, "\nQuestion: %s\nIf the retrieved turns contain contradictory statements, state the contradiction and ask for clarification rather than choosing one.\nAnswer (step by step), then on the final line write \"Final answer: <concise answer>\":", qa.Question)
 	default:
-		fmt.Fprintf(&b, "\nQuestion: %s\nAnswer (step by step):", qa.Question)
+		fmt.Fprintf(&b, "\nQuestion: %s\nAnswer (step by step), then on the final line write \"Final answer: <concise answer>\":", qa.Question)
 	}
 	return b.String()
+}
+
+func extractBEAMTimeAnchor(metadataJSON string) string {
+	if metadataJSON == "" {
+		return ""
+	}
+	var m struct {
+		TimeAnchor string `json:"time_anchor"`
+	}
+	if err := json.Unmarshal([]byte(metadataJSON), &m); err != nil {
+		return ""
+	}
+	return m.TimeAnchor
 }
