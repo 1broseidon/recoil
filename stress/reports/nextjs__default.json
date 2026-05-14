@@ -1,0 +1,1010 @@
+{
+  "repo": "nextjs",
+  "archetype": "docs-and-examples-heavy",
+  "label": "default",
+  "mine_elapsed_seconds": 1.37,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-nextjs-1983624006/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 808,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/nextjs/v15.1.3/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/nextjs/v15.1.3",
+      "project_scope_id": "local:ea9e06084dadb7dd72048f993e021d5d",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 16,
+  "passed": 16,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.1003,
+    "p50": 0.0985,
+    "p95": 0.1324
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "turbopack/crates/turbopack-bench/readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "turbopack/crates/turbopack-bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4668852459016393
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/next-bundle-analyzer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43930363543266765
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4384895833333333
+        },
+        {
+          "rank": 4,
+          "source_path": "turbopack/packages/turbo-tracing-next-plugin/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4192063492063492
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/next-build-test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3968279569892473
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0933
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.934885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9182903225806451
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/next-build-test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4172258852258852
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/vercel/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4171037851037851
+        },
+        {
+          "rank": 5,
+          "source_path": "turbopack/crates/turbopack-ecmascript-runtime/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.41668276515151514
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1458
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9232786885245896
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9624193548387097
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/next/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4570779220779221
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/third-parties/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4552599586793682
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.45485377806273325
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1151
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.40327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4424193548387096
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing/docs/adding-documentation.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09158730158730158
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing/repository/pull-request-descriptions.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09078125000000001
+        },
+        {
+          "rank": 5,
+          "source_path": "code_of_conduct.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0983
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/next-build-test/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/next-build-test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7158764186633039
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6963934426229508
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/next-mdx/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6947058823529412
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/react-refresh-utils/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6201612903225806
+        },
+        {
+          "rank": 5,
+          "source_path": "turbopack/crates/turbopack-bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6198412698412699
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0899
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.1052
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0698
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0878
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/next-build-test/readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/next-build-test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11578629032258064
+        },
+        {
+          "rank": 2,
+          "source_path": "bench/rendering/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11564331843020367
+        },
+        {
+          "rank": 3,
+          "source_path": "turbopack/crates/turbopack-tests/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11478574867597496
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing/core/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11450938465193633
+        },
+        {
+          "rank": 5,
+          "source_path": "test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11364527629233512
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0985
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/next-build-test/readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/next-build-test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11655473294553147
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing/core/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11491586538461539
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing/core/developing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11456439393939394
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11304131516331387
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing/repository/release-channels-publishing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08969815248503772
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.097
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.8971584699453552
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7165547329455315
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/next/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11256302521008403
+        },
+        {
+          "rank": 4,
+          "source_path": "turbopack/crates/turbopack-ecmascript/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08848958333333333
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing/core/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08811908200930829
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0957
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6932786885245903
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6524193548387098
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing/core/developing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13078125000000002
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing/repository/release-channels-publishing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09158730158730158
+        },
+        {
+          "rank": 5,
+          "source_path": "turbopack/crates/turbo-static/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1039
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7066120218579235
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6896236559139786
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing/repository/triaging.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1028088578088578
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/next/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08547619047619047
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing/repository/release-channels-publishing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0785099846390169
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1117
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13041908364859184
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing/core/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12442579915530735
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12346535602201986
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing/core/developing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11189207807118255
+        },
+        {
+          "rank": 5,
+          "source_path": "examples/reproduction-template-pages/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0938313989867388
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1324
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing/repository/pull-request-descriptions.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09603430619559651
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing/core/developing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09485576923076923
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08612903225806452
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing/core/adding-features.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.074992784992785
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0905
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15543266769073222
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.113551912568306
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/next/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10040395148669796
+        },
+        {
+          "rank": 4,
+          "source_path": "examples/reproduction-template-pages/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09317270658263305
+        },
+        {
+          "rank": 5,
+          "source_path": "examples/reproduction-template/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09266214177978883
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1067
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing/core/developing.md",
+      "expected_paths": [
+        "contributing.md",
+        "contributing/core/adding-error-links.md",
+        "contributing/core/adding-features.md",
+        "contributing/core/building.md",
+        "contributing/docs/adding-documentation.md",
+        "contributing/examples/adding-examples.md",
+        "contributing/examples/run-example-apps.md",
+        "contributing/repository/linting.md",
+        "contributing/repository/pull-request-descriptions.md",
+        "contributing/repository/release-channels-publishing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing/core/developing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09629032258064515
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/next-bundle-analyzer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09491586538461538
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing/examples/run-example-apps.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0928374822910342
+        },
+        {
+          "rank": 4,
+          "source_path": "examples/with-turso/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09113451589061344
+        },
+        {
+          "rank": 5,
+          "source_path": "examples/with-edgedb/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09072502210433245
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.099
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.103
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.6204918032786884
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7111169183120403
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/next-build-test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7104448563484708
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/next-mdx/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6947058823529412
+        },
+        {
+          "rank": 5,
+          "source_path": "turbopack/crates/turbopack-ecmascript-runtime/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6201612903225806
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0938
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "turbopack/crates/turbo-persistence/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "turbopack/crates/turbo-persistence/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.377830172193504
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.9353652849855825
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/create-next-app/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.9179440258499758
+        },
+        {
+          "rank": 4,
+          "source_path": "turbopack/crates/turbopack/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8418705350759115
+        },
+        {
+          "rank": 5,
+          "source_path": "turbopack/crates/turbopack/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7924720244656
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.0681
+    }
+  ]
+}

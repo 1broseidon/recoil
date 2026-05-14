@@ -1,0 +1,806 @@
+{
+  "repo": "recoil",
+  "archetype": "dogfood",
+  "label": "default",
+  "mine_elapsed_seconds": 0.088,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-recoil-280955520/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 59,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/recoil/main/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/recoil/main",
+      "project_scope_id": "git:ac53b5f2ecda8c102dd19975b6596c62",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 14,
+  "passed": 14,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.0253,
+    "p50": 0.0252,
+    "p95": 0.0308
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.912956989247312
+        },
+        {
+          "rank": 2,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3942723004694835
+        },
+        {
+          "rank": 3,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3689393939393939
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08585022522522523
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06065562456866804
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0235
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9486153846153846
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4480909090909091
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3996056338028169
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09708823529411764
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.077320987654321
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.033
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9412852822580646
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3993560606060606
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3768707482993197
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08842593054792924
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08818802521008404
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0258
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0253
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7138647670737223
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6186567164179104
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11246685998342999
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1120048309178744
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0229
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0264
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 4,
+      "latency_seconds": 0.0219
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0249
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7157862903225807
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11343214756258235
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11308823529411766
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11250790305584826
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09666666666666666
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.023
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7168852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11409090909090909
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11304131516331387
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08560457516339869
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0848891063274625
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0252
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6893676395289299
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08697860962566845
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08686720142602496
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08684981684981685
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08471797884841363
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0257
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6527582617746552
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08313186813186813
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.047979797979797977
+        },
+        {
+          "rank": 4,
+          "source_path": "cli-fixtures/hard/docs/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.04492537313432836
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.043689770200148255
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0308
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6527582617746552
+        },
+        {
+          "rank": 2,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07181818181818181
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07118721461187213
+        },
+        {
+          "rank": 4,
+          "source_path": "cli-fixtures/hard/docs/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.04710144927536232
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.044294294294294295
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0252
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11927868852459017
+        },
+        {
+          "rank": 2,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08163228438228438
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06577430855039963
+        },
+        {
+          "rank": 4,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.05045662313432836
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.04452564102564102
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0283
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0241
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10417378056457909
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08623471246422067
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.05444444444444444
+        },
+        {
+          "rank": 4,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03564331843020367
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.033864767073722296
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.026
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12688524590163935
+        },
+        {
+          "rank": 2,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.055156250000000004
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/results.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03644736842105263
+        },
+        {
+          "rank": 4,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.017605633802816902
+        },
+        {
+          "rank": 5,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.016233766233766232
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0238
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0256
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "eval/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7138647670737223
+        },
+        {
+          "rank": 3,
+          "source_path": "bench/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6186567164179104
+        },
+        {
+          "rank": 4,
+          "source_path": "bench/gap_analysis.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11144561815336464
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/product.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11137254901960784
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0233
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.3014246635052515
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.295948433868155
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.294385362205418
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.2773924493971585
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.2357380385637455
+        }
+      ],
+      "result_count": 18,
+      "latency_seconds": 0.0213
+    }
+  ]
+}

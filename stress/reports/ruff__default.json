@@ -1,0 +1,932 @@
+{
+  "repo": "ruff",
+  "archetype": "fixture-heavy",
+  "label": "default",
+  "mine_elapsed_seconds": 0.579,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-ruff-4250120407/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 387,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/ruff/0.8.4/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/ruff/0.8.4",
+      "project_scope_id": "local:0938531ded605809070915f94d173682",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 16,
+  "passed": 16,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.0745,
+    "p50": 0.077,
+    "p95": 0.0909
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9650684261974583
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9395680457975537
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9101488095238093
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.8937899543378995
+        },
+        {
+          "rank": 5,
+          "source_path": "python/ruff-ecosystem/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.46055555555555555
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0686
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9346208355367525
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9157669683257916
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.899740942028985
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9293846455150805
+        },
+        {
+          "rank": 5,
+          "source_path": "scripts/benchmarks/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4287330827067669
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1309
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9799999999999995
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9621633384536605
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9380136084284456
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.919242424242424
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9490131956397017
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0879
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.44327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.441587301587301
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.4392424242424235
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.396848739495798
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4286904761904764
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0843
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.7165547329455313
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_python_formatter/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.709485049833887
+        },
+        {
+          "rank": 3,
+          "source_path": "python/ruff-ecosystem/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.708234398782344
+        },
+        {
+          "rank": 4,
+          "source_path": "fuzz/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6186567164179104
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/red_knot_test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6181159420289855
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.059
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0792
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0484
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0595
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/ruff_python_parser/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9668852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9659703020993344
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9649158653846155
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9609389671361503
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7085256410256411
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0689
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/ruff_python_parser/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9668852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9659703020993344
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.965545905707196
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9387375992063494
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7088461538461539
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.077
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/ruff_server/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9668852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.939119623655914
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.937489475698431
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9194623655913978
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6431140350877194
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0646
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7324193548387097
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7315873015873016
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6900000000000002
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6453146714314077
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/red_knot/docs/tracing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11609572784810127
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.08
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7324193548387097
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6782539682539683
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6766666666666667
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6413725490196078
+        },
+        {
+          "rank": 5,
+          "source_path": "fuzz/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09395917271017995
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0792
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "crates/ruff_python_formatter/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16028798355461238
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15874295919269654
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1557753122753473
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1486404174573055
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/ruff_python_parser/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13686882486882487
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0909
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12374094202898551
+        },
+        {
+          "rank": 3,
+          "source_path": "changelog.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09005050505050505
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_python_ast_integration_tests/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07412698412698412
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/ruff_python_trivia_integration_tests/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07361575704225352
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0706
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1534015797923783
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12968094482637055
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10404904604934573
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/faq.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09032806951005068
+        },
+        {
+          "rank": 5,
+          "source_path": "changelog.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08772099624361838
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0835
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "crates/ruff_python_formatter/contributing.md",
+        "crates/ruff_python_parser/contributing.md",
+        "crates/ruff_server/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10424497428705003
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/ruff_python_formatter/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09912991858887382
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/ruff_server/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0955711318795431
+        },
+        {
+          "rank": 5,
+          "source_path": "scripts/benchmarks/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09235176282051281
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0694
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0781
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.7165547329455313
+        },
+        {
+          "rank": 2,
+          "source_path": "crates/ruff_python_formatter/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.709485049833887
+        },
+        {
+          "rank": 3,
+          "source_path": "python/ruff-ecosystem/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.708003003003003
+        },
+        {
+          "rank": 4,
+          "source_path": "crates/red_knot_test/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6183823529411765
+        },
+        {
+          "rank": 5,
+          "source_path": "fuzz/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6181159420289855
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0617
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.466566215219247
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.460791176722164
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.412029284250719
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.403156682880048
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.322966841692644
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.0481
+    }
+  ]
+}

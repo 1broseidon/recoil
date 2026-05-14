@@ -1,0 +1,113 @@
+{
+  "phase": 6,
+  "trials": [
+    {
+      "size": 1000,
+      "seed_seconds": 0.5,
+      "db_bytes": 802816,
+      "db_mb": 0.77,
+      "latency_ms": {
+        "search-broad": {
+          "mean_ms": 24.6,
+          "n": 7,
+          "p50_ms": 24.2,
+          "p95_ms": 27,
+          "p99_ms": 27
+        },
+        "search-narrow": {
+          "mean_ms": 31,
+          "n": 7,
+          "p50_ms": 30,
+          "p95_ms": 39.8,
+          "p99_ms": 39.8
+        },
+        "wake-no-query": {
+          "mean_ms": 27.1,
+          "n": 7,
+          "p50_ms": 26.2,
+          "p95_ms": 33.3,
+          "p99_ms": 33.3
+        },
+        "wake-with-query": {
+          "mean_ms": 27.8,
+          "n": 7,
+          "p50_ms": 26.5,
+          "p95_ms": 32.7,
+          "p99_ms": 32.7
+        }
+      }
+    },
+    {
+      "size": 10000,
+      "seed_seconds": 5,
+      "db_bytes": 7094272,
+      "db_mb": 6.77,
+      "latency_ms": {
+        "search-broad": {
+          "mean_ms": 86.6,
+          "n": 7,
+          "p50_ms": 86.1,
+          "p95_ms": 89.7,
+          "p99_ms": 89.7
+        },
+        "search-narrow": {
+          "mean_ms": 98.5,
+          "n": 7,
+          "p50_ms": 98,
+          "p95_ms": 111,
+          "p99_ms": 111
+        },
+        "wake-no-query": {
+          "mean_ms": 81.7,
+          "n": 7,
+          "p50_ms": 81.9,
+          "p95_ms": 84,
+          "p99_ms": 84
+        },
+        "wake-with-query": {
+          "mean_ms": 89.6,
+          "n": 7,
+          "p50_ms": 90.2,
+          "p95_ms": 92.3,
+          "p99_ms": 92.3
+        }
+      }
+    },
+    {
+      "size": 50000,
+      "seed_seconds": 26.8,
+      "db_bytes": 35209216,
+      "db_mb": 33.58,
+      "latency_ms": {
+        "search-broad": {
+          "mean_ms": 387.5,
+          "n": 7,
+          "p50_ms": 385.2,
+          "p95_ms": 397.6,
+          "p99_ms": 397.6
+        },
+        "search-narrow": {
+          "mean_ms": 418.7,
+          "n": 7,
+          "p50_ms": 419.4,
+          "p95_ms": 426.4,
+          "p99_ms": 426.4
+        },
+        "wake-no-query": {
+          "mean_ms": 375.8,
+          "n": 7,
+          "p50_ms": 375.6,
+          "p95_ms": 379.6,
+          "p99_ms": 379.6
+        },
+        "wake-with-query": {
+          "mean_ms": 408.3,
+          "n": 7,
+          "p50_ms": 406,
+          "p95_ms": 418.2,
+          "p99_ms": 418.2
+        }
+      }
+    }
+  ]
+}

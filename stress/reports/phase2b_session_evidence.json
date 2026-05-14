@@ -1,0 +1,77 @@
+{
+  "phase": "2b",
+  "rows": [
+    {
+      "repo": "kubernetes",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "rails",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "turbo",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "nextjs",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "ruff",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "transformers",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "rust",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "raft",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "curl",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "bazel",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "fastapi",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    },
+    {
+      "repo": "recoil",
+      "with_transcripts": 1,
+      "default": 1,
+      "delta_pp": 0
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "values": {
+    "session-evidence.enabled": "true",
+    "session-evidence.min-chars": "150"
+  }
+}

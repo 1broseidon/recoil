@@ -1,0 +1,7 @@
+{
+  "values": {
+    "classify.override.docs/**": "product_docs",
+    "classify.override.documentation/**": "product_docs",
+    "rank.search.boost.product_docs": "0.5"
+  }
+}

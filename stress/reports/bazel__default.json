@@ -1,0 +1,1136 @@
+{
+  "repo": "bazel",
+  "archetype": "symlink-heavy",
+  "label": "default",
+  "mine_elapsed_seconds": 1.82,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-bazel-1747385566/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 1142,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/bazel/8.0.0/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/bazel/8.0.0",
+      "project_scope_id": "local:3436cb2ab37f82b4402c26518c91418b",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 20,
+  "passed": 20,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.1748,
+    "p50": 0.1792,
+    "p95": 0.2095
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "scripts/packages/chocolatey/readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "scripts/packages/chocolatey/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43962365591397845
+        },
+        {
+          "rank": 2,
+          "source_path": "third_party/py/mock/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.39306010928961743
+        },
+        {
+          "rank": 3,
+          "source_path": "third_party/zlib/contrib/iostream3/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.28873759920634917
+        },
+        {
+          "rank": 4,
+          "source_path": "third_party/zlib/contrib/puff/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.24650793650793648
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/start/android-app.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11364527629233512
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1666
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "scripts/packages/chocolatey/readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "third_party/zlib/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43488524590163935
+        },
+        {
+          "rank": 2,
+          "source_path": "third_party/zlib/win32/readme-win32.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43397030209933435
+        },
+        {
+          "rank": 3,
+          "source_path": "third_party/ijar/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4174042658730158
+        },
+        {
+          "rank": 4,
+          "source_path": "scripts/packages/chocolatey/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3861612903225806
+        },
+        {
+          "rank": 5,
+          "source_path": "third_party/zlib/contrib/ada/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.2828557692307692
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2095
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9432786885245896
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9624193548387097
+        },
+        {
+          "rank": 3,
+          "source_path": "third_party/py/abseil/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4323368022705771
+        },
+        {
+          "rank": 4,
+          "source_path": "scripts/packages/chocolatey/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.41611019736842103
+        },
+        {
+          "rank": 5,
+          "source_path": "third_party/zlib/contrib/ada/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.28139171694318754
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1938
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4024193548387098
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/contribute/maintainers-guide.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/contribute/patch-acceptance.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12924242424242424
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/contribute/design-documents.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12779411764705884
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1891
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "scripts/packages/chocolatey/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "third_party/py/six/readme.rst",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7080977982590886
+        },
+        {
+          "rank": 2,
+          "source_path": "scripts/packages/chocolatey/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6204918032786885
+        },
+        {
+          "rank": 3,
+          "source_path": "third_party/zlib/contrib/ada/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.536578947368421
+        },
+        {
+          "rank": 4,
+          "source_path": "third_party/zlib/contrib/puff/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4698412698412698
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.29639344262295086
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1582
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.73327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7324193548387098
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/run/build.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09802445302445302
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/contribute/policy.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07825396825396824
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/contribute/breaking-changes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07598793363499246
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1872
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6896236559139786
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/contribute/policy.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06238095238095238
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/basics/dependencies.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06075757575757575
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/contribute/breaking-changes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.05975490196078431
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1339
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.706612021857923
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7057526881720431
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/remote/creating.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09248995983935743
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/contribute/policy.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07825396825396824
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/external/migration.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07490036231884058
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1602
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "site/en/contribute/codebase.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "site/en/contribute/codebase.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11181818181818182
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/docs/android-instrumentation-test.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10972427116262733
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/about/faq.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10836581902672002
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/docs/user-manual.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10787267080745341
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/rules/faq.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10629233511586453
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1694
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7168852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/about/intro.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11486717267552182
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/start/java.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11361575704225352
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/about/why.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11181461115475255
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/rules/verbs-tutorial.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11156113102349662
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1792
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "site/en/contribute/codebase.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "site/en/contribute/codebase.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11688524590163935
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/rules/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11603430619559651
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/community/users.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11597030209933436
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/docs/android-instrumentation-test.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11304131516331387
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/about/intro.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10993239637075253
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1597
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "site/en/release/index.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "site/en/release/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13327868852459018
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/rules/verbs-tutorial.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13241935483870967
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/run/scripts.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12129129129129129
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/remote/dynamic.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11809639727361246
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/release/backward-compatibility.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11638838475499093
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1905
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "site/en/contribute/patch-acceptance.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "site/en/external/migration.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12538877098205672
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/contribute/patch-acceptance.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12533077853973376
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/contribute/breaking-changes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.120359477124183
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/rules/deploying.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11802599009900991
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/docs/cc-toolchain-config-reference.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10960526315789473
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2025
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "site/en/contribute/naming.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "site/en/contribute/naming.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1291834504293521
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/contribute/docs-style-guide.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11441074867597496
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/about/faq.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1118327330199877
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/contribute/docs.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1081434864854571
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/install/windows.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10437873314991009
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2184
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12688524590163935
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/release/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09603430619559651
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/contribute/maintainers-guide.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09515625
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08612903225806452
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/contribute/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08325144818708431
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1646
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "site/en/release/index.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "site/en/release/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1020821225111809
+        },
+        {
+          "rank": 2,
+          "source_path": "third_party/zlib/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09761997020392543
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/help.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0938378651729101
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08662083553675304
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08623471246422067
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1821
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "scripts/release/build",
+        "site/en/contribute/breaking-changes.md",
+        "site/en/contribute/codebase.md",
+        "site/en/contribute/design-documents.md",
+        "site/en/release/backward-compatibility.md",
+        "site/en/release/index.md",
+        "site/en/release/rolling.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12349014336917563
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/run/build.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11084415584415584
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/contribute/windows-scoop-maintenance.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11047956771361027
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/migrate/maven.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10740955537144435
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1697
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.686065573770492
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3862903225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.710768049155146
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/contribute/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10032650412858746
+        },
+        {
+          "rank": 5,
+          "source_path": "third_party/zlib/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09914095100282677
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1882
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "scripts/packages/chocolatey/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "third_party/py/six/readme.rst",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7080977982590886
+        },
+        {
+          "rank": 2,
+          "source_path": "scripts/packages/chocolatey/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6204918032786885
+        },
+        {
+          "rank": 3,
+          "source_path": "third_party/py/mock/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6198412698412699
+        },
+        {
+          "rank": 4,
+          "source_path": "third_party/zlib/contrib/ada/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.536578947368421
+        },
+        {
+          "rank": 5,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.29639344262295086
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1515
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.3997684871334775
+        },
+        {
+          "rank": 2,
+          "source_path": "site/en/contribute/codebase.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8950417663473687
+        },
+        {
+          "rank": 3,
+          "source_path": "site/en/extending/rules.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8828594062071816
+        },
+        {
+          "rank": 4,
+          "source_path": "site/en/install/compile-source.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8766322790727366
+        },
+        {
+          "rank": 5,
+          "source_path": "site/en/configure/windows.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8685046982313293
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.1206
+    }
+  ]
+}

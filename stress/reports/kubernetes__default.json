@@ -1,0 +1,1232 @@
+{
+  "repo": "kubernetes",
+  "archetype": "large-monorepo",
+  "label": "default",
+  "mine_elapsed_seconds": 0.924,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-kubernetes-885110858/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 561,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/kubernetes/v1.32.0/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/kubernetes/v1.32.0",
+      "project_scope_id": "local:0f3a86e6649abe397293fc71f571b3e0",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 20,
+  "passed": 20,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.0912,
+    "p50": 0.0942,
+    "p95": 0.1095
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.8704918032786884
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7632213996121977
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7198412698412695
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9123269489247312
+        },
+        {
+          "rank": 5,
+          "source_path": "cluster/gce/windows/readme-gce-windows-kube-up.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4373406862745098
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0788
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.918885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7518412698412695
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/cloud-provider/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7361612903225803
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9015312500000001
+        },
+        {
+          "rank": 5,
+          "source_path": "test/images/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43172352285395765
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1422
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9632786885245896
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.8124193548387093
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.771587301587301
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/api/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7707812499999998
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/apimachinery/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7699999999999996
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1012
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.332419354838709
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.331587301587301
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/api/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.330781249999999
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/apimachinery/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.329999999999999
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0978
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "cluster/gce/windows/readme-gce-windows-kube-up.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7154042658730159
+        },
+        {
+          "rank": 3,
+          "source_path": "cmd/import-boss/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7148557692307692
+        },
+        {
+          "rank": 4,
+          "source_path": "cluster/gce/gci/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7143240093240093
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7105318754633061
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0729
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        "security_contacts",
+        ".github/security.md",
+        "pkg/security/apparmor/owners",
+        "staging/src/k8s.io/api/security_contacts",
+        "staging/src/k8s.io/apiextensions-apiserver/security_contacts",
+        "staging/src/k8s.io/apimachinery/security_contacts",
+        "staging/src/k8s.io/apiserver/security_contacts",
+        "staging/src/k8s.io/cli-runtime/security_contacts",
+        "staging/src/k8s.io/client-go/security_contacts",
+        "staging/src/k8s.io/cloud-provider/security_contacts",
+        "staging/src/k8s.io/cluster-bootstrap/security_contacts",
+        "staging/src/k8s.io/code-generator/security_contacts"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.73327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3857862903225808
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2787660010240658
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/pod-security-admission/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2779439484126986
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.234615384615385
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0946
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        "security_contacts",
+        ".github/security.md",
+        "pkg/security/apparmor/owners",
+        "staging/src/k8s.io/api/security_contacts",
+        "staging/src/k8s.io/apiextensions-apiserver/security_contacts",
+        "staging/src/k8s.io/apimachinery/security_contacts",
+        "staging/src/k8s.io/apiserver/security_contacts",
+        "staging/src/k8s.io/cli-runtime/security_contacts",
+        "staging/src/k8s.io/client-go/security_contacts",
+        "staging/src/k8s.io/cloud-provider/security_contacts",
+        "staging/src/k8s.io/cluster-bootstrap/security_contacts",
+        "staging/src/k8s.io/code-generator/security_contacts"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/pod-security-admission/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2623809523809526
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2362903225806454
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6299479166666667
+        },
+        {
+          "rank": 5,
+          "source_path": "security_contacts",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08818910256410256
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0688
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        "security_contacts",
+        ".github/security.md",
+        "pkg/security/apparmor/owners",
+        "staging/src/k8s.io/api/security_contacts",
+        "staging/src/k8s.io/apiextensions-apiserver/security_contacts",
+        "staging/src/k8s.io/apimachinery/security_contacts",
+        "staging/src/k8s.io/apiserver/security_contacts",
+        "staging/src/k8s.io/cli-runtime/security_contacts",
+        "staging/src/k8s.io/client-go/security_contacts",
+        "staging/src/k8s.io/cloud-provider/security_contacts",
+        "staging/src/k8s.io/cluster-bootstrap/security_contacts",
+        "staging/src/k8s.io/code-generator/security_contacts"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.706612021857923
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.278509984639017
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/pod-security-admission/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2521633384536612
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6718229166666667
+        },
+        {
+          "rank": 5,
+          "source_path": "security_contacts",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07690705128205128
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0824
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.8704918032786886
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.720161290322581
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.71984126984127
+        },
+        {
+          "rank": 4,
+          "source_path": "test/cmd/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11562421185372006
+        },
+        {
+          "rank": 5,
+          "source_path": "test/integration/scheduler_perf/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11336259877085163
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0839
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "staging/src/k8s.io/controller-manager/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7635519125683061
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6731746031746033
+        },
+        {
+          "rank": 3,
+          "source_path": "cluster/gce/windows/readme-gce-windows-kube-up.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11540426587301587
+        },
+        {
+          "rank": 4,
+          "source_path": "cluster/gce/gci/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11485576923076923
+        },
+        {
+          "rank": 5,
+          "source_path": "test/images/agnhost/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10752571082879613
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0904
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "staging/src/k8s.io/cloud-provider/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "staging/src/k8s.io/cloud-provider/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7204918032786887
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.720161290322581
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.689568045797554
+        },
+        {
+          "rank": 4,
+          "source_path": "test/e2e/framework/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11535980148883375
+        },
+        {
+          "rank": 5,
+          "source_path": "test/e2e/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11481240981240981
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0803
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6768852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/api/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.501549692622951
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/apimachinery/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.5007444168734494
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/apiserver/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4999639249639252
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/endpointslice/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.499207089552239
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1056
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7168852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/api/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.5026837652035963
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/apimachinery/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.5018433179723505
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/apiserver/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.501029265873016
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/endpointslice/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.500240384615385
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1069
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16727868852459016
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/kubectl/docs/maintainers/issue_backlog.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11619485771227289
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/kubectl/pkg/cmd/edit/testdata/readme",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10312648450865011
+        },
+        {
+          "rank": 4,
+          "source_path": "cluster/gce/gci/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10278561968877607
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/kubectl/docs/maintainers/maintainers.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10209554270858276
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1095
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "staging/src/k8s.io/api/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "staging/src/k8s.io/api/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14655473294553145
+        },
+        {
+          "rank": 2,
+          "source_path": "staging/src/k8s.io/apimachinery/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14597030209933437
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/apiserver/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14540426587301586
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/endpointslice/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14485576923076923
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/externaljwt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14432400932400932
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0942
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12397408778424114
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10706748188405797
+        },
+        {
+          "rank": 3,
+          "source_path": "test/images/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09152511782601157
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08662083553675304
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08571428571428572
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0978
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "staging/src/k8s.io/api/contributing.md",
+        "staging/src/k8s.io/apiextensions-apiserver/contributing.md",
+        "staging/src/k8s.io/apimachinery/contributing.md",
+        "staging/src/k8s.io/apiserver/contributing.md",
+        "staging/src/k8s.io/cli-runtime/contributing.md",
+        "staging/src/k8s.io/client-go/contributing.md",
+        "staging/src/k8s.io/cloud-provider/contributing.md",
+        "staging/src/k8s.io/cluster-bootstrap/contributing.md",
+        "staging/src/k8s.io/code-generator/contributing.md",
+        "staging/src/k8s.io/component-base/contributing.md",
+        "staging/src/k8s.io/component-helpers/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12629032258064515
+        },
+        {
+          "rank": 2,
+          "source_path": "pkg/proxy/nftables/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09452973229092632
+        },
+        {
+          "rank": 3,
+          "source_path": "test/images/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09347881626570151
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/client-go/install.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08973533163265306
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/sample-apiserver/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08824393167515732
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0828
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        "security_contacts",
+        ".github/security.md",
+        "pkg/security/apparmor/owners",
+        "staging/src/k8s.io/api/security_contacts",
+        "staging/src/k8s.io/apiextensions-apiserver/security_contacts",
+        "staging/src/k8s.io/apimachinery/security_contacts",
+        "staging/src/k8s.io/apiserver/security_contacts",
+        "staging/src/k8s.io/cli-runtime/security_contacts",
+        "staging/src/k8s.io/client-go/security_contacts",
+        "staging/src/k8s.io/cloud-provider/security_contacts",
+        "staging/src/k8s.io/cluster-bootstrap/security_contacts",
+        "staging/src/k8s.io/code-generator/security_contacts"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.712732240437158
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3862903225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "staging/src/k8s.io/controller-manager/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2841013824884795
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/src/k8s.io/pod-security-admission/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2822344322344323
+        },
+        {
+          "rank": 5,
+          "source_path": "staging/src/k8s.io/kubectl/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.2351562500000002
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1055
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "cluster/gce/windows/readme-gce-windows-kube-up.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7157142857142857
+        },
+        {
+          "rank": 3,
+          "source_path": "cluster/gce/gci/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7146153846153847
+        },
+        {
+          "rank": 4,
+          "source_path": "cmd/import-boss/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7142817164179104
+        },
+        {
+          "rank": 5,
+          "source_path": "test/kubemark/pre-existing/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7101692755733527
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0722
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.4258172239897124
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.355727725657846
+        },
+        {
+          "rank": 3,
+          "source_path": "cluster/gce/windows/readme-gce-windows-kube-up.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4409567464549915
+        },
+        {
+          "rank": 4,
+          "source_path": "staging/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4291475300316918
+        },
+        {
+          "rank": 5,
+          "source_path": "cmd/import-boss/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.425207958227227
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.0569
+    }
+  ]
+}

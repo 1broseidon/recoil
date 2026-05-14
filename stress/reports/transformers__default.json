@@ -1,0 +1,1124 @@
+{
+  "repo": "transformers",
+  "archetype": "ml-research",
+  "label": "default",
+  "mine_elapsed_seconds": 11.58,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-transformers-1158860318/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 5119,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/transformers/v4.47.1/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/transformers/v4.47.1",
+      "project_scope_id": "local:5e9070fbc872ba7ac047e7dbab366726",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 20,
+  "passed": 20,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.8519,
+    "p50": 0.8436,
+    "p95": 0.9406
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.966885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9662903225806447
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/quantization/contribute.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.7682587064676616
+        },
+        {
+          "rank": 4,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6680392156862746
+        },
+        {
+          "rank": 5,
+          "source_path": "tests/sagemaker/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4178260869565217
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8097
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/source/en/agents.md",
+      "expected_paths": [
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/source/en/agents.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.684885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/ar/agents.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.6646086956521735
+        },
+        {
+          "rank": 3,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.69459264678983
+        },
+        {
+          "rank": 4,
+          "source_path": "model_cards/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4281816239316239
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.39912328767123284
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8942
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9832786885245897
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9824193548387092
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/quantization/contribute.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.803563300142247
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/de/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9014942528735632
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/ko/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.8924257759784076
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.9287
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48241935483871
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/quantization/contribute.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.284520547945204
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/zh/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.431666666666667
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/ko/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.430625
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8874
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.6963934426229503
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.31597030209933435
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3154042658730159
+        },
+        {
+          "rank": 4,
+          "source_path": "issues.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11314947004109885
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/agents_advanced.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11120286576168929
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.7679
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.73327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3927956989247312
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3925396825396825
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6519153225806452
+        },
+        {
+          "rank": 5,
+          "source_path": "code_of_conduct.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1036338141025641
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.883
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3862903225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.385714285714286
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6332298801369864
+        },
+        {
+          "rank": 5,
+          "source_path": "code_of_conduct.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06128205128205128
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.7381
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.706612021857923
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3927956989247312
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3925396825396825
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6156250000000001
+        },
+        {
+          "rank": 5,
+          "source_path": "issues.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10126432391138274
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8253
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9668852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9662903225806452
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/de/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.9635820895522389
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/zh/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.9630882352941177
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/ko/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.962608695652174
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8383
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9396981524850379
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.939119623655914
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/installation.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1093362983236401
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08594202898550724
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08527498323272971
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8062
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9501612903225807
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.94984126984127
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/agents.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.923825136612022
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/de/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.9192063492063492
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.695625
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8157
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.656393442622951
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6368852459016394
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6362903225806453
+        },
+        {
+          "rank": 4,
+          "source_path": "tests/sagemaker/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13078125000000002
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/perf_train_gpu_one.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09086580086580087
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.9406
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7162903225806452
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/quantization/contribute.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.5390476190476192
+        },
+        {
+          "rank": 3,
+          "source_path": "tests/sagemaker/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10407775020678246
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/en/perf_train_gpu_one.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10329725829725829
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09936507936507935
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.9163
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1655873015873016
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16478125
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12776785714285716
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/en/agents.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11292537313432836
+        },
+        {
+          "rank": 5,
+          "source_path": "templates/adding_a_new_model/add_new_model_proposal_template.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10715677013045434
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.9857
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14629032258064517
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/how_to_hack_models.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0935820895522388
+        },
+        {
+          "rank": 4,
+          "source_path": "model_cards/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09234989648033126
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0916468253968254
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8302
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12942492844132186
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12858198924731185
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/debugging.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09282228931390839
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/en/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09183979215229215
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/model_doc/perceiver.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0902979921679328
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.9219
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/source/en/agents.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/source/de/contributing.md",
+        "docs/source/en/contributing.md",
+        "docs/source/ko/contributing.md",
+        "docs/source/zh/contributing.md",
+        "docs/source/en/quantization/contribute.md",
+        "docs/source/ar/agents.md",
+        "docs/source/en/agents.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/source/en/agents.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14629032258064517
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1457142857142857
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.125625
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/tasks/image_text_to_text.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10815934065934066
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.8436
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.686065573770492
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4097549019607845
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4092753623188408
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6294623655913979
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/zh/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3821428571428572
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.9036
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.6963934426229503
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.3004918032786885
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.30016129032258065
+        },
+        {
+          "rank": 4,
+          "source_path": "issues.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1140240036231884
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/kv_cache.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11373015873015874
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.7909
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "examples/research_projects/jax-projects/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8672598026242708
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8581792031591123
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8570559499114093
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/source/en/add_new_model.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8505192888975076
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/source/en/model_doc/jetmoe.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7460757897662854
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.7109
+    }
+  ]
+}

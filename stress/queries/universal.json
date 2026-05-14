@@ -1,0 +1,149 @@
+{
+  "description": "Query archetypes applied to every repo. Each query has must/must_not assertions referencing the repo's ground_truth keys (substituted at runtime) or universal substrings.",
+  "archetypes": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "expects_ground_truth": ["contributing", "agent_instructions", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "expects_ground_truth": ["agent_instructions", "contributing", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "expects_ground_truth": ["contributing", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "expects_ground_truth": ["contributing"],
+      "must_not_contain": []
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "expects_ground_truth": ["root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "expects_ground_truth": ["security"],
+      "must_not_contain": [],
+      "skip_if_no_ground_truth": "security"
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "expects_ground_truth": ["security"],
+      "must_not_contain": [],
+      "skip_if_no_ground_truth": "security"
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "expects_ground_truth": ["security"],
+      "must_not_contain": [],
+      "skip_if_no_ground_truth": "security"
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "expects_ground_truth": ["contributing", "agent_instructions", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "expects_ground_truth": ["contributing", "agent_instructions", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "expects_ground_truth": ["contributing", "agent_instructions", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "expects_ground_truth": ["contributing", "developers", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "expects_ground_truth": ["contributing", "developers", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "expects_ground_truth": ["contributing", "agent_instructions", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "expects_ground_truth": ["contributing"],
+      "must_not_contain": []
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "expects_ground_truth": ["contributing", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "expects_ground_truth": ["contributing", "agent_instructions", "root_readme"],
+      "must_not_contain": []
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "expects_ground_truth": ["security"],
+      "must_not_contain": [],
+      "skip_if_no_ground_truth": "security"
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "expects_ground_truth": ["root_readme"],
+      "must_not_contain_class": ["fixture", "generated_or_public_static"]
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "expects_ground_truth": ["root_readme", "product_docs"],
+      "must_not_contain_class": ["fixture"]
+    }
+  ]
+}

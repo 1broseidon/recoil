@@ -1,0 +1,37 @@
+{
+  "passed": 4,
+  "phase": 4,
+  "results": [
+    {
+      "test": "edit-then-remine-finds-new-content",
+      "passed": true,
+      "detail": {
+        "found_rows": 5
+      }
+    },
+    {
+      "test": "delete-then-remine-stales-orphans",
+      "passed": true,
+      "detail": {
+        "current": 0,
+        "historical": 7
+      }
+    },
+    {
+      "test": "supersede-current-beats-old",
+      "passed": true,
+      "detail": {
+        "top_content": "Use modernc/sqlite (no CGO)"
+      }
+    },
+    {
+      "test": "wake-session-evidence-quota",
+      "passed": true,
+      "detail": {
+        "l0_se": 0,
+        "l2_se": 0
+      }
+    }
+  ],
+  "total": 4
+}

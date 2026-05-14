@@ -1,0 +1,971 @@
+{
+  "repo": "rust",
+  "archetype": "unconventional-layout",
+  "label": "default",
+  "mine_elapsed_seconds": 3.491,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-rust-2036848251/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 1843,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/rust/1.83.0/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/rust/1.83.0",
+      "project_scope_id": "local:8b57394990b3267db3f6a8ff351b2adf",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 16,
+  "passed": 16,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.1874,
+    "p50": 0.1849,
+    "p95": 0.2261
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/miri/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.966885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.938249198717948
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.910200534759358
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.894782608695652
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/miri/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43589635854341735
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1775
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/clippy/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.918885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9177142857142853
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.913151515151515
+        },
+        {
+          "rank": 4,
+          "source_path": "compiler/stable_mir/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4313077260755048
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/rustfmt/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4301428571428571
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2292
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9832786885245897
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9824193548387092
+        },
+        {
+          "rank": 3,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.981587301587301
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.960540865384615
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/rust-analyzer/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.960240384615384
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1992
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48241935483871
+        },
+        {
+          "rank": 3,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.441587301587301
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.4392424242424235
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/rust-analyzer/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.400540865384615
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1979
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/rustfmt/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/etc/third-party/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7141561423650976
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/rustfmt/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7136496980155306
+        },
+        {
+          "rank": 3,
+          "source_path": "library/portable-simd/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7133625987708516
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/miri/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7131746031746031
+        },
+        {
+          "rank": 5,
+          "source_path": "compiler/stable_mir/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7130239009816475
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1615
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.1955
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.1428
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.1704
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/miri/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9666208355367532
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9657142857142857
+        },
+        {
+          "rank": 3,
+          "source_path": "tests/rustdoc-gui/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11246685998342999
+        },
+        {
+          "rank": 4,
+          "source_path": "compiler/rustc_codegen_gcc/doc/debugging.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11181461115475255
+        },
+        {
+          "rank": 5,
+          "source_path": "compiler/rustc_codegen_gcc/tests/failing-run-make-tests.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11162945554249902
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1763
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/miri/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.94984126984127
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9388792390405294
+        },
+        {
+          "rank": 3,
+          "source_path": "library/portable-simd/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9384371184371185
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/rustbook/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1138082315694256
+        },
+        {
+          "rank": 5,
+          "source_path": "compiler/rustc_codegen_cranelift/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11330772607550482
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1849
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/miri/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9402185792349727
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9194623655913978
+        },
+        {
+          "rank": 3,
+          "source_path": "tests/rustdoc-gui/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11393665158371041
+        },
+        {
+          "rank": 4,
+          "source_path": "tests/codegen/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11343214756258235
+        },
+        {
+          "rank": 5,
+          "source_path": "tests/compiler_tests.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08778995646766169
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1841
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/clippy/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6932786885245903
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6757142857142857
+        },
+        {
+          "rank": 3,
+          "source_path": "compiler/rustc_codegen_gcc/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12971590909090908
+        },
+        {
+          "rank": 4,
+          "source_path": "compiler/rustc_codegen_cranelift/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12850746268656715
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/rustfmt/processes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09048840048840048
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2092
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/clippy/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7066120218579235
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6896236559139786
+        },
+        {
+          "rank": 3,
+          "source_path": "src/tools/rustfmt/processes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13184331797235022
+        },
+        {
+          "rank": 4,
+          "source_path": "src/doc/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10329725829725829
+        },
+        {
+          "rank": 5,
+          "source_path": "licenses/gcc-exception-3.1.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10024875621890547
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2212
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/miri/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.18154795383827643
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16727868852459016
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16559530209933437
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15970188828584353
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15960967193522868
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2261
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/rust-analyzer/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/rust-analyzer/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/clippy/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14323412698412696
+        },
+        {
+          "rank": 3,
+          "source_path": "library/portable-simd/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12400735294117647
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11985739750445633
+        },
+        {
+          "rank": 5,
+          "source_path": "src/doc/rustc/src/target-tier-policy.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09099547511312217
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1833
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/rustfmt/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.18
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1566120218579235
+        },
+        {
+          "rank": 3,
+          "source_path": "library/portable-simd/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15364109848484847
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/rust-analyzer/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12826196876600104
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1260735506323742
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2135
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/tools/rustfmt/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "library/portable-simd/contributing.md",
+        "src/tools/clippy/contributing.md",
+        "src/tools/miri/contributing.md",
+        "src/tools/rust-analyzer/contributing.md",
+        "src/tools/rustfmt/contributing.md",
+        "src/doc/rustc/src/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/tools/rustfmt/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14456439393939394
+        },
+        {
+          "rank": 2,
+          "source_path": "src/tools/miri/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13016129032258064
+        },
+        {
+          "rank": 3,
+          "source_path": "install.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11498455690187692
+        },
+        {
+          "rank": 4,
+          "source_path": "src/tools/rust-analyzer/docs/dev/debugging.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11016954787234043
+        },
+        {
+          "rank": 5,
+          "source_path": "src/doc/rustc/src/linker-plugin-lto.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10654837852206273
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1806
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.2116
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "src/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "src/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7147775175644028
+        },
+        {
+          "rank": 2,
+          "source_path": "library/portable-simd/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.714547152194211
+        },
+        {
+          "rank": 3,
+          "source_path": "src/etc/third-party/readme.txt",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7138647670737223
+        },
+        {
+          "rank": 4,
+          "source_path": "compiler/rustc_codegen_cranelift/scripts/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7131494700410989
+        },
+        {
+          "rank": 5,
+          "source_path": "src/tools/miri/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6992307692307692
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1583
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "library/portable-simd/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "library/portable-simd/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4592215895806966
+        },
+        {
+          "rank": 2,
+          "source_path": "src/ci/docker/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4433060007065266
+        },
+        {
+          "rank": 3,
+          "source_path": "src/ci/docker/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4386272948452987
+        },
+        {
+          "rank": 4,
+          "source_path": "compiler/rustc_codegen_cranelift/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4332590810833368
+        },
+        {
+          "rank": 5,
+          "source_path": "src/ci/docker/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4320200392208422
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.1245
+    }
+  ]
+}

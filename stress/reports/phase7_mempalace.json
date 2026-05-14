@@ -1,0 +1,354 @@
+{
+  "mempalace": {
+    "accuracy": 0.6,
+    "passed": 6,
+    "results": [
+      {
+        "id": "p7-onboard",
+        "query": "how do I set up the development environment",
+        "tool": "mempalace",
+        "passed": true,
+        "top_paths": [
+          "new-engineer.md",
+          "deployment.md",
+          "session-evidence.jsonl",
+          "README.md",
+          "epic-1.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-security",
+        "query": "how do I report a security vulnerability",
+        "tool": "mempalace",
+        "passed": false,
+        "top_paths": [
+          "sourcequality_test.go",
+          "search_test.go",
+          "search_test.go",
+          "incident-response.md",
+          "incident-response.md"
+        ],
+        "expects_path_suffixes": [
+          "security.md"
+        ]
+      },
+      {
+        "id": "p7-tests",
+        "query": "how do I run the tests",
+        "tool": "mempalace",
+        "passed": true,
+        "top_paths": [
+          "README.md",
+          "session_evidence_test.go",
+          "mine_test.go",
+          "scope_test.go",
+          "mine_test.go"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-paraphrase-1",
+        "query": "I am brand new and want to help. Where do I start",
+        "tool": "mempalace",
+        "passed": true,
+        "top_paths": [
+          "README.md",
+          "new-engineer.md",
+          "search_cases.json",
+          "personal-network-01.json",
+          "new-engineer.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-paraphrase-2",
+        "query": "Found a bug. Who do I talk to",
+        "tool": "mempalace",
+        "passed": false,
+        "top_paths": [
+          "incident-response.md",
+          "new-engineer.md",
+          "root.go",
+          "scope_test.go",
+          "task-8.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-paraphrase-3",
+        "query": "found exploit, who do I email",
+        "tool": "mempalace",
+        "passed": false,
+        "top_paths": [
+          "incident-response.md",
+          "cases.jsonl",
+          "incident-response.md",
+          "session_evidence_test.go",
+          "store.go"
+        ],
+        "expects_path_suffixes": [
+          "security.md"
+        ]
+      },
+      {
+        "id": "p7-release",
+        "query": "where is the release process documented",
+        "tool": "mempalace",
+        "passed": true,
+        "top_paths": [
+          "roadmap.md",
+          "deployment.md",
+          "cases.jsonl",
+          "session-evidence.jsonl",
+          "README.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-noise",
+        "query": "what is this project about",
+        "tool": "mempalace",
+        "passed": true,
+        "top_paths": [
+          "decision-3.md",
+          "interference.md",
+          "README.md",
+          "manifest.yaml",
+          "product.md"
+        ],
+        "expects_path_suffixes": [
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-deep",
+        "query": "what is the contributor guide",
+        "tool": "mempalace",
+        "passed": false,
+        "top_paths": [
+          "agent-memory-01.json",
+          "product.md",
+          "research-2.md",
+          "fixtures.jsonl",
+          "embeddings.jsonl"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md"
+        ]
+      },
+      {
+        "id": "p7-tools",
+        "query": "what testing framework do we use",
+        "tool": "mempalace",
+        "passed": true,
+        "top_paths": [
+          "new-engineer.md",
+          "epic-1.md",
+          "task-2.md",
+          "task-8.md",
+          "README.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      }
+    ],
+    "total": 10
+  },
+  "mempalace_cli": {
+    "found": true,
+    "path": "/home/george/.local/bin/mempalace"
+  },
+  "phase": 7,
+  "recoil": {
+    "accuracy": 0.7,
+    "passed": 7,
+    "results": [
+      {
+        "id": "p7-onboard",
+        "query": "how do I set up the development environment",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "readme.md",
+          "bench/readme.md",
+          "eval/readme.md",
+          "bench/results.md",
+          "docs/product.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-security",
+        "query": "how do I report a security vulnerability",
+        "tool": "recoil",
+        "passed": false,
+        "top_paths": [
+          "readme.md",
+          "eval/readme.md",
+          "bench/readme.md",
+          "bench/results.md",
+          "bench/gap_analysis.md"
+        ],
+        "expects_path_suffixes": [
+          "security.md"
+        ]
+      },
+      {
+        "id": "p7-tests",
+        "query": "how do I run the tests",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "readme.md",
+          "eval/readme.md",
+          "bench/gap_analysis.md",
+          "bench/results.md",
+          "docs/product.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-paraphrase-1",
+        "query": "I am brand new and want to help. Where do I start",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "readme.md",
+          "bench/gap_analysis.md",
+          "bench/results.md",
+          "eval/readme.md",
+          "docs/product.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-paraphrase-2",
+        "query": "Found a bug. Who do I talk to",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "bench/results.md",
+          "readme.md",
+          "docs/product.md",
+          "eval/readme.md",
+          "bench/readme.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-paraphrase-3",
+        "query": "found exploit, who do I email",
+        "tool": "recoil",
+        "passed": false,
+        "top_paths": [
+          "readme.md",
+          "eval/readme.md",
+          "bench/results.md",
+          "bench/readme.md",
+          "bench/gap_analysis.md"
+        ],
+        "expects_path_suffixes": [
+          "security.md"
+        ]
+      },
+      {
+        "id": "p7-release",
+        "query": "where is the release process documented",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "readme.md",
+          "bench/gap_analysis.md",
+          "bench/results.md",
+          "cli-fixtures/hard/docs/architecture.md",
+          "docs/product.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-noise",
+        "query": "what is this project about",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "readme.md",
+          "eval/readme.md",
+          "bench/readme.md",
+          "bench/gap_analysis.md",
+          "docs/product.md"
+        ],
+        "expects_path_suffixes": [
+          "readme.md"
+        ]
+      },
+      {
+        "id": "p7-deep",
+        "query": "what is the contributor guide",
+        "tool": "recoil",
+        "passed": false,
+        "top_paths": [
+          "readme.md",
+          "bench/results.md",
+          "bench/gap_analysis.md",
+          "docs/product.md",
+          "cli-fixtures/hard/docs/handoff.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md"
+        ]
+      },
+      {
+        "id": "p7-tools",
+        "query": "what testing framework do we use",
+        "tool": "recoil",
+        "passed": true,
+        "top_paths": [
+          "readme.md",
+          "eval/readme.md",
+          "bench/results.md",
+          "bench/gap_analysis.md",
+          "docs/product.md"
+        ],
+        "expects_path_suffixes": [
+          "contributing.md",
+          "readme.md"
+        ]
+      }
+    ],
+    "total": 10
+  },
+  "status": "ran"
+}

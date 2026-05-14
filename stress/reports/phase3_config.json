@@ -1,0 +1,114 @@
+[
+  {
+    "repo": "nextjs",
+    "label": "default",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "nextjs",
+    "label": "override-docs",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "nextjs",
+    "label": "penalize-noise",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "nextjs",
+    "label": "path-filters",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "ruff",
+    "label": "default",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "ruff",
+    "label": "override-docs",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "ruff",
+    "label": "penalize-noise",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "ruff",
+    "label": "path-filters",
+    "accuracy": 1,
+    "passed": 16,
+    "eligible": 16
+  },
+  {
+    "repo": "rails",
+    "label": "default",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "rails",
+    "label": "override-docs",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "rails",
+    "label": "penalize-noise",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "rails",
+    "label": "path-filters",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "kubernetes",
+    "label": "default",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "kubernetes",
+    "label": "override-docs",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "kubernetes",
+    "label": "penalize-noise",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  },
+  {
+    "repo": "kubernetes",
+    "label": "path-filters",
+    "accuracy": 1,
+    "passed": 20,
+    "eligible": 20
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "values": {
+    "rank.search.penalty.example": "1.5",
+    "rank.search.penalty.fixture": "1.5",
+    "rank.search.penalty.changelog": "0.5",
+    "rank.search.boost.product_docs": "0.5"
+  }
+}

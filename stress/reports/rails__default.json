@@ -1,0 +1,1062 @@
+{
+  "repo": "rails",
+  "archetype": "monorepo-per-gem",
+  "label": "default",
+  "mine_elapsed_seconds": 1.651,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-rails-3762512608/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 1088,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/rails/v8.0.1/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/rails/v8.0.1",
+      "project_scope_id": "local:d113e87e4049e50bf289ad9d3b7da071",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 20,
+  "passed": 20,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.1704,
+    "p50": 0.1756,
+    "p95": 0.2088
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.966885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.695873015873016
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/development_dependencies_install.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11409090909090909
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/active_job_basics.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11231151615575807
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/configuring.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11227650727650729
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1703
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.918491803278688
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.914129032258064
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6826153846153847
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4161159420289855
+        },
+        {
+          "rank": 5,
+          "source_path": "actiontext/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.39985714285714286
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2041
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.962419354838709
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9432786885245896
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9727631578947369
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.668846153846154
+        },
+        {
+          "rank": 5,
+          "source_path": "railties/rdoc_main.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12130152547874067
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1932
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.48327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.481587301587301
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4722077922077923
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6816666666666668
+        },
+        {
+          "rank": 5,
+          "source_path": "railties/rdoc_main.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12113924050632911
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1837
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "activejob/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7165547329455315
+        },
+        {
+          "rank": 2,
+          "source_path": "activemodel/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7136157570422534
+        },
+        {
+          "rank": 3,
+          "source_path": "railties/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7131196581196582
+        },
+        {
+          "rank": 4,
+          "source_path": "actionmailer/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7129918032786885
+        },
+        {
+          "rank": 5,
+          "source_path": "activejob/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.712170229931424
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1326
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        ".github/security.md",
+        "guides/source/security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.73327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.731587301587301
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4701731927710844
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.443015873015873
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7175264270613109
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1876
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        ".github/security.md",
+        "guides/source/security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.690218579234973
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.689623655913978
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4304417670682732
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4301190476190477
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6789015151515152
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1326
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": true,
+      "skipped": false,
+      "matched_path": ".github/security.md",
+      "expected_paths": [
+        ".github/security.md",
+        "guides/source/security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.706017098536929
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.704920634920635
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4425370636059303
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4152693532751697
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6900126262626264
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1766
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9668852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6949253731343285
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/testing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11234989648033127
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/plugins.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11031106398020502
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/development_dependencies_install.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10943438140806562
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1653
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9399541688700865
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6884371184371185
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/rails_application_templates.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11161604129442129
+        },
+        {
+          "rank": 4,
+          "source_path": "railties/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11095238095238096
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/2_3_release_notes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11093896713615023
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1619
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9663648191517045
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6951515151515153
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6866410594088382
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/getting_started.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11220044907123902
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/autoloading_and_reloading_constants.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11084415584415584
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.166
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6932786885245903
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/maintenance_policy.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13158730158730159
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/5_0_release_notes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12237867395762132
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/3_2_release_notes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12043600562587904
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/3_0_release_notes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11923611111111111
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1756
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7066120218579235
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/ruby_on_rails_guides_guidelines.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12584148727984346
+        },
+        {
+          "rank": 3,
+          "source_path": "releasing_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.105752688172043
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/plugins.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1043625992063492
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/7_1_release_notes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1017099567099567
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1807
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16609933435739888
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15042774881854734
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1412982577195101
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12684487223987398
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/engines.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1192336564003581
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2316
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14623471246422065
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1348015873015873
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10470588235294118
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/6_0_release_notes.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08857375447736893
+        },
+        {
+          "rank": 5,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0842857142857143
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1542
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1563476114930372
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1560170985369293
+        },
+        {
+          "rank": 3,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12335842949620039
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11887788910181175
+        },
+        {
+          "rank": 5,
+          "source_path": "activesupport/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09321161048689139
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1796
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/contributing_to_ruby_on_rails.md",
+      "expected_paths": [
+        "contributing.md",
+        "guides/source/contributing_to_ruby_on_rails.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.14688524590163934
+        },
+        {
+          "rank": 2,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13859237536656893
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/install_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11424579736483417
+        },
+        {
+          "rank": 4,
+          "source_path": "guides/source/working_with_javascript_in_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1126891447368421
+        },
+        {
+          "rank": 5,
+          "source_path": "guides/source/engines.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1098766058147397
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1646
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "guides/source/security.md",
+      "expected_paths": [
+        ".github/security.md",
+        "guides/source/security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.7287535014005595
+        },
+        {
+          "rank": 2,
+          "source_path": ".github/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.686065573770492
+        },
+        {
+          "rank": 3,
+          "source_path": "guides/source/contributing_to_ruby_on_rails.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4421384801298718
+        },
+        {
+          "rank": 4,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4146629810835472
+        },
+        {
+          "rank": 5,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6716038550821161
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.2088
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "activejob/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "guides/source/security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7150684261974586
+        },
+        {
+          "rank": 2,
+          "source_path": "activejob/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.714005316792202
+        },
+        {
+          "rank": 3,
+          "source_path": "activesupport/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7133191850594227
+        },
+        {
+          "rank": 4,
+          "source_path": "actionview/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7131746031746031
+        },
+        {
+          "rank": 5,
+          "source_path": "activemodel/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.71246685998343
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.1357
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "actioncable/readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "actionview/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4952201615007485
+        },
+        {
+          "rank": 2,
+          "source_path": "actionpack/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4855491156277472
+        },
+        {
+          "rank": 3,
+          "source_path": "actioncable/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4846769058075469
+        },
+        {
+          "rank": 4,
+          "source_path": "activemodel/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.436700155666199
+        },
+        {
+          "rank": 5,
+          "source_path": "railties/readme.rdoc",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4358859150005034
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.1036
+    }
+  ]
+}

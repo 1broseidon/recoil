@@ -1,0 +1,64 @@
+{
+  "passed": 7,
+  "phase": 5,
+  "results": [
+    {
+      "test": "doctor-disambiguation-lee-vs-lim",
+      "passed": true,
+      "detail": {
+        "snippets": [
+          "Dr. Lee was my dermatologist for the benign biopsy.",
+          "Dr. Lim treated my brother for a fractured wrist."
+        ]
+      }
+    },
+    {
+      "test": "duplicate-content-dedup",
+      "passed": true,
+      "detail": {
+        "row_count": 1,
+        "unique_contents": 1
+      }
+    },
+    {
+      "test": "unicode-content-search",
+      "passed": true,
+      "detail": {
+        "row_count": 1
+      }
+    },
+    {
+      "test": "long-content-stored-intact",
+      "passed": true,
+      "detail": {
+        "content_len": 8600
+      }
+    },
+    {
+      "test": "current-beats-rejected",
+      "passed": true,
+      "detail": {
+        "contents": [
+          "Current driver is mattn/go-sqlite3."
+        ]
+      }
+    },
+    {
+      "test": "historical-surfaces-rejected",
+      "passed": true,
+      "detail": {
+        "contents": [
+          "Rejected modernc/sqlite (no FTS5 support)."
+        ]
+      }
+    },
+    {
+      "test": "classify-override-longest-wins",
+      "passed": true,
+      "detail": {
+        "top_path": "docs/security/policy.md"
+      }
+    }
+  ],
+  "total": 7
+}

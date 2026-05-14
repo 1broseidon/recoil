@@ -1,0 +1,778 @@
+{
+  "repo": "raft",
+  "archetype": "small-go-library",
+  "label": "default",
+  "mine_elapsed_seconds": 0.031,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-raft-3576877580/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 15,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/raft/v1.7.1/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/raft/v1.7.1",
+      "project_scope_id": "local:a3b503d642ae467c7d6534a320f35e92",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 14,
+  "passed": 14,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.0209,
+    "p50": 0.0215,
+    "p95": 0.0241
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9132213996121983
+        },
+        {
+          "rank": 2,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.41202646815550037
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4101453163424994
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06094838308457711
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.059908424908424907
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0216
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9188852459016394
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4019703020993343
+        },
+        {
+          "rank": 3,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.40153125
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.051103785103785104
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03493939393939394
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0233
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.943014278159704
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4413392857142857
+        },
+        {
+          "rank": 3,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.439108138238573
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10748839834441239
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09011014822595706
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0223
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0241
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.6204918032786884
+        },
+        {
+          "rank": 2,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6198412698412699
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.61953125
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.019230769230769232
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.01893939393939394
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0196
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0216
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 2,
+      "latency_seconds": 0.0178
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0203
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6768852459016395
+        },
+        {
+          "rank": 2,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11597030209933436
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11428171641791045
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0981159420289855
+        },
+        {
+          "rank": 5,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09785714285714286
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0254
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6204918032786886
+        },
+        {
+          "rank": 2,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08818910256410256
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07119047619047619
+        },
+        {
+          "rank": 4,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06295698924731183
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06259135928961748
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.02
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.663551912568306
+        },
+        {
+          "rank": 2,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11629032258064516
+        },
+        {
+          "rank": 3,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08904761904761904
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07199004975124378
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.019230769230769232
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0196
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6932786885245903
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07260869565217391
+        },
+        {
+          "rank": 3,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03571428571428571
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03515625
+        },
+        {
+          "rank": 5,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03308823529411765
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0215
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7066120218579235
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06024875621890547
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.058809523809523805
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03515625
+        },
+        {
+          "rank": 5,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03308823529411765
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0217
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1480074005249522
+        },
+        {
+          "rank": 2,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11528430619559651
+        },
+        {
+          "rank": 3,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10760038571712187
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.097995115995116
+        },
+        {
+          "rank": 5,
+          "source_path": "changelog.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09359532955307603
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0217
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0202
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08688524590163935
+        },
+        {
+          "rank": 2,
+          "source_path": "changelog.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07684587813620072
+        },
+        {
+          "rank": 3,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06134943181818182
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.035225885225885226
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.034564393939393936
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0211
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1262347124642207
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0576056338028169
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.05736111111111111
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.05629032258064516
+        },
+        {
+          "rank": 5,
+          "source_path": "changelog.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.040491803278688523
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.021
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": false,
+      "skipped": true,
+      "matched_path": "",
+      "expected_paths": [],
+      "top_paths": null,
+      "result_count": 5,
+      "latency_seconds": 0.0217
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.6204918032786884
+        },
+        {
+          "rank": 2,
+          "source_path": "fuzzy/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.61953125
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6192307692307693
+        },
+        {
+          "rank": 4,
+          "source_path": "membership.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.01893939393939394
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/apply.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.018115942028985508
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0182
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.270937006221783
+        }
+      ],
+      "result_count": 1,
+      "latency_seconds": 0.0163
+    }
+  ]
+}

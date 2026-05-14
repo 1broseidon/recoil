@@ -1,0 +1,357 @@
+{
+  "repos": [
+    {
+      "key": "kubernetes",
+      "url": "https://github.com/kubernetes/kubernetes",
+      "ref": "v1.32.0",
+      "sha": "v1.32.0",
+      "archetype": "large-monorepo",
+      "expected_classes": [
+        "agent_instructions",
+        "contributing",
+        "developers",
+        "security",
+        "root_readme",
+        "product_docs",
+        "changelog"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "staging/src/k8s.io/api/CONTRIBUTING.md",
+          "staging/src/k8s.io/apiextensions-apiserver/CONTRIBUTING.md",
+          "staging/src/k8s.io/apimachinery/CONTRIBUTING.md",
+          "staging/src/k8s.io/apiserver/CONTRIBUTING.md",
+          "staging/src/k8s.io/cli-runtime/CONTRIBUTING.md",
+          "staging/src/k8s.io/client-go/CONTRIBUTING.md",
+          "staging/src/k8s.io/cloud-provider/CONTRIBUTING.md",
+          "staging/src/k8s.io/cluster-bootstrap/CONTRIBUTING.md",
+          "staging/src/k8s.io/code-generator/CONTRIBUTING.md",
+          "staging/src/k8s.io/component-base/CONTRIBUTING.md",
+          "staging/src/k8s.io/component-helpers/CONTRIBUTING.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ],
+        "security": [
+          "SECURITY_CONTACTS",
+          ".github/SECURITY.md",
+          "pkg/security/apparmor/OWNERS",
+          "staging/src/k8s.io/api/SECURITY_CONTACTS",
+          "staging/src/k8s.io/apiextensions-apiserver/SECURITY_CONTACTS",
+          "staging/src/k8s.io/apimachinery/SECURITY_CONTACTS",
+          "staging/src/k8s.io/apiserver/SECURITY_CONTACTS",
+          "staging/src/k8s.io/cli-runtime/SECURITY_CONTACTS",
+          "staging/src/k8s.io/client-go/SECURITY_CONTACTS",
+          "staging/src/k8s.io/cloud-provider/SECURITY_CONTACTS",
+          "staging/src/k8s.io/cluster-bootstrap/SECURITY_CONTACTS",
+          "staging/src/k8s.io/code-generator/SECURITY_CONTACTS"
+        ]
+      }
+    },
+    {
+      "key": "rails",
+      "url": "https://github.com/rails/rails",
+      "ref": "v8.0.1",
+      "sha": "v8.0.1",
+      "archetype": "monorepo-per-gem",
+      "expected_classes": [
+        "contributing",
+        "readme",
+        "root_readme",
+        "security",
+        "changelog",
+        "package_readme"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "guides/source/contributing_to_ruby_on_rails.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ],
+        "security": [
+          ".github/security.md",
+          "guides/source/security.md"
+        ]
+      }
+    },
+    {
+      "key": "turbo",
+      "url": "https://github.com/vercel/turborepo",
+      "ref": "v2.3.3",
+      "sha": "v2.3.3",
+      "archetype": "modern-js-monorepo",
+      "expected_classes": [
+        "contributing",
+        "root_readme",
+        "package_readme",
+        "product_docs",
+        "generated_or_public_static"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "packages/turbo-vsc/CONTRIBUTING.md"
+        ],
+        "developers": [
+          "docs/repo-docs/crafting-your-repository/developing-applications.mdx"
+        ],
+        "root_readme": [
+          "README.md"
+        ],
+        "security": [
+          "SECURITY.md"
+        ]
+      }
+    },
+    {
+      "key": "nextjs",
+      "url": "https://github.com/vercel/next.js",
+      "ref": "v15.1.3",
+      "sha": "v15.1.3",
+      "archetype": "docs-and-examples-heavy",
+      "expected_classes": [
+        "contributing",
+        "root_readme",
+        "product_docs",
+        "example",
+        "changelog",
+        "security"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "contributing.md",
+          "contributing/core/adding-error-links.md",
+          "contributing/core/adding-features.md",
+          "contributing/core/building.md",
+          "contributing/docs/adding-documentation.md",
+          "contributing/examples/adding-examples.md",
+          "contributing/examples/run-example-apps.md",
+          "contributing/repository/linting.md",
+          "contributing/repository/pull-request-descriptions.md",
+          "contributing/repository/release-channels-publishing.md"
+        ],
+        "root_readme": [
+          "readme.md"
+        ]
+      }
+    },
+    {
+      "key": "ruff",
+      "url": "https://github.com/astral-sh/ruff",
+      "ref": "0.8.4",
+      "sha": "0.8.4",
+      "archetype": "fixture-heavy",
+      "expected_classes": [
+        "contributing",
+        "root_readme",
+        "fixture",
+        "product_docs",
+        "changelog"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "crates/ruff_python_formatter/CONTRIBUTING.md",
+          "crates/ruff_python_parser/CONTRIBUTING.md",
+          "crates/ruff_server/CONTRIBUTING.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ]
+      }
+    },
+    {
+      "key": "transformers",
+      "url": "https://github.com/huggingface/transformers",
+      "ref": "v4.47.1",
+      "sha": "v4.47.1",
+      "archetype": "ml-research",
+      "expected_classes": [
+        "contributing",
+        "root_readme",
+        "product_docs",
+        "example",
+        "package_readme"
+      ],
+      "ground_truth": {
+        "agent_instructions": [
+          "docs/source/ar/agents.md",
+          "docs/source/en/agents.md"
+        ],
+        "contributing": [
+          "CONTRIBUTING.md",
+          "docs/source/de/contributing.md",
+          "docs/source/en/contributing.md",
+          "docs/source/ko/contributing.md",
+          "docs/source/zh/contributing.md",
+          "docs/source/en/quantization/contribute.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ],
+        "security": [
+          "SECURITY.md"
+        ]
+      }
+    },
+    {
+      "key": "rust",
+      "url": "https://github.com/rust-lang/rust",
+      "ref": "1.83.0",
+      "sha": "1.83.0",
+      "archetype": "unconventional-layout",
+      "expected_classes": [
+        "agent_instructions",
+        "contributing",
+        "root_readme",
+        "security",
+        "product_docs"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "library/portable-simd/CONTRIBUTING.md",
+          "src/tools/clippy/CONTRIBUTING.md",
+          "src/tools/miri/CONTRIBUTING.md",
+          "src/tools/rust-analyzer/CONTRIBUTING.md",
+          "src/tools/rustfmt/Contributing.md",
+          "src/doc/rustc/src/contributing.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ]
+      }
+    },
+    {
+      "key": "raft",
+      "url": "https://github.com/hashicorp/raft",
+      "ref": "v1.7.1",
+      "sha": "v1.7.1",
+      "archetype": "small-go-library",
+      "expected_classes": [
+        "root_readme",
+        "product_docs"
+      ],
+      "ground_truth": {
+        "root_readme": [
+          "README.md"
+        ]
+      }
+    },
+    {
+      "key": "curl",
+      "url": "https://github.com/curl/curl",
+      "ref": "curl-8_11_1",
+      "sha": "curl-8_11_1",
+      "archetype": "security-disclosure",
+      "expected_classes": [
+        "root_readme",
+        "security",
+        "developers",
+        "contributing",
+        "changelog"
+      ],
+      "ground_truth": {
+        "contributing": [
+          ".github/CONTRIBUTING.md",
+          "docs/CONTRIBUTE.md"
+        ],
+        "root_readme": [
+          "README",
+          "README.md"
+        ],
+        "security": [
+          "SECURITY.md"
+        ]
+      }
+    },
+    {
+      "key": "bazel",
+      "url": "https://github.com/bazelbuild/bazel",
+      "ref": "8.0.0",
+      "sha": "8.0.0",
+      "archetype": "symlink-heavy",
+      "expected_classes": [
+        "contributing",
+        "root_readme",
+        "security",
+        "product_docs"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "scripts/release/BUILD",
+          "site/en/contribute/breaking-changes.md",
+          "site/en/contribute/codebase.md",
+          "site/en/contribute/design-documents.md",
+          "site/en/release/backward-compatibility.md",
+          "site/en/release/index.md",
+          "site/en/release/rolling.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ],
+        "security": [
+          "SECURITY.md"
+        ]
+      }
+    },
+    {
+      "key": "fastapi",
+      "url": "https://github.com/tiangolo/fastapi",
+      "ref": "0.115.6",
+      "sha": "0.115.6",
+      "archetype": "mkdocs-tutorial-heavy",
+      "expected_classes": [
+        "contributing",
+        "root_readme",
+        "product_docs",
+        "security"
+      ],
+      "ground_truth": {
+        "contributing": [
+          "CONTRIBUTING.md",
+          "docs/en/docs/contributing.md"
+        ],
+        "root_readme": [
+          "README.md"
+        ],
+        "security": [
+          "SECURITY.md",
+          "docs/ko/docs/security/index.md",
+          "docs/de/docs/advanced/security/http-basic-auth.md",
+          "docs/de/docs/advanced/security/index.md",
+          "docs/de/docs/advanced/security/oauth2-scopes.md",
+          "docs/de/docs/tutorial/security/first-steps.md",
+          "docs/de/docs/tutorial/security/get-current-user.md",
+          "docs/de/docs/tutorial/security/index.md",
+          "docs/em/docs/advanced/security/http-basic-auth.md",
+          "docs/em/docs/advanced/security/index.md",
+          "docs/em/docs/advanced/security/oauth2-scopes.md",
+          "docs/em/docs/tutorial/security/first-steps.md"
+        ]
+      }
+    },
+    {
+      "key": "recoil",
+      "url": "https://github.com/1broseidon/recoil",
+      "ref": "main",
+      "sha": "73dc1ad",
+      "archetype": "dogfood",
+      "expected_classes": [
+        "agent_instructions",
+        "contributing",
+        "root_readme",
+        "product_docs"
+      ],
+      "ground_truth": {
+        "root_readme": [
+          "README.md"
+        ]
+      }
+    }
+  ]
+}

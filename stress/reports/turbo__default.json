@@ -1,0 +1,1060 @@
+{
+  "repo": "turbo",
+  "archetype": "modern-js-monorepo",
+  "label": "default",
+  "mine_elapsed_seconds": 0.222,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-turbo-2170469159/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 163,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/turbo/v2.3.3/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/turbo/v2.3.3",
+      "project_scope_id": "local:ea3acfad19b7f646e9f0ffe255f0fcbc",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 20,
+  "passed": 20,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.0393,
+    "p50": 0.0372,
+    "p95": 0.0475
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.8965079365079363
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.8695312499999996
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.895897435897436
+        },
+        {
+          "rank": 4,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4386661698956781
+        },
+        {
+          "rank": 5,
+          "source_path": "turborepo-tests/integration/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.43498397435897435
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0372
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9342903225806447
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.917404265873016
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo-telemetry/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4326153846153846
+        },
+        {
+          "rank": 4,
+          "source_path": "turborepo-tests/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4317409420289855
+        },
+        {
+          "rank": 5,
+          "source_path": "turborepo-tests/integration/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.430311516155758
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0779
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9607812499999997
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.901587301587301
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9400000000000002
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/create-turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4570956030657523
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo-ignore/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.4552291997880233
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0443
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.44327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.40241935483871
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4000000000000001
+        },
+        {
+          "rank": 4,
+          "source_path": "code_of_conduct.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08924242424242423
+        },
+        {
+          "rank": 5,
+          "source_path": "notices.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08850746268656717
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0402
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/turbo-workspaces/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7162903225806452
+        },
+        {
+          "rank": 3,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7151562499999999
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo-codemod/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7146153846153847
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7120669934640522
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0311
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.679945355191257
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3862903225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3824529074529075
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7312852822580647
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1294068839657075
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0437
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.662956989247312
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06238095238095238
+        },
+        {
+          "rank": 4,
+          "source_path": "code_of_conduct.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.061822916666666665
+        },
+        {
+          "rank": 5,
+          "source_path": "troubleshooting.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.06128205128205128
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0272
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.65327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3862903225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7046186155913979
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10382173382173382
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo-vsc/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10022774327122153
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.032
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9666208355367532
+        },
+        {
+          "rank": 2,
+          "source_path": "turborepo-tests/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11485576923076923
+        },
+        {
+          "rank": 3,
+          "source_path": "turborepo-tests/integration/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11227650727650729
+        },
+        {
+          "rank": 4,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11164372940492344
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/turborepo-lib/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11154024767801858
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0357
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9399541688700865
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6618229166666667
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo-codemod/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11330772607550482
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo-workspaces/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08794871794871795
+        },
+        {
+          "rank": 5,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08742424242424242
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0368
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9399541688700865
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6465079365079366
+        },
+        {
+          "rank": 3,
+          "source_path": "turborepo-tests/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08843711843711843
+        },
+        {
+          "rank": 4,
+          "source_path": "troubleshooting.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08560813615608136
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/turborepo-vt100/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08532338308457711
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0355
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "docs/repo-docs/crafting-your-repository/developing-applications.mdx",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6932786885245903
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6515873015873017
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6346153846153848
+        },
+        {
+          "rank": 4,
+          "source_path": "release.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0897159090909091
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo-repository/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08896670493685419
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0425
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "docs/repo-docs/crafting-your-repository/developing-applications.mdx",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6799453551912569
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6515873015873017
+        },
+        {
+          "rank": 3,
+          "source_path": "release.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10357371794871795
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo-repository/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07614219114219115
+        },
+        {
+          "rank": 5,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07373489694385216
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0431
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.16650117096018735
+        },
+        {
+          "rank": 2,
+          "source_path": "turborepo-tests/integration/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12812706749731306
+        },
+        {
+          "rank": 3,
+          "source_path": "examples/design-system/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11580625243036931
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo-vsc/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10887976443805991
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo-ignore/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10417821728233628
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0475
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10736111111111112
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10059798807749627
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07662083553675303
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo-vsc/architecture.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07578629032258064
+        },
+        {
+          "rank": 5,
+          "source_path": "examples/with-typeorm/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.054334023464458245
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0383
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12893652795292138
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11322139961219814
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08452973229092632
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07722244769119768
+        },
+        {
+          "rank": 5,
+          "source_path": "crates/turborepo-telemetry/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07215467328370553
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0409
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "packages/turbo-vsc/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12662083553675302
+        },
+        {
+          "rank": 2,
+          "source_path": "examples/design-system/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10976782752902156
+        },
+        {
+          "rank": 3,
+          "source_path": "examples/with-svelte/apps/docs/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09178919729932483
+        },
+        {
+          "rank": 4,
+          "source_path": "examples/with-shell-commands/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0914360119047619
+        },
+        {
+          "rank": 5,
+          "source_path": "examples/with-svelte/apps/web/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09133552271483306
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0368
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.686065573770492
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3862903225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "packages/turbo-vsc/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3854662698412699
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.735811339198436
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.13453447050461975
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0354
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/turbo-workspaces/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7162903225806452
+        },
+        {
+          "rank": 3,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7154662698412698
+        },
+        {
+          "rank": 4,
+          "source_path": "packages/turbo-codemod/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7149158653846154
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7136452762923351
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.0334
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.208677731195912
+        },
+        {
+          "rank": 2,
+          "source_path": "packages/turbo-workspaces/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.396587835812877
+        },
+        {
+          "rank": 3,
+          "source_path": "crates/turborepo-telemetry/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3330891492436483
+        },
+        {
+          "rank": 4,
+          "source_path": "buildcontainer/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3309442360688089
+        },
+        {
+          "rank": 5,
+          "source_path": "packages/turbo-codemod/readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.328523497414923
+        }
+      ],
+      "result_count": 32,
+      "latency_seconds": 0.0273
+    }
+  ]
+}

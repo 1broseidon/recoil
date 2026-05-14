@@ -1,0 +1,1102 @@
+{
+  "repo": "fastapi",
+  "archetype": "mkdocs-tutorial-heavy",
+  "label": "default",
+  "mine_elapsed_seconds": 4.659,
+  "status": {
+    "data": {
+      "db_path": "/tmp/recoil-stress-fastapi-793854101/recoil.db",
+      "existed_before": true,
+      "fts5": true,
+      "memory_count": 2494,
+      "project_initialized": true,
+      "project_marker": "/home/george/recoil-stress-clones/fastapi/0.115.6/.recoil/project.json",
+      "project_root": "/home/george/recoil-stress-clones/fastapi/0.115.6",
+      "project_scope_id": "local:948a8be0d91276bc0163eab21af6f044",
+      "tombstone_count": 0
+    },
+    "kind": "status_result",
+    "version": "0.1"
+  },
+  "total_cases": 20,
+  "eligible_cases": 20,
+  "passed": 20,
+  "failed": 0,
+  "accuracy": 1,
+  "search_latency_seconds": {
+    "count": 20,
+    "mean": 0.4462,
+    "p50": 0.4488,
+    "p95": 0.5111
+  },
+  "cases": [
+    {
+      "id": "onboard-1",
+      "category": "onboarding",
+      "query": "how do I set up the development environment",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.966885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.892795698924731
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9390476190476191
+        },
+        {
+          "rank": 4,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6192307692307694
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08697860962566845
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4287
+    },
+    {
+      "id": "onboard-2",
+      "category": "onboarding",
+      "query": "what should an agent read before editing this repo",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.914129032258064
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9024918032786886
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08378629032258064
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08150055741360089
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/history-design-future.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08035534655489675
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.5242
+    },
+    {
+      "id": "onboard-3",
+      "category": "onboarding",
+      "query": "how can a new contributor get started",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.960240384615384
+        },
+        {
+          "rank": 2,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 2.9026837652035957
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9375809889173061
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1068944099378882
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10513888888888889
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4787
+    },
+    {
+      "id": "onboard-4",
+      "category": "onboarding",
+      "query": "where is the contributor guide",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.44327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 6.44241935483871
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.4385074626865673
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1268944099378882
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/fastapi-people.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08779411764705883
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4345
+    },
+    {
+      "id": "onboard-5",
+      "category": "onboarding",
+      "query": "what does this project do",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7160343061955966
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.21984126984126984
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11491586538461539
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10988064791133845
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4066
+    },
+    {
+      "id": "security-1",
+      "category": "security",
+      "query": "how do I report a security vulnerability",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md",
+        "docs/ko/docs/security/index.md",
+        "docs/de/docs/advanced/security/http-basic-auth.md",
+        "docs/de/docs/advanced/security/index.md",
+        "docs/de/docs/advanced/security/oauth2-scopes.md",
+        "docs/de/docs/tutorial/security/first-steps.md",
+        "docs/de/docs/tutorial/security/get-current-user.md",
+        "docs/de/docs/tutorial/security/index.md",
+        "docs/em/docs/advanced/security/http-basic-auth.md",
+        "docs/em/docs/advanced/security/index.md",
+        "docs/em/docs/advanced/security/oauth2-scopes.md",
+        "docs/em/docs/tutorial/security/first-steps.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.73327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/features.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0720164781455104
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.055261311458494555
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03531280547409579
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.032744282744282746
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4863
+    },
+    {
+      "id": "security-2",
+      "category": "security",
+      "query": "security disclosure policy",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md",
+        "docs/ko/docs/security/index.md",
+        "docs/de/docs/advanced/security/http-basic-auth.md",
+        "docs/de/docs/advanced/security/index.md",
+        "docs/de/docs/advanced/security/oauth2-scopes.md",
+        "docs/de/docs/tutorial/security/first-steps.md",
+        "docs/de/docs/tutorial/security/get-current-user.md",
+        "docs/de/docs/tutorial/security/index.md",
+        "docs/em/docs/advanced/security/http-basic-auth.md",
+        "docs/em/docs/advanced/security/index.md",
+        "docs/em/docs/advanced/security/oauth2-scopes.md",
+        "docs/em/docs/tutorial/security/first-steps.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.690218579234973
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/features.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.05644334160463192
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/tutorial/handling-errors.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": -0.08900932400932401
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/how-to/general.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": -0.08952510176390774
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/reference/security/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": -0.0900256072578285
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4148
+    },
+    {
+      "id": "security-3",
+      "category": "security",
+      "query": "where do I send vulnerability reports",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md",
+        "docs/ko/docs/security/index.md",
+        "docs/de/docs/advanced/security/http-basic-auth.md",
+        "docs/de/docs/advanced/security/index.md",
+        "docs/de/docs/advanced/security/oauth2-scopes.md",
+        "docs/de/docs/tutorial/security/first-steps.md",
+        "docs/de/docs/tutorial/security/get-current-user.md",
+        "docs/de/docs/tutorial/security/index.md",
+        "docs/em/docs/advanced/security/http-basic-auth.md",
+        "docs/em/docs/advanced/security/index.md",
+        "docs/em/docs/advanced/security/oauth2-scopes.md",
+        "docs/em/docs/tutorial/security/first-steps.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.73327868852459
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.412956989247312
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03160597572362278
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.03028393817204301
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/python-types.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.02884038403840384
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4488
+    },
+    {
+      "id": "tests-1",
+      "category": "tests",
+      "query": "how do I run the tests",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9666208355367532
+        },
+        {
+          "rank": 2,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6592307692307693
+        },
+        {
+          "rank": 3,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6556250000000001
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10991452991452991
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09893939393939394
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4305
+    },
+    {
+      "id": "tests-2",
+      "category": "tests",
+      "query": "what is the test command for this project",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9402185792349727
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7143240093240094
+        },
+        {
+          "rank": 3,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6725641025641027
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11330772607550482
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10672327672327672
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4287
+    },
+    {
+      "id": "tests-3",
+      "category": "tests",
+      "query": "what testing framework do we use",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.9197267759562842
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.695625
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11263802407638024
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09470588235294118
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/features.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.0944927536231884
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.425
+    },
+    {
+      "id": "release-1",
+      "category": "release",
+      "query": "how do we cut a release",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6932786885245903
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.655873015873016
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09191532258064516
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09030776515151515
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/index.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08622736418511066
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4633
+    },
+    {
+      "id": "release-2",
+      "category": "release",
+      "query": "where is the release process documented",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.7066120218579235
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.6422916666666667
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10364109848484848
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08502347417840375
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07373489694385216
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4618
+    },
+    {
+      "id": "paraphrase-1",
+      "category": "adversarial-paraphrase",
+      "query": "I am brand new and want to help. Where do I start",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.183672131147541
+        },
+        {
+          "rank": 2,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11678888125763126
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/deployment/server-workers.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11339528999031653
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11182647203542725
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10775486684304811
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4538
+    },
+    {
+      "id": "paraphrase-2",
+      "category": "adversarial-paraphrase",
+      "query": "What is the etiquette for opening a pull request",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/contributing.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1457142857142857
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12566028225806453
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08621993127147766
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07438228438228439
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/fastapi-people.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.07304131516331386
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4492
+    },
+    {
+      "id": "paraphrase-3",
+      "category": "adversarial-paraphrase",
+      "query": "Found a bug. Who do I talk to",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "docs/en/docs/help-fastapi.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.15492446158791384
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10379638905585609
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09432405868042835
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/how-to/conditional-openapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08981149125136467
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.08629032258064516
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4755
+    },
+    {
+      "id": "paraphrase-4",
+      "category": "adversarial-paraphrase",
+      "query": "Need to install dependencies. What is the process",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "contributing.md",
+        "docs/en/docs/contributing.md",
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.1457142857142857
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.12662083553675302
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/deployment/manually.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11205128205128205
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09074815794445494
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/tutorial/dependencies/dependencies-with-yield.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.09017534899557371
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.4359
+    },
+    {
+      "id": "paraphrase-5",
+      "category": "adversarial-paraphrase",
+      "query": "found exploit, who do I email",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "security.md",
+      "expected_paths": [
+        "security.md",
+        "docs/ko/docs/security/index.md",
+        "docs/de/docs/advanced/security/http-basic-auth.md",
+        "docs/de/docs/advanced/security/index.md",
+        "docs/de/docs/advanced/security/oauth2-scopes.md",
+        "docs/de/docs/tutorial/security/first-steps.md",
+        "docs/de/docs/tutorial/security/get-current-user.md",
+        "docs/de/docs/tutorial/security/index.md",
+        "docs/em/docs/advanced/security/http-basic-auth.md",
+        "docs/em/docs/advanced/security/index.md",
+        "docs/em/docs/advanced/security/oauth2-scopes.md",
+        "docs/em/docs/tutorial/security/first-steps.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 5.7393989071038245
+        },
+        {
+          "rank": 2,
+          "source_path": "docs/en/docs/contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3860343061955966
+        },
+        {
+          "rank": 3,
+          "source_path": "contributing.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 1.3859703020993344
+        },
+        {
+          "rank": 4,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.6427956989247313
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/alternatives.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10389339621961158
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.5111
+    },
+    {
+      "id": "noise-1",
+      "category": "noise-resistance",
+      "query": "what is this project about",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 3.716885245901639
+        },
+        {
+          "rank": 2,
+          "source_path": "security.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.7157142857142857
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11491586538461539
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/management-tasks.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.11099547511312217
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/help-fastapi.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.10948504983388704
+        }
+      ],
+      "result_count": 5,
+      "latency_seconds": 0.3998
+    },
+    {
+      "id": "noise-2",
+      "category": "noise-resistance",
+      "query": "project overview architecture",
+      "passed": true,
+      "skipped": false,
+      "matched_path": "readme.md",
+      "expected_paths": [
+        "readme.md"
+      ],
+      "top_paths": [
+        {
+          "rank": 1,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.405085594797536
+        },
+        {
+          "rank": 2,
+          "source_path": "readme.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 4.390735331829424
+        },
+        {
+          "rank": 3,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8553216994231652
+        },
+        {
+          "rank": 4,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.8549758710489123
+        },
+        {
+          "rank": 5,
+          "source_path": "docs/en/docs/virtual-environments.md",
+          "role": "source",
+          "source_kind": "file",
+          "score": 0.853498733062864
+        }
+      ],
+      "result_count": 50,
+      "latency_seconds": 0.3664
+    }
+  ]
+}

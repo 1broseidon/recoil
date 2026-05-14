@@ -1,0 +1,6 @@
+{
+  "values": {
+    "mine.exclude_paths": "**/testdata/**,**/fixtures/**,**/__fixtures__/**,**/examples/**/node_modules/**",
+    "mine.include_paths": "AGENTS.md,CLAUDE.md,CONTRIBUTING*,DEVELOPERS*,SECURITY*,README*"
+  }
+}
