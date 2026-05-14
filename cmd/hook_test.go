@@ -2,11 +2,15 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/1broseidon/recoil/internal/scope"
+	"github.com/1broseidon/recoil/internal/store"
 )
 
 func TestHookRemindFormats(t *testing.T) {
@@ -95,6 +99,49 @@ func TestHookRemindGlobalJSONUsesEnvelope(t *testing.T) {
 	}
 	if _, ok := envelope["data"]; !ok {
 		t.Fatalf("expected data envelope, got:\n%s", out.String())
+	}
+}
+
+func TestHookWakeContextUsesExistingProjectMemory(t *testing.T) {
+	oldOpts := opts
+	defer func() { opts = oldOpts }()
+
+	root := t.TempDir()
+	sc, err := scope.InitProject(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	opts = globalOptions{dbPath: dbPath}
+
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = st.AddMemory(context.Background(), store.AddMemoryParams{
+		Role:       "decision",
+		Content:    "Current hook test decision is to include wake context directly.",
+		ScopeKind:  sc.Kind,
+		ScopeID:    sc.ID,
+		ProjectID:  sc.ProjectID,
+		Validity:   "active",
+		ClaimKey:   "hook.context",
+		SourceKind: "direct",
+	})
+	if closeErr := st.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := hookWakeContext(4, 1200)
+	if !ok {
+		t.Fatal("expected hook wake context")
+	}
+	if !strings.Contains(got, "Current hook test decision") || !strings.Contains(got, "claim_key: hook.context") {
+		t.Fatalf("expected sourced wake memory in hook context, got:\n%s", got)
 	}
 }
 

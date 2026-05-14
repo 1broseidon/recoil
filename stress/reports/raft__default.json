@@ -5,7 +5,7 @@
   "mine_elapsed_seconds": 0.031,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-raft-3576877580/recoil.db",
+      "db_path": "/tmp/recoil-stress-raft-1735885917/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 15,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.0209,
-    "p50": 0.0215,
-    "p95": 0.0241
+    "mean": 0.0219,
+    "p50": 0.0223,
+    "p95": 0.0248
   },
   "cases": [
     {
@@ -78,7 +78,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0216
+      "latency_seconds": 0.0223
     },
     {
       "id": "onboard-2",
@@ -128,7 +128,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0233
+      "latency_seconds": 0.0248
     },
     {
       "id": "onboard-3",
@@ -178,7 +178,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0223
+      "latency_seconds": 0.0234
     },
     {
       "id": "onboard-4",
@@ -190,7 +190,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0241
+      "latency_seconds": 0.0219
     },
     {
       "id": "onboard-5",
@@ -240,7 +240,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0196
+      "latency_seconds": 0.0195
     },
     {
       "id": "security-1",
@@ -252,7 +252,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0216
+      "latency_seconds": 0.0224
     },
     {
       "id": "security-2",
@@ -264,7 +264,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 2,
-      "latency_seconds": 0.0178
+      "latency_seconds": 0.0182
     },
     {
       "id": "security-3",
@@ -276,7 +276,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0203
+      "latency_seconds": 0.0235
     },
     {
       "id": "tests-1",
@@ -326,7 +326,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0254
+      "latency_seconds": 0.0211
     },
     {
       "id": "tests-2",
@@ -376,7 +376,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.02
+      "latency_seconds": 0.0206
     },
     {
       "id": "tests-3",
@@ -476,7 +476,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0215
+      "latency_seconds": 0.0232
     },
     {
       "id": "release-2",
@@ -526,7 +526,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0217
+      "latency_seconds": 0.0239
     },
     {
       "id": "paraphrase-1",
@@ -576,7 +576,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0217
+      "latency_seconds": 0.0247
     },
     {
       "id": "paraphrase-2",
@@ -588,7 +588,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0202
+      "latency_seconds": 0.0213
     },
     {
       "id": "paraphrase-3",
@@ -638,7 +638,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0211
+      "latency_seconds": 0.0239
     },
     {
       "id": "paraphrase-4",
@@ -688,7 +688,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.021
+      "latency_seconds": 0.0212
     },
     {
       "id": "paraphrase-5",
@@ -700,7 +700,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0217
+      "latency_seconds": 0.0251
     },
     {
       "id": "noise-1",
@@ -750,7 +750,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0182
+      "latency_seconds": 0.02
     },
     {
       "id": "noise-2",
@@ -772,7 +772,7 @@
         }
       ],
       "result_count": 1,
-      "latency_seconds": 0.0163
+      "latency_seconds": 0.0164
     }
   ]
 }

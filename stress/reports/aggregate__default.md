@@ -26,18 +26,18 @@
 
 | repo | mine s | search p50 ms | search p95 ms |
 |---|---|---|---|
-| kubernetes | 1.0 | 91 | 116 |
-| rails | 1.7 | 175 | 214 |
-| turbo | 0.2 | 39 | 48 |
-| nextjs | 1.4 | 101 | 140 |
-| ruff | 0.6 | 75 | 93 |
-| transformers | 12.2 | 866 | 991 |
-| rust | 3.7 | 196 | 234 |
-| raft | 0.0 | 23 | 29 |
-| curl | 2.2 | 149 | 174 |
-| bazel | 1.8 | 176 | 206 |
-| fastapi | 4.7 | 448 | 510 |
-| recoil | 0.1 | 25 | 29 |
+| kubernetes | 0.9 | 97 | 116 |
+| rails | 1.7 | 179 | 219 |
+| turbo | 0.2 | 39 | 51 |
+| nextjs | 1.4 | 103 | 140 |
+| ruff | 0.6 | 76 | 97 |
+| transformers | 12.1 | 842 | 974 |
+| rust | 3.5 | 196 | 232 |
+| raft | 0.0 | 22 | 25 |
+| curl | 2.1 | 147 | 167 |
+| bazel | 1.8 | 173 | 205 |
+| fastapi | 4.7 | 421 | 509 |
+| recoil | 0.1 | 27 | 29 |
 
 
 ## Blockers (< 99%)

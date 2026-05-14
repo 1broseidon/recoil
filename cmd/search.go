@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -25,6 +26,7 @@ type searchOptions struct {
 	hybridModel    string
 	hybridPool     int
 	fusionK        int
+	profiles       string
 }
 
 type searchScoredMemory struct {
@@ -66,12 +68,22 @@ func newSearchCommand() *cobra.Command {
 			if !explicitLifecycle {
 				params.Lifecycle = store.LifecycleCurrent
 			}
-			var current []store.Memory
+			mode := retrievalFTS
 			if searchOpts.hybrid {
-				current, err = runHybridSearch(context.Background(), st, params, searchOpts)
-			} else {
-				current, err = runSignalSearch(context.Background(), st, params)
+				mode = retrievalHybrid
 			}
+			current, err := runRetriever(context.Background(), st, params, retrieverOptions{
+				mode:           mode,
+				hybridProvider: searchOpts.hybridProvider,
+				hybridModel:    searchOpts.hybridModel,
+				hybridPool:     searchOpts.hybridPool,
+				fusionK:        searchOpts.fusionK,
+				limit:          searchOpts.limit,
+			})
+			if err != nil {
+				return err
+			}
+			current, err = augmentProfileSearch(context.Background(), st, params, current, searchOpts.profiles)
 			if err != nil {
 				return err
 			}
@@ -90,7 +102,14 @@ func newSearchCommand() *cobra.Command {
 			if !explicitLifecycle {
 				historicalParams := params
 				historicalParams.Lifecycle = store.LifecycleHistorical
-				historical, err = runSignalSearch(context.Background(), st, historicalParams)
+				historical, err = runRetriever(context.Background(), st, historicalParams, retrieverOptions{
+					mode:           mode,
+					hybridProvider: searchOpts.hybridProvider,
+					hybridModel:    searchOpts.hybridModel,
+					hybridPool:     searchOpts.hybridPool,
+					fusionK:        searchOpts.fusionK,
+					limit:          searchOpts.limit,
+				})
 				if err != nil {
 					return err
 				}
@@ -115,7 +134,90 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().StringVar(&searchOpts.hybridModel, "hybrid-model", embedding.DefaultOpenRouterModel, "embedding model for --hybrid")
 	c.Flags().IntVar(&searchOpts.hybridPool, "hybrid-pool", 50, "candidate pool size per retrieval method before fusion")
 	c.Flags().IntVar(&searchOpts.fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
+	c.Flags().StringVar(&searchOpts.profiles, "profiles", "auto", "profile retrieval mode: auto, on, or off")
 	return c
+}
+
+func augmentProfileSearch(ctx context.Context, st *store.Store, p store.SearchParams, rows []store.Memory, mode string) ([]store.Memory, error) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		mode = "auto"
+	}
+	switch mode {
+	case "off", "false", "none":
+		return rows, nil
+	case "auto":
+		if queryWantsRawDetail(p.Query) {
+			return rows, nil
+		}
+	case "on", "true":
+	default:
+		return nil, fmt.Errorf("--profiles must be auto, on, or off")
+	}
+	if p.SourceKind != "" || p.Role != "" || p.ClaimKey != "" {
+		return rows, nil
+	}
+	limit := p.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+	profileLimit := 3
+	if limit < profileLimit {
+		profileLimit = limit
+	}
+	pp := p
+	pp.SourceKind = "entity_profile"
+	if profileLimit < 1 {
+		profileLimit = 1
+	}
+	pp.Limit = profileLimit
+	profiles, err := runRetriever(ctx, st, pp, retrieverOptions{
+		mode:  retrievalFTS,
+		limit: profileLimit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(profiles) == 0 {
+		return rows, nil
+	}
+	out := make([]store.Memory, 0, limit)
+	seen := map[string]bool{}
+	appendMem := func(mem store.Memory) {
+		if len(out) >= limit || seen[mem.ID] {
+			return
+		}
+		seen[mem.ID] = true
+		out = append(out, mem)
+	}
+	for _, mem := range profiles {
+		appendMem(mem)
+	}
+	for _, mem := range rows {
+		appendMem(mem)
+	}
+	return out, nil
+}
+
+func queryWantsRawDetail(query string) bool {
+	q := strings.ToLower(query)
+	for _, marker := range []string{
+		"exactly",
+		"verbatim",
+		"quote",
+		"full text",
+		"which command",
+		"what command",
+		"error message",
+		"stack trace",
+		"line number",
+		"source line",
+	} {
+		if strings.Contains(q, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams) ([]store.Memory, error) {
@@ -210,7 +312,8 @@ func signalTokenCoverage(query string, mem store.Memory) float64 {
 
 func filterStrictEntityResults(query string, fused []searchScoredMemory) []searchScoredMemory {
 	doctorNames := retrieval.DoctorNameTerms(query)
-	if len(doctorNames) == 0 {
+	personNames := explicitPersonNameTerms(query)
+	if len(doctorNames) == 0 && len(personNames) == 0 {
 		return fused
 	}
 	var out []searchScoredMemory
@@ -219,9 +322,62 @@ func filterStrictEntityResults(query string, fused []searchScoredMemory) []searc
 		for _, name := range doctorNames {
 			if strings.Contains(text, name) {
 				out = append(out, item)
-				break
+				goto nextItem
 			}
 		}
+		for _, name := range personNames {
+			if strings.Contains(text, name) {
+				out = append(out, item)
+				goto nextItem
+			}
+		}
+	nextItem:
+	}
+	return out
+}
+
+var explicitPersonNameRE = regexp.MustCompile(`\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\b`)
+
+func explicitPersonNameTerms(query string) []string {
+	var names []string
+	for _, match := range explicitPersonNameRE.FindAllStringSubmatch(query, -1) {
+		if len(match) < 3 {
+			continue
+		}
+		first := strings.ToLower(match[1])
+		last := strings.ToLower(match[2])
+		if commonNonPersonName(first, last) {
+			continue
+		}
+		names = append(names, first+" "+last, last, first)
+	}
+	return uniqueSearchStrings(names)
+}
+
+func commonNonPersonName(first, last string) bool {
+	pair := first + " " + last
+	switch pair {
+	case "content marketing", "digital marketing", "cli accuracy", "session evidence":
+		return true
+	}
+	for _, term := range []string{"recoil", "sqlite", "fts", "json", "api", "cli"} {
+		if first == term || last == term {
+			return true
+		}
+	}
+	return false
+}
+
+func uniqueSearchStrings(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, value := range in {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
 	}
 	return out
 }
@@ -282,6 +438,7 @@ func queryAsksForNegativeEvidence(query string) bool {
 
 func isNegativeEvidence(mem store.Memory) bool {
 	text := strings.ToLower(mem.Content)
+	normalized := strings.Join(strings.Fields(text), " ")
 	for _, marker := range []string{
 		"noise:",
 		"noise note:",
@@ -290,12 +447,17 @@ func isNegativeEvidence(mem store.Memory) bool {
 		"not the user's facts",
 		"not my own",
 		"not what i am",
+		"not the current product direction",
+		"not the answer",
+		"only background discussion",
+		"hosted sync service",
+		"hosted sync",
 		"should prefer the",
 		"do not treat",
 		"should not be used",
 		"should not override",
 	} {
-		if strings.Contains(text, marker) {
+		if strings.Contains(text, marker) || strings.Contains(normalized, marker) {
 			return true
 		}
 	}
@@ -500,87 +662,11 @@ func sourceEvidenceNeighbors(ctx context.Context, st *store.Store, p store.Searc
 // both legs, only swapping Query for the embedding vector on the semantic
 // side. Result: identical filter semantics across both rankings.
 func runHybridSearch(ctx context.Context, st *store.Store, p store.SearchParams, opts searchOptions) ([]store.Memory, error) {
-	pool := opts.hybridPool
-	if pool < opts.limit {
-		pool = opts.limit
-	}
-	ftsParams := p
-	ftsParams.Limit = pool
-	ftsResults, err := st.Search(ctx, ftsParams)
-	if err != nil {
-		return nil, fmt.Errorf("fts leg: %w", err)
-	}
-
 	provider, err := newEmbeddingProvider(opts.hybridProvider, opts.hybridModel)
 	if err != nil {
 		return nil, fmt.Errorf("embedding provider: %w", err)
 	}
-	queryVec, err := provider.Embed(ctx, p.Query)
-	if err != nil {
-		return nil, fmt.Errorf("embed query: %w", err)
-	}
-	semParams := store.SemanticSearchParams{
-		QueryVector: queryVec,
-		Provider:    provider.Name(),
-		Model:       provider.Model(),
-		ScopeKind:   p.ScopeKind,
-		ScopeID:     p.ScopeID,
-		SourceKind:  p.SourceKind,
-		SourceAgent: p.SourceAgent,
-		SourcePath:  p.SourcePath,
-		Role:        p.Role,
-		ClaimKey:    p.ClaimKey,
-		Validity:    p.Validity,
-		Since:       p.Since,
-		Before:      p.Before,
-		Limit:       pool,
-		Lifecycle:   p.Lifecycle,
-	}
-	semResults, err := st.SemanticSearch(ctx, semParams)
-	if err != nil {
-		return nil, fmt.Errorf("semantic leg: %w", err)
-	}
-
-	type scored struct {
-		mem   store.Memory
-		score float64
-	}
-	byID := map[string]*scored{}
-	k := float64(opts.fusionK)
-	for i, m := range ftsResults {
-		if _, ok := byID[m.ID]; !ok {
-			byID[m.ID] = &scored{mem: m}
-		}
-		byID[m.ID].score += 1.0 / (k + float64(i+1))
-	}
-	for i, m := range semResults {
-		if _, ok := byID[m.ID]; !ok {
-			byID[m.ID] = &scored{mem: m}
-		}
-		byID[m.ID].score += 1.0 / (k + float64(i+1))
-	}
-	fused := make([]scored, 0, len(byID))
-	for _, s := range byID {
-		fused = append(fused, *s)
-	}
-	sort.Slice(fused, func(i, j int) bool {
-		if math.Abs(fused[i].score-fused[j].score) < 1e-9 {
-			return fused[i].mem.CreatedAt > fused[j].mem.CreatedAt
-		}
-		return fused[i].score > fused[j].score
-	})
-	limit := opts.limit
-	if limit <= 0 {
-		limit = 5
-	}
-	if len(fused) > limit {
-		fused = fused[:limit]
-	}
-	out := make([]store.Memory, len(fused))
-	for i, f := range fused {
-		out[i] = f.mem
-	}
-	return out, nil
+	return runHybridRetriever(ctx, st, p, provider, opts.hybridPool, opts.fusionK, opts.limit)
 }
 
 func searchMemoryBlocks(current, historical []store.Memory, maxChars int) string {

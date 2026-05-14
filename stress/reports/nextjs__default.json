@@ -2,10 +2,10 @@
   "repo": "nextjs",
   "archetype": "docs-and-examples-heavy",
   "label": "default",
-  "mine_elapsed_seconds": 1.37,
+  "mine_elapsed_seconds": 1.418,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-nextjs-1983624006/recoil.db",
+      "db_path": "/tmp/recoil-stress-nextjs-3672266498/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 808,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.1003,
-    "p50": 0.0985,
-    "p95": 0.1324
+    "mean": 0.1055,
+    "p50": 0.1045,
+    "p95": 0.1445
   },
   "cases": [
     {
@@ -88,7 +88,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0933
+      "latency_seconds": 0.096
     },
     {
       "id": "onboard-2",
@@ -148,7 +148,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1458
+      "latency_seconds": 0.1588
     },
     {
       "id": "onboard-3",
@@ -208,7 +208,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1151
+      "latency_seconds": 0.1252
     },
     {
       "id": "onboard-4",
@@ -267,7 +267,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0983
+      "latency_seconds": 0.1045
     },
     {
       "id": "onboard-5",
@@ -317,7 +317,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0899
+      "latency_seconds": 0.0926
     },
     {
       "id": "security-1",
@@ -329,7 +329,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.1052
+      "latency_seconds": 0.1075
     },
     {
       "id": "security-2",
@@ -341,7 +341,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0698
+      "latency_seconds": 0.0702
     },
     {
       "id": "security-3",
@@ -353,7 +353,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0878
+      "latency_seconds": 0.0928
     },
     {
       "id": "tests-1",
@@ -413,7 +413,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0985
+      "latency_seconds": 0.1019
     },
     {
       "id": "tests-2",
@@ -473,7 +473,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.097
+      "latency_seconds": 0.105
     },
     {
       "id": "tests-3",
@@ -533,7 +533,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0957
+      "latency_seconds": 0.0984
     },
     {
       "id": "release-1",
@@ -593,7 +593,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1039
+      "latency_seconds": 0.1119
     },
     {
       "id": "release-2",
@@ -653,7 +653,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1117
+      "latency_seconds": 0.1161
     },
     {
       "id": "paraphrase-1",
@@ -713,7 +713,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1324
+      "latency_seconds": 0.1445
     },
     {
       "id": "paraphrase-2",
@@ -772,7 +772,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0905
+      "latency_seconds": 0.0976
     },
     {
       "id": "paraphrase-3",
@@ -832,7 +832,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1067
+      "latency_seconds": 0.1128
     },
     {
       "id": "paraphrase-4",
@@ -892,7 +892,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.099
+      "latency_seconds": 0.1011
     },
     {
       "id": "paraphrase-5",
@@ -904,7 +904,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.103
+      "latency_seconds": 0.1054
     },
     {
       "id": "noise-1",
@@ -954,7 +954,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0938
+      "latency_seconds": 0.0961
     },
     {
       "id": "noise-2",
@@ -1004,7 +1004,7 @@
         }
       ],
       "result_count": 50,
-      "latency_seconds": 0.0681
+      "latency_seconds": 0.0715
     }
   ]
 }

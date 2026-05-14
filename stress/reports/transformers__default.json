@@ -2,10 +2,10 @@
   "repo": "transformers",
   "archetype": "ml-research",
   "label": "default",
-  "mine_elapsed_seconds": 11.58,
+  "mine_elapsed_seconds": 11.462,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-transformers-1158860318/recoil.db",
+      "db_path": "/tmp/recoil-stress-transformers-1330175146/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 5119,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.8519,
-    "p50": 0.8436,
-    "p95": 0.9406
+    "mean": 0.8545,
+    "p50": 0.861,
+    "p95": 0.9692
   },
   "cases": [
     {
@@ -86,7 +86,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8097
+      "latency_seconds": 0.8197
     },
     {
       "id": "onboard-2",
@@ -144,7 +144,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8942
+      "latency_seconds": 0.884
     },
     {
       "id": "onboard-3",
@@ -200,7 +200,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.9287
+      "latency_seconds": 0.9692
     },
     {
       "id": "onboard-4",
@@ -255,7 +255,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8874
+      "latency_seconds": 0.8923
     },
     {
       "id": "onboard-5",
@@ -305,7 +305,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.7679
+      "latency_seconds": 0.8196
     },
     {
       "id": "security-1",
@@ -355,7 +355,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.883
+      "latency_seconds": 0.8857
     },
     {
       "id": "security-2",
@@ -405,7 +405,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.7381
+      "latency_seconds": 0.7115
     },
     {
       "id": "security-3",
@@ -455,7 +455,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8253
+      "latency_seconds": 0.8502
     },
     {
       "id": "tests-1",
@@ -513,7 +513,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8383
+      "latency_seconds": 0.8164
     },
     {
       "id": "tests-2",
@@ -571,7 +571,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8062
+      "latency_seconds": 0.829
     },
     {
       "id": "tests-3",
@@ -629,7 +629,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8157
+      "latency_seconds": 0.8158
     },
     {
       "id": "release-1",
@@ -685,7 +685,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.9406
+      "latency_seconds": 0.9078
     },
     {
       "id": "release-2",
@@ -741,7 +741,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.9163
+      "latency_seconds": 0.9252
     },
     {
       "id": "paraphrase-1",
@@ -799,7 +799,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.9857
+      "latency_seconds": 0.9899
     },
     {
       "id": "paraphrase-2",
@@ -854,7 +854,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8302
+      "latency_seconds": 0.861
     },
     {
       "id": "paraphrase-3",
@@ -910,7 +910,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.9219
+      "latency_seconds": 0.9137
     },
     {
       "id": "paraphrase-4",
@@ -968,7 +968,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.8436
+      "latency_seconds": 0.8315
     },
     {
       "id": "paraphrase-5",
@@ -1018,7 +1018,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.9036
+      "latency_seconds": 0.9089
     },
     {
       "id": "noise-1",
@@ -1068,7 +1068,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.7909
+      "latency_seconds": 0.7758
     },
     {
       "id": "noise-2",
@@ -1118,7 +1118,7 @@
         }
       ],
       "result_count": 50,
-      "latency_seconds": 0.7109
+      "latency_seconds": 0.6836
     }
   ]
 }

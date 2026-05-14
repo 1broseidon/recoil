@@ -81,3 +81,20 @@ func TestEvalCommandCanRunSemanticRetrieval(t *testing.T) {
 		}
 	}
 }
+
+func TestEvalArtifactPathsTreatExistingDottedDirectoryAsDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "eval.out")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	jsonPath, markdownPath, err := evalArtifactPaths(dir, "workflow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Dir(jsonPath) != dir || filepath.Dir(markdownPath) != dir {
+		t.Fatalf("expected artifacts under %q, got %q and %q", dir, jsonPath, markdownPath)
+	}
+	if filepath.Ext(jsonPath) != ".json" || filepath.Ext(markdownPath) != ".md" {
+		t.Fatalf("unexpected artifact extensions: %q %q", jsonPath, markdownPath)
+	}
+}

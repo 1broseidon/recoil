@@ -14,7 +14,9 @@ func TestOpenStoreFallsBackToProjectDBWhenDefaultDBIsInaccessible(t *testing.T) 
 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	writeCmdTestFile(t, filepath.Join(home, "Library"), "not a directory")
+	writeCmdTestFile(t, filepath.Join(home, ".config"), "not a directory")
 
 	root := t.TempDir()
 	if _, err := scope.InitProject(root); err != nil {

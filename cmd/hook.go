@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/1broseidon/recoil/internal/config"
+	"github.com/1broseidon/recoil/internal/scope"
+	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -34,18 +38,38 @@ to wire supported agents.`,
 
 func newHookRemindCommand() *cobra.Command {
 	var format string
+	var includeWake bool
+	var wakeLimit int
+	var maxChars int
 	c := &cobra.Command{
 		Use:   "remind",
 		Short: "Print memory guidance for agent hook injection",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.json && !cmd.Flags().Changed("format") {
-				return writeJSON(cmd.OutOrStdout(), "hook_remind_result", map[string]string{"reminder": hookReminderText})
+			reminder := hookReminderText
+			contextText := ""
+			contextIncluded := false
+			if includeWake {
+				if found, ok := hookWakeContext(wakeLimit, maxChars); ok {
+					contextText = found
+					contextIncluded = true
+					reminder = strings.TrimSpace(found) + "\n\n" + hookReminderText
+				}
 			}
-			return emitHookReminder(cmd.OutOrStdout(), format)
+			if opts.json && !cmd.Flags().Changed("format") {
+				return writeJSON(cmd.OutOrStdout(), "hook_remind_result", map[string]any{
+					"reminder":         hookReminderText,
+					"context":          contextText,
+					"context_included": contextIncluded,
+				})
+			}
+			return emitHookReminderText(cmd.OutOrStdout(), format, reminder)
 		},
 	}
 	c.Flags().StringVar(&format, "format", hookFormatText, "output format: text, json, claude-code, codex")
+	c.Flags().BoolVar(&includeWake, "wake", true, "include bounded wake context when an initialized project and readable memory store are available")
+	c.Flags().IntVar(&wakeLimit, "limit", 8, "maximum number of wake memories to include when --wake is enabled")
+	c.Flags().IntVar(&maxChars, "max-chars", 1600, "maximum characters of wake context to include when --wake is enabled")
 	return c
 }
 
@@ -85,22 +109,99 @@ const hookReminderText = `Recoil memory guidance:
 - Treat Recoil results as evidence with IDs and provenance, not unquestionable truth.`
 
 func emitHookReminder(w io.Writer, format string) error {
+	return emitHookReminderText(w, format, hookReminderText)
+}
+
+func emitHookReminderText(w io.Writer, format, text string) error {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		text = hookReminderText
+	}
 	switch format {
 	case "", hookFormatText:
-		_, err := fmt.Fprintln(w, hookReminderText)
+		_, err := fmt.Fprintln(w, text)
 		return err
 	case hookFormatJSON:
-		return writeRawJSON(w, map[string]string{"systemMessage": hookReminderText})
+		return writeRawJSON(w, map[string]string{"systemMessage": text})
 	case hookFormatClaudeCode, hookFormatCodex:
 		return writeRawJSON(w, map[string]any{
 			"hookSpecificOutput": map[string]any{
 				"hookEventName":     "SessionStart",
-				"additionalContext": hookReminderText,
+				"additionalContext": text,
 			},
 		})
 	default:
 		return fmt.Errorf("unknown --format %q (want: text, json, claude-code, codex)", format)
 	}
+}
+
+func hookWakeContext(limit, maxChars int) (string, bool) {
+	if limit <= 0 {
+		limit = 8
+	}
+	if maxChars <= 0 {
+		maxChars = 1600
+	}
+	sc, err := scope.ProjectScope(".")
+	if err != nil || !sc.Initialized {
+		return "", false
+	}
+	dbPath, ok := hookReadableDBPath(sc)
+	if !ok {
+		return "", false
+	}
+	st, err := store.Open(dbPath)
+	if err != nil {
+		return "", false
+	}
+	defer st.Close()
+
+	_, settings, err := loadProjectSettings()
+	if err != nil {
+		return "", false
+	}
+	quality := effectiveSourceQualityOptions(settings)
+	ctx := context.Background()
+	recent, err := wakeRecentMemories(ctx, st, sc, memoryFilterOptions{}, wakeFetchLimit(limit), limit, quality)
+	if err != nil {
+		return "", false
+	}
+	layers := buildWakeLayers("", nil, recent, limit, quality)
+	if len(flattenWakeLayers(layers)) == 0 {
+		return "", false
+	}
+	rendered := layeredMemoryBlocks(layers, maxChars, true)
+	if rendered.ShownCount == 0 {
+		return "", false
+	}
+	var b strings.Builder
+	b.WriteString("Recoil wake context:\n")
+	b.WriteString(strings.TrimSpace(rendered.Body))
+	if rendered.Truncated {
+		b.WriteString("\n\n[truncated]")
+	}
+	return b.String(), true
+}
+
+func hookReadableDBPath(sc scope.Scope) (string, bool) {
+	if dbPathExplicitlySet() {
+		dbPath, err := config.ResolveDBPath(opts.dbPath)
+		if err != nil || !config.PathExists(dbPath) {
+			return "", false
+		}
+		return dbPath, true
+	}
+	dbPath, err := config.ResolveDBPath("")
+	if err == nil && config.PathExists(dbPath) {
+		return dbPath, true
+	}
+	if sc.Root != "" {
+		projectDB := filepath.Join(sc.Root, scope.ProjectDirName, "recoil.db")
+		if config.PathExists(projectDB) {
+			return projectDB, true
+		}
+	}
+	return "", false
 }
 
 func writeRawJSON(w io.Writer, data any) error {

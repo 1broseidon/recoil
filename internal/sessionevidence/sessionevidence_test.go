@@ -2,6 +2,7 @@ package sessionevidence
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,82 @@ func TestParseTurnsClaudeCodeJSONLShape(t *testing.T) {
 		if strings.Contains(turns[1].Content, leak) {
 			t.Fatalf("internal block leaked into evidence content (%q): %q", leak, turns[1].Content)
 		}
+	}
+}
+
+func TestParseTurnsAgentAdapterFixtures(t *testing.T) {
+	cases := []struct {
+		name        string
+		path        string
+		sessionID   string
+		want        string
+		forbidden   string
+		wantRecords int
+	}{
+		{
+			name:        "claude-code",
+			path:        "testdata/adapters/claude-code.jsonl",
+			want:        "bearer tokens",
+			forbidden:   "private chain",
+			wantRecords: 1,
+		},
+		{
+			name:        "codex",
+			path:        "testdata/adapters/codex.json",
+			sessionID:   "sess_codex",
+			want:        "local SQLite memory path",
+			forbidden:   "noisy command output",
+			wantRecords: 1,
+		},
+		{
+			name:        "opencode",
+			path:        "testdata/adapters/opencode.json",
+			sessionID:   "sess_opencode",
+			want:        "mattn/go-sqlite3",
+			forbidden:   "secret",
+			wantRecords: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := os.ReadFile(tc.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			turns, sessionID, err := ParseTurns(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.sessionID != "" && sessionID != tc.sessionID {
+				t.Fatalf("expected session id %q, got %q", tc.sessionID, sessionID)
+			}
+			var text strings.Builder
+			for _, turn := range turns {
+				text.WriteString(turn.Content)
+				text.WriteByte('\n')
+			}
+			if !strings.Contains(text.String(), tc.want) {
+				t.Fatalf("expected parsed turns to contain %q, got %+v", tc.want, turns)
+			}
+			records := Select(turns, Options{
+				ScopeKind:   "project",
+				ScopeID:     "adapter-fixtures",
+				SourceAgent: tc.name,
+				SessionID:   firstNonEmpty(sessionID, "sess_"+tc.name),
+				MinChars:    20,
+			})
+			if len(records) != tc.wantRecords {
+				t.Fatalf("expected %d selected evidence records, got %+v", tc.wantRecords, records)
+			}
+			var recordText strings.Builder
+			for _, record := range records {
+				recordText.WriteString(record.Content)
+				recordText.WriteByte('\n')
+			}
+			if strings.Contains(recordText.String(), tc.forbidden) {
+				t.Fatalf("adapter-private content leaked into evidence: %q in %+v", tc.forbidden, records)
+			}
+		})
 	}
 }
 

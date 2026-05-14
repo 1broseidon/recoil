@@ -14,20 +14,22 @@ import (
 )
 
 type wakeOptions struct {
-	scope    scopeOptions
-	filters  memoryFilterOptions
-	limit    int
-	maxChars int
-	minimal  bool
+	scope     scopeOptions
+	filters   memoryFilterOptions
+	limit     int
+	maxChars  int
+	minimal   bool
+	decisions bool
 }
 
 type wakeResult struct {
-	Query         string            `json:"query,omitempty"`
-	Scope         string            `json:"scope"`
-	ScopeID       string            `json:"scope_id"`
-	SelectedCount int               `json:"selected_count"`
-	Layers        []wakeLayerResult `json:"layers"`
-	Results       []store.Memory    `json:"results"`
+	Query         string              `json:"query,omitempty"`
+	Scope         string              `json:"scope"`
+	ScopeID       string              `json:"scope_id"`
+	SelectedCount int                 `json:"selected_count"`
+	Layers        []wakeLayerResult   `json:"layers"`
+	Results       []store.Memory      `json:"results"`
+	DecisionTrail []decisionTrailItem `json:"decision_trail,omitempty"`
 }
 
 type wakeLayerResult struct {
@@ -83,7 +85,10 @@ func newWakeCommand() *cobra.Command {
 					params.Lifecycle = store.LifecycleCurrent
 				}
 				params.SourceQuality = qualityOpts
-				found, err := runSignalSearch(ctx, st, params)
+				found, err := runRetriever(ctx, st, params, retrieverOptions{
+					mode:  retrievalFTS,
+					limit: fetchLimit,
+				})
 				if err != nil {
 					return err
 				}
@@ -98,6 +103,13 @@ func newWakeCommand() *cobra.Command {
 			results := flattenWakeLayers(layers)
 
 			w := cmd.OutOrStdout()
+			var trail []decisionTrailItem
+			if wakeOpts.decisions {
+				trail, err = decisionTrail(ctx, st, sc, wakeOpts.limit)
+				if err != nil {
+					return err
+				}
+			}
 			result := wakeResult{
 				Query:         query,
 				Scope:         sc.Kind,
@@ -105,6 +117,7 @@ func newWakeCommand() *cobra.Command {
 				SelectedCount: len(results),
 				Layers:        wakeLayerResults(layers),
 				Results:       results,
+				DecisionTrail: trail,
 			}
 			if opts.json {
 				return writeJSON(w, "wake_result", result)
@@ -116,6 +129,10 @@ func newWakeCommand() *cobra.Command {
 				return nil
 			}
 			rendered := layeredMemoryBlocks(layers, wakeOpts.maxChars, true)
+			body := rendered.Body
+			if wakeOpts.decisions {
+				body = combineWakeDecisionTrail(renderDecisionTrail(trail), body)
+			}
 			return frontmatter(w, []kv{
 				{k: "query", v: query},
 				{k: "scope", v: sc.Kind},
@@ -125,7 +142,7 @@ func newWakeCommand() *cobra.Command {
 				{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
 				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
-			}, rendered.Body)
+			}, body)
 		},
 	}
 	addScopeFlags(c, &wakeOpts.scope)
@@ -133,6 +150,7 @@ func newWakeCommand() *cobra.Command {
 	c.Flags().IntVar(&wakeOpts.limit, "limit", 8, "maximum number of memories to include")
 	c.Flags().IntVar(&wakeOpts.maxChars, "max-chars", 1600, "maximum characters of memory content to print")
 	c.Flags().BoolVar(&wakeOpts.minimal, "minimal", false, "print tab-separated rows")
+	c.Flags().BoolVar(&wakeOpts.decisions, "include-decisions", false, "include a claim-keyed decision trail")
 	return c
 }
 
@@ -256,6 +274,9 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 			return
 		}
 		if isHistoricalMemory(mem) {
+			return
+		}
+		if isNegativeEvidence(mem) && !queryAsksForNegativeEvidence(query) {
 			return
 		}
 		layerIndex := classifyWakeMemory(mem, query, fromQuery)

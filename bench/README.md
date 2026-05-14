@@ -10,6 +10,9 @@ Distinct from `recoil eval`:
 - `bench/` is the external benchmark. Large downloaded datasets. Comparative
   numbers against published systems. Manual, occasional.
 
+The consolidation boundary is tracked in `docs/P_SERIES.md`: product workflow
+gates move into `recoil eval`; external academic comparisons stay here.
+
 ## Layout
 
 ```

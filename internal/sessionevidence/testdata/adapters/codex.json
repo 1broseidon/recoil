@@ -1,0 +1,23 @@
+{
+  "id": "sess_codex",
+  "items": [
+    {
+      "index": 1,
+      "role": "user",
+      "content": "Prefer the local SQLite memory path and avoid a hosted sync service for v0.",
+      "timestamp": "2026-05-12T11:00:00Z"
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "content": "I will keep the v0 memory path local-first and no hosted sync service.",
+      "timestamp": "2026-05-12T11:00:01Z"
+    },
+    {
+      "index": 3,
+      "role": "tool",
+      "name": "shell",
+      "content": "noisy command output"
+    }
+  ]
+}

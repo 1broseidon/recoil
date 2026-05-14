@@ -105,7 +105,7 @@ type rawMessage struct {
 }
 
 var (
-	directiveRE    = regexp.MustCompile(`(?i)\b(use|skip|avoid|defer|prefer|do not|don't|go with|keep|switch to|rename|must|should)\b`)
+	directiveRE    = regexp.MustCompile(`(?i)\b(use|skip|avoid|defer|prefer|do not|don't|go with|keep|switch to|change|rename|must|should)\b`)
 	choiceRE       = regexp.MustCompile(`(?i)\b(we decided|decided|chosen|choose|settled on|go with|use .{0,48} for now)\b`)
 	rejectedRE     = regexp.MustCompile(`(?i)\b(rejected|do not use|don't use|rolled back|not using|tried .{0,80} but|avoid)\b`)
 	handoffRE      = regexp.MustCompile(`(?i)\b(handoff|next step|next active task|blocker|unresolved|follow[- ]?up)\b`)

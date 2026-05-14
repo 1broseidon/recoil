@@ -1,11 +1,12 @@
 # recoil
 
-Fast local memory recall for coding agents and the humans who work with them.
+Fast local operational memory for long-running agentic workflows.
 
 recoil is a single Go binary backed by SQLite FTS5. It gives agents a sourced,
-lifecycle-aware memory store that lives next to your code — no cloud, no
-daemon, no LLM in the write path. The thesis is short: **make the right local
-evidence cheaper to retrieve than guessing.**
+lifecycle-aware memory store for bounded projects — no cloud, no daemon, no
+LLM in the required write path. Coding agents are the first wedge, but the
+core loop is broader: **make the right local evidence cheaper to retrieve than
+guessing.**
 
 Use it when you need:
 
@@ -15,6 +16,8 @@ Use it when you need:
   and let stale ones be demoted rather than deleted.
 - A local search layer over your project's markdown — README, docs, design
   notes — with hash-tracked freshness so changed files supersede old chunks.
+- A practical continuity layer for non-coding projects too: research, writing,
+  planning, customer/account context, and other long-running bounded work.
 
 ## Contents
 
@@ -27,7 +30,8 @@ Use it when you need:
 - [Mining Project Files](#mining-project-files)
 - [Agent Hooks](#agent-hooks)
 - [Eval Harness](#eval-harness)
-- [Optional Embeddings Sidecar](#optional-embeddings-sidecar)
+- [Profiles And MCP](#profiles-and-mcp)
+- [Embeddings and Hybrid Retrieval](#embeddings-and-hybrid-retrieval)
 - [Status](#status)
 - [License](#license)
 
@@ -72,6 +76,13 @@ Record a durable decision before compaction or handoff:
 ```sh
 recoil decide --claim-key dependency.http-client \
   "We use net/http with a 5s default timeout, not a third-party client."
+
+recoil decide --claim-key dependency.cache.redis \
+  --stance rejects \
+  --subject Redis \
+  --holds-while "ops cost remains unjustified at current scale" \
+  --recheck "Has scale or cost picture changed?" \
+  "Decided against Redis for cache."
 ```
 
 Search before assuming prior context:
@@ -79,6 +90,7 @@ Search before assuming prior context:
 ```sh
 recoil search "why http client"
 recoil search "auth" --role adr --current
+recoil check "add Redis for this cache"
 recoil list --claim-key dependency.http-client --current
 ```
 
@@ -134,11 +146,20 @@ recoil config
 recoil add "Prefers vim keybindings"
 recoil add "Auth tokens live in the keyring" --agent codex --role decision
 recoil decide --claim-key auth.token-storage "Auth tokens live in the keyring"
+recoil decide --claim-key dependency.cache.redis --validity rejected \
+  --holds-while "ops cost remains unjustified at current scale" \
+  --recheck "Has scale or cost picture changed?" \
+  "Decided against Redis for cache."
+recoil decide --claim-key dependency.cache.redis --stance rejects --subject Redis \
+  "Redis remains rejected for this cache while ops cost is unjustified."
 
 # Read
 recoil search "why did we change auth"
+recoil check "add Redis for this cache"
+recoil search "what is current auth" --profiles auto
 recoil search "dependency.sqlite-driver"
 recoil wake --max-chars 1600
+recoil wake --include-decisions
 recoil list --role adr --validity active
 recoil list --claim-key auth.token-storage --current
 recoil show <memory-id>
@@ -153,6 +174,10 @@ recoil forget <memory-id> --destroy
 recoil mine --dry-run
 recoil mine docs/
 recoil mine session-evidence --dry-run
+
+# Profiles and MCP
+recoil profile --entity "Caroline"
+recoil mcp
 
 # Session evidence (opt-in)
 recoil config set session-evidence.enabled true
@@ -177,6 +202,9 @@ recoil backup --out /path/to/synced-folder --max 5
 # Quality gates
 recoil eval
 recoil eval eval/fixtures.jsonl
+recoil eval --suite workflows
+recoil eval --suite cli-hard
+recoil eval --suite workflows --out eval/results
 recoil repair
 ```
 
@@ -202,6 +230,14 @@ Inside an initialized project (`.recoil/project.json` present), the common
 path needs no flags: `recoil wake`, `recoil search "..."`, `recoil add "..."`.
 If the current directory is not inside an initialized project, commands warn
 on stderr and use a local fallback scope.
+
+**Workflow shape.** Coding projects usually store dependency decisions, ADRs,
+handoff notes, and mined project docs. Non-coding projects use the same
+primitive for bounded work: research preferences, writing constraints,
+customer/account context, travel planning, health/provider facts, or other
+durable local evidence. Recoil is not trying to become a general personal
+knowledge base; it works best when the scope is explicit and the evidence is
+useful for the next agent session.
 
 **Retrieval.** `search` uses FTS5 over content plus role, claim_key, source
 agent, source path, and source_ref, with conservative ranking boosts for
@@ -238,6 +274,34 @@ lifecycle on every memory:
 guidance; rejected, superseded, stale, and historical matches appear in a
 labeled history section. `wake` excludes historical states entirely so
 startup context never presents old evidence as current.
+
+Decision memories can carry optional predicates that explain when a decision
+applies. Date-bound decisions use `--valid-until <date>` and are stored as the
+canonical predicate kind `valid_until`. Recoil evaluates a narrow deterministic
+set itself (`valid_until`, `source_unchanged`, `claim_key_status`,
+`package_version`, `tsconfig_value`, and `lint_config_value`) and stores
+semantic or external predicates as review prompts. Unknown predicate status is
+not a warning by itself; `recoil check` only asks for review when the current
+request maps to a rejected/superseded decision, a broken deterministic
+predicate, multiple current decisions, or an external predicate that gates the
+action.
+
+Current decisions can also carry a stance and subject. That lets `recoil check`
+distinguish "use Redis" from "avoid Redis" against the same remembered
+decision:
+
+```sh
+recoil decide --claim-key dependency.cache.redis --stance rejects --subject Redis \
+  "Reject Redis for this cache because ops cost is not justified."
+recoil check "use Redis for this cache"
+recoil mark <memory-id> --stance rejects --subject Redis
+```
+
+```sh
+recoil check "add Redis for this cache"
+recoil check --claim-key dependency.cache.redis
+recoil wake --include-decisions
+```
 
 ```sh
 # Mark a memory as rejected — keep the evidence, demote it
@@ -357,15 +421,40 @@ leaving unrelated hooks intact.
 `recoil eval` seeds a temporary database from `eval/fixtures.jsonl`, runs the
 fixture cases through the same store and wake-layer code as the CLI, and
 reports recall@k, MRR, empty-result accuracy, stale-demotion failures,
-wake-safety failures, scope-isolation failures, and latency.
+wake-safety failures, wrong-memory failures, scope-isolation failures, and
+ranked-content failures, and latency.
 
 ```sh
 recoil eval
 recoil eval eval/fixtures.jsonl
+recoil eval --suite embeddings --retrieval hybrid
+recoil eval --suite workflows
+recoil eval --suite session-evidence
+recoil eval --suite decisions
+recoil eval --suite workflows --out eval/results
 ```
 
-The eval is the gate that keeps ranking changes honest. Don't tune retrieval
-without running it.
+The default eval is the fast deterministic gate. Workflow suites exercise
+mined docs and selected session evidence for coding and non-coding continuity.
+External academic benchmarks stay under `bench/`; large real-repo stress stays
+under `stress/`.
+
+The consolidation plan lives in [docs/P_SERIES.md](docs/P_SERIES.md): product
+workflow gates belong in `recoil eval`, academic comparisons stay in `bench/`,
+and large real-repo stress stays in `stress/`.
+
+## Profiles And MCP
+
+`recoil profile --entity NAME` builds a deterministic `entity_profile` memory
+from current sourced evidence. `recoil search` uses profile retrieval in
+`--profiles auto` mode by default, and skips profiles for exact-detail queries
+such as commands, quotes, stack traces, or line numbers. Use
+`--profiles on|off` to override that router.
+
+`recoil mcp` runs a stdio Model Context Protocol server using the official
+`github.com/modelcontextprotocol/go-sdk/mcp` Go SDK. It exposes
+`recoil_search` and `recoil_wake` tools read-only by default; start with
+`recoil mcp --allow-write` to expose `recoil_add`.
 
 ## Embeddings and Hybrid Retrieval
 
@@ -418,10 +507,16 @@ Stable today:
 - Scope model and project init
 - `add` / `search` / `wake` / `list` / `show` / `forget`
 - `mark` / `supersede` / `decide` lifecycle commands
+- Decision relevance/verdict checks (`recoil check`) and decision-aware wake
+  context
 - Project file mining with freshness via file hashes
 - `.recoilignore` per-project skip patterns
 - Agent hook installers (Claude Code, OpenCode, Codex)
 - Eval harness (14/14 on the bundled fixtures, MRR 1.0)
+- Workflow eval suite for coding, non-coding, session-evidence continuity,
+  decision relevance, and P3 verdict maturity
+- Deterministic entity profiles (`recoil profile`) with profile-aware search
+- Read-only MCP stdio server (`recoil mcp`)
 - JSON envelope (`{version, kind, data}`)
 
 Explicit non-goals for v0:
@@ -429,7 +524,6 @@ Explicit non-goals for v0:
 - No cloud sync
 - No daemon
 - No hosted dashboard
-- No MCP server (it can come after the CLI semantics are stable)
 - No embeddings in the required path
 - No LLM-based extraction in the default write path
 - No automatic rewriting of older memories

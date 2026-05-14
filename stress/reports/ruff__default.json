@@ -5,7 +5,7 @@
   "mine_elapsed_seconds": 0.579,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-ruff-4250120407/recoil.db",
+      "db_path": "/tmp/recoil-stress-ruff-1064024986/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 387,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.0745,
-    "p50": 0.077,
-    "p95": 0.0909
+    "mean": 0.0772,
+    "p50": 0.0743,
+    "p95": 0.0928
   },
   "cases": [
     {
@@ -82,7 +82,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0686
+      "latency_seconds": 0.0711
     },
     {
       "id": "onboard-2",
@@ -136,7 +136,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1309
+      "latency_seconds": 0.1328
     },
     {
       "id": "onboard-3",
@@ -190,7 +190,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0879
+      "latency_seconds": 0.0876
     },
     {
       "id": "onboard-4",
@@ -243,7 +243,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0843
+      "latency_seconds": 0.0847
     },
     {
       "id": "onboard-5",
@@ -293,7 +293,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.059
+      "latency_seconds": 0.0658
     },
     {
       "id": "security-1",
@@ -305,7 +305,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0792
+      "latency_seconds": 0.0823
     },
     {
       "id": "security-2",
@@ -317,7 +317,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0484
+      "latency_seconds": 0.0478
     },
     {
       "id": "security-3",
@@ -329,7 +329,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0595
+      "latency_seconds": 0.0625
     },
     {
       "id": "tests-1",
@@ -383,7 +383,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0689
+      "latency_seconds": 0.0698
     },
     {
       "id": "tests-2",
@@ -437,7 +437,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.077
+      "latency_seconds": 0.0723
     },
     {
       "id": "tests-3",
@@ -491,7 +491,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0646
+      "latency_seconds": 0.071
     },
     {
       "id": "release-1",
@@ -545,7 +545,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.08
+      "latency_seconds": 0.0827
     },
     {
       "id": "release-2",
@@ -599,7 +599,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0792
+      "latency_seconds": 0.0863
     },
     {
       "id": "paraphrase-1",
@@ -653,7 +653,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0909
+      "latency_seconds": 0.0928
     },
     {
       "id": "paraphrase-2",
@@ -706,7 +706,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0706
+      "latency_seconds": 0.0734
     },
     {
       "id": "paraphrase-3",
@@ -760,7 +760,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0835
+      "latency_seconds": 0.086
     },
     {
       "id": "paraphrase-4",
@@ -814,7 +814,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0694
+      "latency_seconds": 0.0743
     },
     {
       "id": "paraphrase-5",
@@ -826,7 +826,7 @@
       "expected_paths": [],
       "top_paths": null,
       "result_count": 5,
-      "latency_seconds": 0.0781
+      "latency_seconds": 0.0817
     },
     {
       "id": "noise-1",
@@ -876,7 +876,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0617
+      "latency_seconds": 0.0647
     },
     {
       "id": "noise-2",
@@ -926,7 +926,7 @@
         }
       ],
       "result_count": 50,
-      "latency_seconds": 0.0481
+      "latency_seconds": 0.0543
     }
   ]
 }

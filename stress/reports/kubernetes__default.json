@@ -2,10 +2,10 @@
   "repo": "kubernetes",
   "archetype": "large-monorepo",
   "label": "default",
-  "mine_elapsed_seconds": 0.924,
+  "mine_elapsed_seconds": 0.901,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-kubernetes-885110858/recoil.db",
+      "db_path": "/tmp/recoil-stress-kubernetes-3703105298/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 561,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.0912,
-    "p50": 0.0942,
-    "p95": 0.1095
+    "mean": 0.0924,
+    "p50": 0.0907,
+    "p95": 0.1142
   },
   "cases": [
     {
@@ -90,7 +90,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0788
+      "latency_seconds": 0.0805
     },
     {
       "id": "onboard-2",
@@ -152,7 +152,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1422
+      "latency_seconds": 0.1441
     },
     {
       "id": "onboard-3",
@@ -214,7 +214,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1012
+      "latency_seconds": 0.1026
     },
     {
       "id": "onboard-4",
@@ -275,7 +275,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0978
+      "latency_seconds": 0.0988
     },
     {
       "id": "onboard-5",
@@ -325,7 +325,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0729
+      "latency_seconds": 0.0726
     },
     {
       "id": "security-1",
@@ -386,7 +386,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0946
+      "latency_seconds": 0.0951
     },
     {
       "id": "security-2",
@@ -447,7 +447,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0688
+      "latency_seconds": 0.0722
     },
     {
       "id": "security-3",
@@ -508,7 +508,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0824
+      "latency_seconds": 0.084
     },
     {
       "id": "tests-1",
@@ -570,7 +570,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0839
+      "latency_seconds": 0.0835
     },
     {
       "id": "tests-2",
@@ -632,7 +632,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0904
+      "latency_seconds": 0.0886
     },
     {
       "id": "tests-3",
@@ -694,7 +694,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0803
+      "latency_seconds": 0.0837
     },
     {
       "id": "release-1",
@@ -756,7 +756,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1056
+      "latency_seconds": 0.1083
     },
     {
       "id": "release-2",
@@ -818,7 +818,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1069
+      "latency_seconds": 0.1067
     },
     {
       "id": "paraphrase-1",
@@ -880,7 +880,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1095
+      "latency_seconds": 0.1142
     },
     {
       "id": "paraphrase-2",
@@ -941,7 +941,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0942
+      "latency_seconds": 0.0907
     },
     {
       "id": "paraphrase-3",
@@ -1003,7 +1003,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0978
+      "latency_seconds": 0.0967
     },
     {
       "id": "paraphrase-4",
@@ -1065,7 +1065,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0828
+      "latency_seconds": 0.086
     },
     {
       "id": "paraphrase-5",
@@ -1126,7 +1126,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1055
+      "latency_seconds": 0.1091
     },
     {
       "id": "noise-1",
@@ -1176,7 +1176,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0722
+      "latency_seconds": 0.0734
     },
     {
       "id": "noise-2",
@@ -1226,7 +1226,7 @@
         }
       ],
       "result_count": 50,
-      "latency_seconds": 0.0569
+      "latency_seconds": 0.0575
     }
   ]
 }

@@ -1,12 +1,15 @@
 # Recoil Product Notes
 
-Recoil is a fast local memory recall CLI for coding agents.
+Recoil is a fast local operational memory CLI for long-running agentic
+workflows. Coding agents are the first wedge, but the product should work for
+any bounded project where durable local evidence is cheaper than guessing.
 
 Its product thesis is simple:
 
 > Make the right local evidence cheaper to retrieve than guessing.
 
-The board is the source of truth for work. Use Brainfile for sequencing:
+The practical-memory P-series is documented in `docs/P_SERIES.md`. The board
+is the source of truth for day-to-day work. Use Brainfile for sequencing:
 
 ```sh
 brainfile list
@@ -21,6 +24,8 @@ designed for projects that have no Brainfile.
 ## Current Wedge
 
 Recoil v0 is local coding-agent continuity inside an initialized project.
+The same loop should also prove out on research, writing, customer/account,
+planning, and other non-coding projects with durable decisions and preferences.
 
 The minimum loop:
 
@@ -39,9 +44,14 @@ foundation.
 recoil init
 recoil wake --max-chars 1600
 recoil search "<topic>"
+recoil search "<topic>" --profiles auto
 recoil add --agent <agent> --role decision "<durable memory>"
 recoil mine
+recoil profile --entity "<name>"
 recoil eval
+recoil eval --suite workflows
+recoil eval --suite workflows --out eval/results
+recoil mcp
 recoil list
 recoil show <memory-id>
 recoil mark <memory-id> --validity stale
@@ -64,7 +74,8 @@ product truths into ordinary docs or direct Recoil memories:
 - `decision-2`: Product thesis, recall must be cheaper than guessing.
 - `adr-1`: Local SQLite FTS5 with deterministic writes.
 - `decision-3`: CLI default is current initialized project scope.
-- `decision-4`: Hooks and skills before MCP.
+- `decision-4`: Hooks and skills before MCP; MCP is now a thin read-only
+  stdio bridge after CLI semantics stabilized.
 - `decision-1`: Freshness model, supersession rather than deletion.
 - `decision-5`: Brainfile inspiration, optional typed source not a dependency.
 - `research-2`: Brainfile protocol takeaways for Recoil.
@@ -83,6 +94,24 @@ The executable v0/v0.1 backlog lives as child tasks under `epic-1`:
 8. `task-8`: Expand project/user/session scope tests.
 9. `task-9`: Add 10k local performance benchmark.
 10. `task-10`: Add optional Brainfile source adapter.
+11. `p0-workflows`: Prove coding and non-coding continuity through
+    `recoil eval --suite workflows`. (done)
+12. `p0-profiles`: Add deterministic entity profiles with an exact-detail
+    opt-out router in search. (done)
+13. `p2-mcp`: Add a minimal read-only MCP stdio server using the official Go
+    SDK, with writes gated by `--allow-write`. (done)
+14. `p1-retriever`: Share retrieval plumbing across search, eval, MCP, hook,
+    wake, and profile paths. (done)
+15. `p1-adapters`: Add adapter payload fixtures for Claude Code, Codex, and
+    OpenCode session evidence. (done)
+16. `p1-reports`: Add normalized JSON and Markdown eval artifacts via
+    `recoil eval --out`. (done)
+17. `p2.5-decision-relevance`: Add optional decision predicates,
+    `recoil check`, and `wake --include-decisions` so agents can push back on
+    stale or rejected decisions with sourced receipts. (done)
+18. `p3-decision-verdict-maturity`: Add date predicate capture hygiene,
+    decision stance/opposition verdicts, narrow Tier 1 evaluators, and
+    Tier 1 / Tier 2 advisory composition. (done)
 
 ## Brainfile Inspiration
 
@@ -135,5 +164,4 @@ current guidance unmistakable. In practice:
 - No daemon.
 - No cloud sync in v0.
 - No LLM in the write path.
-- No MCP before CLI semantics and evals are stable.
 - No inferred knowledge graph before verbatim recall is solid.

@@ -2,10 +2,10 @@
   "repo": "rails",
   "archetype": "monorepo-per-gem",
   "label": "default",
-  "mine_elapsed_seconds": 1.651,
+  "mine_elapsed_seconds": 1.687,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-rails-3762512608/recoil.db",
+      "db_path": "/tmp/recoil-stress-rails-3486557235/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 1088,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.1704,
-    "p50": 0.1756,
-    "p95": 0.2088
+    "mean": 0.1795,
+    "p50": 0.1844,
+    "p95": 0.2156
   },
   "cases": [
     {
@@ -80,7 +80,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1703
+      "latency_seconds": 0.176
     },
     {
       "id": "onboard-2",
@@ -132,7 +132,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.2041
+      "latency_seconds": 0.2126
     },
     {
       "id": "onboard-3",
@@ -184,7 +184,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1932
+      "latency_seconds": 0.2032
     },
     {
       "id": "onboard-4",
@@ -235,7 +235,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1837
+      "latency_seconds": 0.1943
     },
     {
       "id": "onboard-5",
@@ -285,7 +285,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1326
+      "latency_seconds": 0.1427
     },
     {
       "id": "security-1",
@@ -336,7 +336,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1876
+      "latency_seconds": 0.1968
     },
     {
       "id": "security-2",
@@ -387,7 +387,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1326
+      "latency_seconds": 0.137
     },
     {
       "id": "security-3",
@@ -438,7 +438,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1766
+      "latency_seconds": 0.1867
     },
     {
       "id": "tests-1",
@@ -490,7 +490,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1653
+      "latency_seconds": 0.173
     },
     {
       "id": "tests-2",
@@ -542,7 +542,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1619
+      "latency_seconds": 0.1715
     },
     {
       "id": "tests-3",
@@ -594,7 +594,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.166
+      "latency_seconds": 0.1782
     },
     {
       "id": "release-1",
@@ -646,7 +646,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1756
+      "latency_seconds": 0.1844
     },
     {
       "id": "release-2",
@@ -698,7 +698,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1807
+      "latency_seconds": 0.1953
     },
     {
       "id": "paraphrase-1",
@@ -750,7 +750,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.2316
+      "latency_seconds": 0.2425
     },
     {
       "id": "paraphrase-2",
@@ -801,7 +801,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1542
+      "latency_seconds": 0.1632
     },
     {
       "id": "paraphrase-3",
@@ -853,7 +853,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1796
+      "latency_seconds": 0.1889
     },
     {
       "id": "paraphrase-4",
@@ -905,7 +905,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1646
+      "latency_seconds": 0.1722
     },
     {
       "id": "paraphrase-5",
@@ -956,7 +956,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.2088
+      "latency_seconds": 0.2156
     },
     {
       "id": "noise-1",
@@ -1006,7 +1006,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.1357
+      "latency_seconds": 0.1432
     },
     {
       "id": "noise-2",
@@ -1056,7 +1056,7 @@
         }
       ],
       "result_count": 50,
-      "latency_seconds": 0.1036
+      "latency_seconds": 0.1133
     }
   ]
 }

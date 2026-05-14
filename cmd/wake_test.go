@@ -9,6 +9,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 )
 
@@ -103,6 +104,64 @@ func TestWakeCommandCurrentResultsSurviveStaleRecencyCrowding(t *testing.T) {
 	}
 	if strings.Contains(got, "stale wake evidence") {
 		t.Fatalf("did not expect stale memories in wake output:\n%s", got)
+	}
+}
+
+func TestWakeCommandIncludesDecisionTrail(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = st.AddMemory(context.Background(), store.AddMemoryParams{
+		Role:         "decision",
+		Content:      "Choose path A over path B because constraint C dominates.",
+		ScopeKind:    sc.Kind,
+		ScopeID:      sc.ID,
+		ProjectID:    sc.ProjectID,
+		Validity:     "active",
+		ClaimKey:     "product.path",
+		MetadataJSON: `{"predicate":{"tier":"semantic","kind":"semantic","recheck_prompt":"Has constraint C changed?"}}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newWakeCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"--include-decisions", "--limit", "4"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"## Decision Trail",
+		"### product.path",
+		"predicate_status: unknown",
+		"recheck: Has constraint C changed?",
+		"decision: Choose path A over path B",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in wake output:\n%s", want, got)
+		}
 	}
 }
 

@@ -42,11 +42,11 @@
         "tool": "mempalace",
         "passed": true,
         "top_paths": [
+          "new-engineer.md",
           "README.md",
           "session_evidence_test.go",
           "mine_test.go",
-          "scope_test.go",
-          "mine_test.go"
+          "scope_test.go"
         ],
         "expects_path_suffixes": [
           "contributing.md",

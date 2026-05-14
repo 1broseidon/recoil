@@ -1,0 +1,3 @@
+{"type":"user","message":{"role":"user","content":"go with bearer tokens for v0, skip refresh tokens"},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"private chain"},{"type":"text","text":"Understood. I will skip refresh tokens. tests passed in cmd/auth_test.go"}]},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:01Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"build output"}]},"sessionId":"sess_cc","timestamp":"2026-05-12T10:00:02Z"}

@@ -1,0 +1,26 @@
+{
+  "session_id": "sess_opencode",
+  "events": [
+    {
+      "index": 1,
+      "type": "user",
+      "content": "Switch to mattn/go-sqlite3 now because FTS5 is required for reliable search.",
+      "timestamp": "2026-05-12T12:00:00Z"
+    },
+    {
+      "index": 2,
+      "type": "tool",
+      "name": "bash",
+      "content": "go test ./cmd passed"
+    },
+    {
+      "index": 3,
+      "type": "assistant",
+      "content": [
+        {"type": "text", "text": "Updated docs/product.md and tests passed."},
+        {"type": "tool_use", "input": {"cmd": "secret"}}
+      ],
+      "timestamp": "2026-05-12T12:00:02Z"
+    }
+  ]
+}

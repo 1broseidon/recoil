@@ -201,6 +201,7 @@ func semanticParamsFromSearch(params store.SearchParams, vector []float64, provi
 		Model:       provider.Model(),
 		ScopeKind:   params.ScopeKind,
 		ScopeID:     params.ScopeID,
+		SourceKind:  params.SourceKind,
 		SourceAgent: params.SourceAgent,
 		SourcePath:  params.SourcePath,
 		Role:        params.Role,

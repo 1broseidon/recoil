@@ -1,0 +1,3 @@
+linters-settings:
+  gocyclo:
+    max-complexity: 12

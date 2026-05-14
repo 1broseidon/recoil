@@ -161,6 +161,11 @@ type LifecycleParams struct {
 	SupersededBy string
 }
 
+type MetadataParams struct {
+	IDOrPrefix   string
+	MetadataJSON string
+}
+
 type ForgetResult struct {
 	Memory    Memory `json:"memory"`
 	Destroyed bool   `json:"destroyed"`
@@ -760,6 +765,29 @@ func (s *Store) UpdateLifecycle(ctx context.Context, p LifecycleParams) (*Memory
 		emptyToNull(strings.TrimSpace(p.ClaimKey)),
 		emptyToNull(strings.TrimSpace(p.Supersedes)),
 		emptyToNull(strings.TrimSpace(p.SupersededBy)),
+		id,
+	); err != nil {
+		return nil, err
+	}
+	return s.GetMemoryByID(ctx, id, false)
+}
+
+func (s *Store) UpdateMetadata(ctx context.Context, p MetadataParams) (*Memory, error) {
+	id, err := s.resolveMemoryID(ctx, p.IDOrPrefix, false)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(p.MetadataJSON) != "" {
+		var metadata map[string]any
+		if err := json.Unmarshal([]byte(p.MetadataJSON), &metadata); err != nil {
+			return nil, fmt.Errorf("metadata_json must be a JSON object: %w", err)
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE memories
+		SET metadata_json = ?
+		WHERE id = ?`,
+		emptyToNull(strings.TrimSpace(p.MetadataJSON)),
 		id,
 	); err != nil {
 		return nil, err

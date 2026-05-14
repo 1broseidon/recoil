@@ -75,6 +75,62 @@ func TestMarkCommandUpdatesLifecycle(t *testing.T) {
 	}
 }
 
+func TestMarkCommandBackfillsDecisionStance(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	ctx := context.Background()
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mem, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:      "decision",
+		Content:   "Reject Redis for cache.",
+		ScopeKind: "project",
+		ScopeID:   "project-1",
+		Validity:  "active",
+		ClaimKey:  "dependency.cache.redis",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newMarkCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{mem.ID, "--stance", "rejects", "--subject", "Redis"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"stance: rejects", "subject: Redis"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in output:\n%s", want, got)
+		}
+	}
+
+	st, err = store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	updated, err := st.GetMemory(ctx, mem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := decisionMetadataFromMemory(*updated)
+	if meta.Stance != "rejects" || meta.Subject != "Redis" {
+		t.Fatalf("unexpected decision metadata: %+v / %s", meta, updated.MetadataJSON)
+	}
+}
+
 func TestSupersedeCommandCreatesReplacementAndMarksOld(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "recoil.db")
 	oldOpts := opts

@@ -15,9 +15,10 @@ type Scope struct {
 }
 
 type Fixture struct {
-	Memories []MemoryRecord
-	Corpora  []CorpusRecord
-	Cases    []CaseRecord
+	Memories    []MemoryRecord
+	Corpora     []CorpusRecord
+	Transcripts []TranscriptRecord
+	Cases       []CaseRecord
 }
 
 type CorpusRecord struct {
@@ -29,6 +30,15 @@ type CorpusRecord struct {
 	IncludeHidden bool   `json:"include_hidden,omitempty"`
 	MaxFileBytes  int64  `json:"max_file_bytes,omitempty"`
 	MaxChunkChars int    `json:"max_chunk_chars,omitempty"`
+}
+
+type TranscriptRecord struct {
+	ID          string `json:"id"`
+	Path        string `json:"path"`
+	Scope       Scope  `json:"scope"`
+	SourceAgent string `json:"source_agent,omitempty"`
+	SessionID   string `json:"session_id,omitempty"`
+	MinChars    int    `json:"min_chars,omitempty"`
 }
 
 type MemoryRecord struct {
@@ -58,10 +68,13 @@ type CaseRecord struct {
 	SourceAgent           string   `json:"source_agent,omitempty"`
 	SourcePath            string   `json:"source_path,omitempty"`
 	Limit                 int      `json:"limit,omitempty"`
+	IncludeDecisions      bool     `json:"include_decisions,omitempty"`
 	ExpectedCurrentIDs    []string `json:"expected_current_ids,omitempty"`
 	ExpectedHistoricalIDs []string `json:"expected_historical_ids,omitempty"`
 	ForbiddenCurrentIDs   []string `json:"forbidden_current_ids,omitempty"`
 	ForbiddenIDs          []string `json:"forbidden_ids,omitempty"`
+	ExpectedContent       []string `json:"expected_content,omitempty"`
+	ForbiddenContent      []string `json:"forbidden_content,omitempty"`
 	ExpectedEmpty         bool     `json:"expected_empty,omitempty"`
 	MatchBy               string   `json:"match_by,omitempty"`
 	Notes                 string   `json:"notes,omitempty"`
@@ -83,6 +96,7 @@ func Parse(r io.Reader) (Fixture, error) {
 	var fixture Fixture
 	memoryIDs := make(map[string]int)
 	corpusIDs := make(map[string]int)
+	transcriptIDs := make(map[string]int)
 	caseIDs := make(map[string]int)
 	lineNo := 0
 	for scanner.Scan() {
@@ -124,6 +138,19 @@ func Parse(r io.Reader) (Fixture, error) {
 			}
 			corpusIDs[rec.ID] = lineNo
 			fixture.Corpora = append(fixture.Corpora, rec)
+		case "transcript":
+			var rec TranscriptRecord
+			if err := json.Unmarshal([]byte(line), &rec); err != nil {
+				return Fixture{}, fmt.Errorf("line %d transcript: %w", lineNo, err)
+			}
+			if err := validateTranscript(rec); err != nil {
+				return Fixture{}, fmt.Errorf("line %d transcript: %w", lineNo, err)
+			}
+			if first, ok := transcriptIDs[rec.ID]; ok {
+				return Fixture{}, fmt.Errorf("line %d transcript: duplicate id %q first seen on line %d", lineNo, rec.ID, first)
+			}
+			transcriptIDs[rec.ID] = lineNo
+			fixture.Transcripts = append(fixture.Transcripts, rec)
 		case "case":
 			var rec CaseRecord
 			if err := json.Unmarshal([]byte(line), &rec); err != nil {
@@ -170,12 +197,22 @@ func validateCorpus(rec CorpusRecord) error {
 	return validateScope(rec.Scope)
 }
 
+func validateTranscript(rec TranscriptRecord) error {
+	if strings.TrimSpace(rec.ID) == "" {
+		return fmt.Errorf("id is required")
+	}
+	if strings.TrimSpace(rec.Path) == "" {
+		return fmt.Errorf("path is required")
+	}
+	return validateScope(rec.Scope)
+}
+
 func validateCase(rec CaseRecord) error {
 	if strings.TrimSpace(rec.ID) == "" {
 		return fmt.Errorf("id is required")
 	}
 	switch rec.Mode {
-	case "search", "wake", "list":
+	case "search", "wake", "list", "check":
 	default:
 		return fmt.Errorf("unsupported mode %q", rec.Mode)
 	}

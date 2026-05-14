@@ -47,7 +47,7 @@ func ProfileText(userText string) string {
 	if strings.Contains(userLower, "still remember") || strings.Contains(userLower, "high school") || strings.Contains(userLower, "debate team") || strings.Contains(userLower, "advanced placement") {
 		tags = append(tags, "nostalgic", "nostalgia", "memories", "reunion", "high_school", "school", "friends")
 	}
-	return strings.Join(tags, " ") + " " + strings.Join(terms, " ")
+	return strings.Join(tags, " ") + " " + strings.Join(terms, " ") + " excerpt " + signalExcerpt(userText)
 }
 
 // UpdateText returns deterministic, searchable update text when a source
@@ -59,6 +59,7 @@ func UpdateText(text string) string {
 	hasUpdate := false
 	for _, marker := range []string{
 		"we changed", "i changed", "changed to", "updated", "update:", "correction",
+		"actually change", "change the",
 		"now use", "use now", "no longer", "instead of", "switch to", "switched to",
 		"replace", "replaced", "current", "currently", "latest",
 	} {
@@ -78,7 +79,15 @@ func UpdateText(text string) string {
 		"current_state", "latest_update", "knowledge_update", "changed", "updated",
 		"now", "currently", "instead", "no_longer", "replacement", "supersedes",
 	}
-	return strings.Join(tags, " ") + " " + strings.Join(terms, " ")
+	return strings.Join(tags, " ") + " " + strings.Join(terms, " ") + " excerpt " + signalExcerpt(text)
+}
+
+func signalExcerpt(text string) string {
+	fields := strings.Fields(strings.ToLower(text))
+	if len(fields) > 48 {
+		fields = fields[:48]
+	}
+	return strings.Join(fields, " ")
 }
 
 // ExpandedQueryText appends conservative lexical aliases for common entity

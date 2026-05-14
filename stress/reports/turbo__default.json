@@ -2,10 +2,10 @@
   "repo": "turbo",
   "archetype": "modern-js-monorepo",
   "label": "default",
-  "mine_elapsed_seconds": 0.222,
+  "mine_elapsed_seconds": 0.229,
   "status": {
     "data": {
-      "db_path": "/tmp/recoil-stress-turbo-2170469159/recoil.db",
+      "db_path": "/tmp/recoil-stress-turbo-1366209307/recoil.db",
       "existed_before": true,
       "fts5": true,
       "memory_count": 163,
@@ -25,9 +25,9 @@
   "accuracy": 1,
   "search_latency_seconds": {
     "count": 20,
-    "mean": 0.0393,
-    "p50": 0.0372,
-    "p95": 0.0475
+    "mean": 0.0406,
+    "p50": 0.0382,
+    "p95": 0.0493
   },
   "cases": [
     {
@@ -80,7 +80,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0372
+      "latency_seconds": 0.0368
     },
     {
       "id": "onboard-2",
@@ -132,7 +132,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0779
+      "latency_seconds": 0.0807
     },
     {
       "id": "onboard-3",
@@ -184,7 +184,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0443
+      "latency_seconds": 0.0446
     },
     {
       "id": "onboard-4",
@@ -235,7 +235,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0402
+      "latency_seconds": 0.0441
     },
     {
       "id": "onboard-5",
@@ -285,7 +285,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0311
+      "latency_seconds": 0.0315
     },
     {
       "id": "security-1",
@@ -335,7 +335,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0437
+      "latency_seconds": 0.0416
     },
     {
       "id": "security-2",
@@ -385,7 +385,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0272
+      "latency_seconds": 0.027
     },
     {
       "id": "security-3",
@@ -435,7 +435,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.032
+      "latency_seconds": 0.0335
     },
     {
       "id": "tests-1",
@@ -487,7 +487,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0357
+      "latency_seconds": 0.0382
     },
     {
       "id": "tests-2",
@@ -539,7 +539,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0368
+      "latency_seconds": 0.0381
     },
     {
       "id": "tests-3",
@@ -591,7 +591,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0355
+      "latency_seconds": 0.0362
     },
     {
       "id": "release-1",
@@ -644,7 +644,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0425
+      "latency_seconds": 0.0446
     },
     {
       "id": "release-2",
@@ -697,7 +697,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0431
+      "latency_seconds": 0.0459
     },
     {
       "id": "paraphrase-1",
@@ -749,7 +749,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0475
+      "latency_seconds": 0.0493
     },
     {
       "id": "paraphrase-2",
@@ -800,7 +800,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0383
+      "latency_seconds": 0.0392
     },
     {
       "id": "paraphrase-3",
@@ -852,7 +852,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0409
+      "latency_seconds": 0.0422
     },
     {
       "id": "paraphrase-4",
@@ -904,7 +904,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0368
+      "latency_seconds": 0.038
     },
     {
       "id": "paraphrase-5",
@@ -954,7 +954,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0354
+      "latency_seconds": 0.0377
     },
     {
       "id": "noise-1",
@@ -1004,7 +1004,7 @@
         }
       ],
       "result_count": 5,
-      "latency_seconds": 0.0334
+      "latency_seconds": 0.0329
     },
     {
       "id": "noise-2",
@@ -1054,7 +1054,7 @@
         }
       ],
       "result_count": 32,
-      "latency_seconds": 0.0273
+      "latency_seconds": 0.0298
     }
   ]
 }

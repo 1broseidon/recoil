@@ -38,6 +38,7 @@ func init() {
 	rootCmd.AddCommand(newInitCommand())
 	rootCmd.AddCommand(newAddCommand())
 	rootCmd.AddCommand(newDecideCommand())
+	rootCmd.AddCommand(newCheckCommand())
 	rootCmd.AddCommand(newSearchCommand())
 	rootCmd.AddCommand(newWakeCommand())
 	rootCmd.AddCommand(newShowCommand())
@@ -49,12 +50,14 @@ func init() {
 	rootCmd.AddCommand(newSessionEvidenceCommand())
 	rootCmd.AddCommand(newBackupCommand())
 	rootCmd.AddCommand(newEmbedCommand())
+	rootCmd.AddCommand(newProfileCommand())
 	rootCmd.AddCommand(newEvalCommand())
 	rootCmd.AddCommand(newStatusCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newInstructionsCommand())
 	rootCmd.AddCommand(newRepairCommand())
 	rootCmd.AddCommand(newHookCommand())
+	rootCmd.AddCommand(newMCPCommand())
 	rootCmd.AddCommand(newVersionCommand())
 }
 
