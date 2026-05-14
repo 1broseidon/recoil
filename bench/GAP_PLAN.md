@@ -364,6 +364,67 @@ recoil defaults.
 
 ---
 
+## Full LoCoMo result (1986 questions, hybrid embed, k=20)
+
+| Variant | Overall | adversarial | multi-hop | open-domain | single-hop | temporal |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline (k=5, hybrid, no facts/profiles) | 58.2 | 91.9 | 38.5 | 55.7 | 20.2 | 57.3 |
+| Track C (k=20 + profiles only) | **70.5** | 89.9 | 49.0 | 71.1 | 45.4 | 70.4 |
+| Track A+C (k=20 + facts + profiles) | 68.6 | 88.1 | 47.9 | 70.1 | 40.8 | 67.9 |
+
+**Track C alone is the winner: +12.3 pts overall**, +25.2 on single-hop
+and +15.4 on open-domain. Adding the facts leg on top of profiles (A+C)
+strictly degrades by 1.9 pts — facts compete for the same attention
+budget that profiles use more efficiently. **Ship Track C, skip Track A
+as a standalone retrieval mechanism. Track A's value is upstream of C:
+facts are the raw material from which profiles are synthesised.**
+
+Cost: $1.25 answerer + $0.13 judge = $1.38 (Track C). $0.96 + $0.11 = $1.07 (A+C).
+Wall time: ~18 min each. We closed half the gap to Mem0's 91.6 with one
+research lever; remaining loss is concentrated in multi-hop (needs
+cross-entity synthesis) and adversarial drift (-2 pts; profile content
+occasionally lets the answerer over-commit when gold expected abstention).
+
+## Full BEAM 100K result (400 questions, hybrid embed, k=20)
+
+| Category | n | baseline (k=5) | Track C (k=20 + profiles) | Δ |
+|---|---:|---:|---:|---:|
+| abstention | 40 | 70.0 | **75.0** | +5.0 |
+| contradiction_resolution | 40 | 60.0 | **67.5** | +7.5 |
+| knowledge_update | 40 | 12.5 | **30.0** | **+17.5** |
+| multi_session_reasoning | 40 | 15.0 | 20.0 | +5.0 |
+| event_ordering | 40 | 5.0 | 7.5 | +2.5 |
+| preference_following | 40 | 12.5 | 15.0 | +2.5 |
+| temporal_reasoning | 40 | 17.5 | 17.5 | 0.0 |
+| summarization | 40 | 12.5 | 12.5 | 0.0 |
+| instruction_following | 40 | 15.0 | 10.0 | -5.0 |
+| information_extraction | 40 | 42.5 | **27.5** | **-15.0** |
+| **Overall** | **400** | **26.3** | **28.3** | **+2.0** |
+
+Cost: $0.88 answerer + $0.05 judge + $0.40 extract = **$1.33** total.
+
+### BEAM-specific learnings
+
+1. **Topic profiles transfer less cleanly than entity profiles.** LoCoMo
+   entities are people with stable biographies; BEAM "topics" are project
+   components/decisions/preferences that evolve over the conversation.
+   Aggregating all mentions of "login feature" into one profile loses the
+   chronology — exactly what information_extraction questions care about.
+2. **Where profiles help BEAM: state-current questions.** knowledge_update
+   (+17.5) asks "what is X *now*"; a profile that summarises X's evolution
+   answers this. Same for contradiction_resolution (+7.5; profile shows
+   the divergent statements side-by-side) and abstention (+5; profile
+   makes it easier to confirm something never came up).
+3. **Where profiles hurt BEAM: specific-detail questions.**
+   information_extraction (-15) and instruction_following (-5) ask
+   "exactly what did the user say at point X" — the profile's aggregate
+   loses that resolution, and crowds out the precise raw turn.
+4. **Implication for shipping:** the `recoil profile` feature spec should
+   support a per-question opt-out (or a router that picks between
+   profile-leg and raw-turn-leg based on question phrasing — "what is"
+   vs "exactly what did"). Track C is not a universal win; it's a
+   high-leverage tool for biographical/state questions.
+
 ## Smoke results (rec-0, 199 questions)
 
 All numbers are LLM-graded answer accuracy with the same answerer

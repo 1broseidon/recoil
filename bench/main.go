@@ -76,6 +76,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "beam-qa: %v\n", err)
 			os.Exit(1)
 		}
+	case "beam-extract":
+		if err := runBEAMExtract(args); err != nil {
+			fmt.Fprintf(os.Stderr, "beam-extract: %v\n", err)
+			os.Exit(1)
+		}
+	case "beam-profiles":
+		if err := runBEAMProfiles(args); err != nil {
+			fmt.Fprintf(os.Stderr, "beam-profiles: %v\n", err)
+			os.Exit(1)
+		}
 	case "beam-grade":
 		if err := runBEAMGrade(args); err != nil {
 			fmt.Fprintf(os.Stderr, "beam-grade: %v\n", err)

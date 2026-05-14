@@ -38,8 +38,8 @@ type beamHypothesis struct {
 }
 
 func runBEAMQA(args []string) error {
-	var dataDir, scale, model, modeStr, resultsPath, reasoningEffort string
-	var topK, limit, concurrency, maxTokens, maxQuestions int
+	var dataDir, scale, model, modeStr, resultsPath, reasoningEffort, factsPath, profilesPath string
+	var topK, limit, concurrency, maxTokens, maxQuestions, factsTopK, profilesTopK int
 	var verbose, hybridEmbedding bool
 	var embedProvider, embedModel, ollamaHost string
 	var maxEmbedChars, chunkChars, chunkOverlap, fusionK, ftsPool, embedPool int
@@ -66,6 +66,10 @@ func runBEAMQA(args []string) error {
 		fs.IntVar(&fusionK, "fusion-k", 60, "RRF fusion constant")
 		fs.IntVar(&ftsPool, "fts-pool", 50, "FTS candidate pool size before fusion")
 		fs.IntVar(&embedPool, "embed-pool", 50, "embedding candidate pool")
+		fs.StringVar(&factsPath, "facts", "", "optional BEAM facts JSONL from beam-extract")
+		fs.IntVar(&factsTopK, "facts-topk", 0, "dedicated fact-only retrieval top-N (in addition to top-K turns)")
+		fs.StringVar(&profilesPath, "profiles", "", "optional BEAM topic-profiles JSONL from beam-profiles")
+		fs.IntVar(&profilesTopK, "profiles-topk", 0, "dedicated topic-profile retrieval top-N")
 	})
 	if err != nil {
 		return err
@@ -102,6 +106,31 @@ func runBEAMQA(args []string) error {
 	client, err := NewOpenRouterClient()
 	if err != nil {
 		return err
+	}
+
+	var factsByConv map[string][]beamFactRecord
+	if factsPath != "" {
+		factsByConv, err = loadBEAMFacts(factsPath)
+		if err != nil {
+			return fmt.Errorf("load facts: %w", err)
+		}
+		total := 0
+		for _, fs := range factsByConv {
+			total += len(fs)
+		}
+		fmt.Fprintf(os.Stderr, "loaded %d BEAM facts across %d conversations from %s\n", total, len(factsByConv), factsPath)
+	}
+	var profilesByConv map[string][]beamProfileRecord
+	if profilesPath != "" {
+		profilesByConv, err = loadBEAMProfiles(profilesPath)
+		if err != nil {
+			return fmt.Errorf("load profiles: %w", err)
+		}
+		total := 0
+		for _, ps := range profilesByConv {
+			total += len(ps)
+		}
+		fmt.Fprintf(os.Stderr, "loaded %d BEAM topic profiles across %d conversations from %s\n", total, len(profilesByConv), profilesPath)
 	}
 
 	convDirs, err := listConvDirs(dataDir)
@@ -180,6 +209,54 @@ func runBEAMQA(args []string) error {
 				}
 			}
 		}
+		if facts := factsByConv[convID]; len(facts) > 0 {
+			for _, f := range facts {
+				ref := f.Subject + ":" + f.Predicate
+				if len(ref) > 80 {
+					ref = ref[:80]
+				}
+				evJSON, _ := json.Marshal(f.EvidenceIDs)
+				meta := fmt.Sprintf(`{"time_anchor":%q,"subject":%q,"predicate":%q,"object":%q,"batch_number":%d,"evidence_turn_ids":%s}`,
+					f.TimeAnchor, f.Subject, f.Predicate, f.Object, f.BatchNumber, string(evJSON))
+				_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+					Role:         "fact",
+					Content:      f.FactText,
+					SourceKind:   "extracted_fact",
+					SourcePath:   fmt.Sprintf("fact/batch-%d", f.BatchNumber),
+					SourceRef:    ref,
+					ScopeKind:    "project",
+					ScopeID:      scopeID,
+					Validity:     "active",
+					MetadataJSON: meta,
+				})
+				if err != nil {
+					return fmt.Errorf("ingest fact for %s: %w", convID, err)
+				}
+			}
+		}
+		if profs := profilesByConv[convID]; len(profs) > 0 {
+			for _, prof := range profs {
+				ref := prof.Entity
+				if len(ref) > 80 {
+					ref = ref[:80]
+				}
+				meta := fmt.Sprintf(`{"entity":%q,"fact_count":%d}`, prof.Entity, prof.FactCount)
+				_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+					Role:         "profile",
+					Content:      prof.Profile,
+					SourceKind:   "entity_profile",
+					SourcePath:   "topic/" + prof.Entity,
+					SourceRef:    ref,
+					ScopeKind:    "project",
+					ScopeID:      scopeID,
+					Validity:     "active",
+					MetadataJSON: meta,
+				})
+				if err != nil {
+					return fmt.Errorf("ingest profile for %s: %w", convID, err)
+				}
+			}
+		}
 		fmt.Fprintf(os.Stderr, "[ingest %d/%d] %s\n", ci+1, len(convDirs), convID)
 		preps = append(preps, &prepared{convID: convID, st: st, tmpDir: tmpDir, scopeID: scopeID, probing: probing})
 	}
@@ -235,7 +312,7 @@ outer:
 	worker := func() {
 		defer wg.Done()
 		for j := range jobs {
-			h := scoreBEAMQA(j.prep.st, j.prep.scopeID, j.prep.convID, scale, j.cat, j.qa, mode, topK, model, client, maxTokens, reasoningEffort, hc)
+			h := scoreBEAMQA(j.prep.st, j.prep.scopeID, j.prep.convID, scale, j.cat, j.qa, mode, topK, model, client, maxTokens, reasoningEffort, hc, factsTopK, profilesTopK)
 			results[j.idx] = h
 			costMu.Lock()
 			totalCost += h.CostUSD
@@ -271,7 +348,7 @@ outer:
 	return nil
 }
 
-func scoreBEAMQA(st *store.Store, scopeID, convID, scale, cat string, qa beamQuestion, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string, hc *hybridConfig) beamHypothesis {
+func scoreBEAMQA(st *store.Store, scopeID, convID, scale, cat string, qa beamQuestion, mode retrievalMode, topK int, model string, client *OpenRouterClient, maxTokens int, reasoningEffort string, hc *hybridConfig, factsTopK, profilesTopK int) beamHypothesis {
 	h := beamHypothesis{
 		ConversationID: convID,
 		Scale:          scale,
@@ -322,7 +399,87 @@ func scoreBEAMQA(st *store.Store, scopeID, convID, scale, cat string, qa beamQue
 		rows = rows[:topK]
 	}
 
-	prompt := buildBEAMPrompt(cat, qa, rows)
+	if factsTopK > 0 || profilesTopK > 0 {
+		var nonAux []store.Memory
+		for _, r := range rows {
+			if r.SourceKind == "extracted_fact" || r.SourceKind == "entity_profile" {
+				continue
+			}
+			nonAux = append(nonAux, r)
+		}
+		rows = nonAux
+	}
+
+	var profileRows []store.Memory
+	if profilesTopK > 0 {
+		pPool := profilesTopK
+		if hc != nil && hc.ftsPoolSize > pPool {
+			pPool = hc.ftsPoolSize
+		}
+		if pPool > 100 {
+			pPool = 100
+		}
+		pRows, perr := st.Search(ctx, store.SearchParams{
+			Query:        qa.Question,
+			ScopeKind:    "project",
+			ScopeID:      scopeID,
+			SourceKind:   "entity_profile",
+			Limit:        pPool,
+			Lifecycle:    store.LifecycleAny,
+			SignalRerank: true,
+		})
+		if perr == nil && len(pRows) > 0 {
+			if hc != nil && len(pRows) > 1 {
+				ctxE, cancelE := context.WithTimeout(ctx, 60*time.Second)
+				reranked, rerr := hybridRerankCandidates(ctxE, hc, qa.Question, pRows, profilesTopK)
+				cancelE()
+				if rerr == nil {
+					pRows = reranked
+				} else if len(pRows) > profilesTopK {
+					pRows = pRows[:profilesTopK]
+				}
+			} else if len(pRows) > profilesTopK {
+				pRows = pRows[:profilesTopK]
+			}
+			profileRows = pRows
+		}
+	}
+	var factRows []store.Memory
+	if factsTopK > 0 {
+		fPool := factsTopK
+		if hc != nil && hc.ftsPoolSize > fPool {
+			fPool = hc.ftsPoolSize
+		}
+		if fPool > 100 {
+			fPool = 100
+		}
+		fRows, ferr := st.Search(ctx, store.SearchParams{
+			Query:        qa.Question,
+			ScopeKind:    "project",
+			ScopeID:      scopeID,
+			SourceKind:   "extracted_fact",
+			Limit:        fPool,
+			Lifecycle:    store.LifecycleAny,
+			SignalRerank: true,
+		})
+		if ferr == nil && len(fRows) > 0 {
+			if hc != nil && len(fRows) > 1 {
+				ctxE, cancelE := context.WithTimeout(ctx, 60*time.Second)
+				reranked, rerr := hybridRerankCandidates(ctxE, hc, qa.Question, fRows, factsTopK)
+				cancelE()
+				if rerr == nil {
+					fRows = reranked
+				} else if len(fRows) > factsTopK {
+					fRows = fRows[:factsTopK]
+				}
+			} else if len(fRows) > factsTopK {
+				fRows = fRows[:factsTopK]
+			}
+			factRows = fRows
+		}
+	}
+
+	prompt := buildBEAMPrompt(cat, qa, rows, factRows, profileRows)
 	cctx, cancel := context.WithTimeout(ctx, 180*time.Second)
 	defer cancel()
 	t0 := time.Now()
@@ -348,12 +505,29 @@ func scoreBEAMQA(st *store.Store, scopeID, convID, scale, cat string, qa beamQue
 	return h
 }
 
-func buildBEAMPrompt(cat string, qa beamQuestion, rows []store.Memory) string {
+func buildBEAMPrompt(cat string, qa beamQuestion, rows []store.Memory, factRows []store.Memory, profileRows []store.Memory) string {
 	var b strings.Builder
 	b.WriteString("I will give you several retrieved turns from a long-running conversation. ")
 	b.WriteString("Each turn is tagged with the time_anchor (the date associated with the conversation batch the turn came from). ")
+	if len(factRows) > 0 || len(profileRows) > 0 {
+		b.WriteString("You may also see pre-extracted facts and/or topic profiles distilled from earlier batches — use them as an index but cite the underlying turns when reasoning. ")
+	}
 	b.WriteString("Please answer the question based on the retrieved context. ")
 	b.WriteString("Answer step by step: first extract relevant facts (resolving any relative dates against the time_anchor), then reason to the final answer.\n\n")
+	if len(profileRows) > 0 {
+		b.WriteString("Topic profiles:\n")
+		for _, m := range profileRows {
+			fmt.Fprintf(&b, "\n%s\n", strings.TrimSpace(m.Content))
+		}
+		b.WriteString("\n")
+	}
+	if len(factRows) > 0 {
+		b.WriteString("Pre-extracted facts:\n")
+		for i, m := range factRows {
+			fmt.Fprintf(&b, "- [F%d] %s\n", i+1, strings.TrimSpace(m.Content))
+		}
+		b.WriteString("\n")
+	}
 	b.WriteString("Retrieved turns:\n")
 	for i, m := range rows {
 		anchor := extractBEAMTimeAnchor(m.MetadataJSON)
