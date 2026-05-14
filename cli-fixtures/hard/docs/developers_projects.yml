@@ -1,0 +1,10 @@
+# YAML fixture file that must NOT be mined by recoil even though its basename
+# starts with the operational prefix "developers". Regression for the
+# isOperationalTextBase prefix-vs-equality bug surfaced by the cross-repo
+# stress test on rails (activerecord/test/fixtures/developers_projects.yml).
+fixture_marker: FIXTURE-YAML-MARKER-9X4Z
+records:
+  - name: Alice
+    project: 'noise that should never be retrieved by recoil mine'
+  - name: Bob
+    project: 'second noise record under the developers_projects fixture path'

@@ -95,5 +95,17 @@
     "must": [],
     "must_not": ["Dr. Alvarez"],
     "expect_empty": true
+  },
+  {
+    "id": "no-yaml-fixture-mining-leak",
+    "command": ["search", "--limit", "5", "FIXTURE-YAML-MARKER-9X4Z"],
+    "must": [],
+    "must_not": ["FIXTURE-YAML-MARKER-9X4Z", "developers_projects.yml"]
+  },
+  {
+    "id": "no-csv-mining-leak",
+    "command": ["search", "--limit", "5", "CONTRIB-CSV-MARKER-7B2P"],
+    "must": [],
+    "must_not": ["CONTRIB-CSV-MARKER-7B2P", "contributing_authors.csv"]
   }
 ]

@@ -502,13 +502,17 @@ func isOperationalHiddenDir(rel string) bool {
 }
 
 func isOperationalTextBase(base string) bool {
-	return base == "agents" ||
-		base == "claude" ||
-		base == "readme" ||
-		base == "security" ||
-		base == "security_contacts" ||
-		strings.HasPrefix(base, "contributing") ||
-		strings.HasPrefix(base, "developers")
+	// Match the basename minus extension exactly. A prefix match would have
+	// accepted noise like developers_projects.yml or contributing_authors.csv.
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	switch name {
+	case "agents", "claude", "readme",
+		"security", "security_contacts", "security_policy",
+		"contributing", "contribute",
+		"developers", "developing", "developer":
+		return true
+	}
+	return false
 }
 
 func matchesAnyPath(rel string, patterns []string) bool {
