@@ -41,6 +41,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "longmemeval-grade: %v\n", err)
 			os.Exit(1)
 		}
+	case "locomo":
+		if err := runLoCoMo(args); err != nil {
+			fmt.Fprintf(os.Stderr, "locomo: %v\n", err)
+			os.Exit(1)
+		}
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -57,6 +62,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  longmemeval         LongMemEval retrieval (recall@5, recall@10, per-type)")
 	fmt.Fprintln(os.Stderr, "  longmemeval-qa      LongMemEval QA: retrieval -> answerer LLM -> hypothesis JSONL")
 	fmt.Fprintln(os.Stderr, "  longmemeval-grade   Grade hypothesis JSONL with LLM-as-judge (paper-exact prompts)")
+	fmt.Fprintln(os.Stderr, "  locomo              LoCoMo retrieval (turn-grain + session-grain recall@5/10, per-category)")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Run with -h on any subcommand for its flags.")
 }

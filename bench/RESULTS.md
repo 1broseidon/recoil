@@ -420,3 +420,91 @@ Per-run artifacts land in `bench/results/`. The graded JSONL matches
 LongMemEval's `eval_results` schema, so the official Python `evaluate_qa.py`
 can also consume our hypothesis JSONL directly if exact paper-grading
 parity is needed.
+
+---
+
+## LoCoMo (snap-research, ACL 2024)
+
+LoCoMo (`locomo10.json`) is the long-term conversational memory benchmark
+from Maharana et al, ACL 2024 ([arXiv:2402.17753](https://arxiv.org/abs/2402.17753)).
+10 records, each a 19–35 session conversation between two named speakers
+with ~420 turns and ~9k tokens, and ~199 QA pairs. Evidence is at the
+turn level via `dia_id` markers like `D1:3` (session 1, turn 3).
+
+Run with:
+
+```sh
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench locomo
+```
+
+Dataset: `bench/.corpus/locomo10.json` (2.8 MB; download once from
+`https://github.com/snap-research/locomo/raw/main/data/locomo10.json`).
+
+### Score (recoil FTS5 + signal rerank, no LLM, no embeddings)
+
+| grain | R@5 | R@10 | MRR |
+|---|---|---|---|
+| **turn-grain** (top-K contains exact evidence dia_id) | **0.4942** | 0.5857 | 0.4799 |
+| **session-grain** (top-K contains correct session) | **0.8026** | 0.8896 | — |
+
+Scored on 1540 non-adversarial questions across all 10 records;
+446 category-5 abstention questions are reported separately.
+
+### Per category
+
+| category | n | turn R@5 | turn R@10 | session R@5 | session R@10 |
+|---|---|---|---|---|---|
+| open-domain | 841 | 0.5493 | 0.6314 | **0.8763** | 0.9358 |
+| temporal-reasoning | 321 | 0.5701 | 0.6760 | 0.7757 | 0.8754 |
+| single-hop | 282 | 0.3191 | 0.4255 | 0.7057 | 0.8369 |
+| multi-hop | 96 | 0.2708 | 0.3542 | 0.5312 | 0.6875 |
+
+### Latency
+
+- Search p50: 7 ms · p95: 11 ms (search-only, ingest excluded)
+- Ingest: per-record fresh SQLite store, ~420 turns each → all 10 records
+  in well under a minute on a 3090
+
+### What the numbers mean
+
+The turn-grain score is the strict apples-to-apples retrieval metric: a hit
+counts only if the precise dia_id cited by the LoCoMo evidence appears in
+recoil's top-K. The session-grain score is the operational metric — for a
+real memory system handing context to an LLM, surfacing the correct session
+(any turn in it) is what matters in practice, because the LLM then reads the
+session and finds the specific fact.
+
+**Direct comparison vs the literature is non-trivial.** Mem0's published
+LoCoMo number (91.6) is an end-to-end LLM-graded answer score, not retrieval
+recall — they retrieve, generate an answer, and have an LLM judge whether
+the answer is right. Our 0.8026 session-grain R@5 is the *retrieval* leg
+only. The right comparison would be:
+
+  - Mem0 retrieval R@5 (not published as a standalone number)
+  - vs recoil retrieval R@5 (this table)
+
+For an end-to-end answer comparison, recoil would need the same answerer +
+grader pipeline that the LongMemEval-QA harness already implements; that is
+a follow-up.
+
+### Observations
+
+- **Multi-hop is the weakest category** (0.53 session R@5). Expected — multi-
+  hop requires combining facts from multiple turns, but our retrieval
+  surfaces sessions independently. A session-fusion step or a per-question
+  multi-leg query would be the natural fix.
+- **Single-hop is also weaker than open-domain** at session-grain (0.71 vs
+  0.88). Single-hop questions are often phrased with very specific language
+  that doesn't share vocabulary with the source turn (e.g. "What did
+  Caroline research?" → the source turn says "I'm looking into adoption
+  agencies"). Embedding-based retrieval (which we have via `--hybrid`)
+  would close this gap.
+- **Temporal reasoning is reasonable** (0.78 session R@5) — `retrieval.
+  TemporalScore` plus the lookback-window / target-date heuristics in
+  `internal/retrieval/signals.go` are doing real work here.
+- **Open-domain dominates** because these questions tend to share vocabulary
+  with the source turn — exactly what FTS5+BM25 is built for.
+
+This is the FTS-only baseline. A hybrid run (`--hybrid` equivalent for
+LoCoMo) is a natural next experiment, expected to close the single-hop and
+multi-hop gaps the same way it did on LongMemEval.
