@@ -625,3 +625,108 @@ trend would take ~15 minutes ingest plus longer search per question.
 The harness supports it via `--scale 10M` once the data is fetched with
 `bash bench/fetch_beam.sh 10M`; documenting here as the obvious next
 experiment.
+
+---
+
+## End-to-end QA pipeline (apples-to-apples vs Mem0)
+
+Mem0's published LoCoMo (91.6) and BEAM (64.1 / 48.6) numbers are
+**end-to-end LLM-graded answer scores**, not retrieval R@K. To compare
+recoil to those numbers fairly we run the same three-step pipeline:
+
+1. **Retrieve** with recoil (FTS5 + signal rerank, or hybrid FTS+embeddings)
+2. **Answer** by handing the retrieved context to an LLM
+3. **Grade** the answer with an LLM-as-judge using rubric-aware prompts
+
+This is wired into `bench/` for both LoCoMo and BEAM, mirroring the
+existing `longmemeval-qa` + `longmemeval-grade` pipeline.
+
+### LoCoMo (commands)
+
+```sh
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+# Step 1+2: retrieval -> answerer LLM. Writes hypothesis JSONL.
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench locomo-qa \
+  --mode recoil-k10 \
+  --answerer openai/gpt-4o-mini-2024-07-18 \
+  --concurrency 8
+
+# Optional: hybrid retrieval (FTS5 + embedding cosine, RRF-fused)
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench locomo-qa \
+  --mode recoil-k20 \
+  --hybrid-embedding \
+  --embed-provider ollama \
+  --embed-model bge-m3 \
+  --answerer openai/gpt-4o-mini-2024-07-18
+
+# Step 3: grade hypotheses
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench locomo-grade \
+  --hyp bench/results/locomo_qa_recoil-k10_*.jsonl \
+  --grader openai/gpt-4o-mini-2024-07-18
+```
+
+### BEAM (commands)
+
+```sh
+# Step 1+2 at 100K scale
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam-qa \
+  --scale 100K \
+  --mode recoil-k10 \
+  --answerer openai/gpt-4o-mini-2024-07-18 \
+  --concurrency 8
+
+# Step 1+2 at 1M scale (longer; ingest alone is ~85s)
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam-qa \
+  --scale 1M \
+  --mode recoil-k20 \
+  --hybrid-embedding \
+  --embed-provider ollama \
+  --embed-model bge-m3
+
+# Step 3: grade
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam-grade \
+  --hyp bench/results/beam_qa_100k_*.jsonl \
+  --grader openai/gpt-4o-mini-2024-07-18
+```
+
+### Why this is now apples-to-apples vs Mem0
+
+Both pipelines now share the same three stages: retrieve → generate → judge.
+The only difference is **whose retrieval system feeds the LLM**. Mem0 publishes
+their pipeline's number; running this harness with the same answerer + grader
+gives recoil's pipeline number directly comparable to Mem0's 91.6 / 64.1 / 48.6.
+
+The retrieval-leg numbers we already have (LoCoMo 0.8026 session R@5, BEAM 1M
+0.3702 turn R@5) are the lower bound. Adding the LLM stages should:
+  - close the gap on reasoning-heavy categories (event_ordering,
+    instruction_following) because the LLM can synthesize an answer from
+    multiple retrieved turns
+  - widen the gap on lookup categories (knowledge_update, contradiction_
+    resolution) because the LLM filters the relevant turn out of a pool
+
+### What we publish
+
+Once the QA pipeline runs at full scale, the README/RESULTS will be updated
+with two columns per benchmark: "retrieval R@5" and "end-to-end answer
+accuracy (LLM-graded, gpt-4o-mini judge)". The latter is the column directly
+comparable to Mem0's published numbers. We commit the JSONL hypothesis files
+under bench/results/ so the comparison is auditable.
+
+### Hybrid retrieval flag set (LoCoMo + BEAM)
+
+Both `locomo-qa` and `beam-qa` accept the same hybrid flags as
+`longmemeval --hybrid-embedding`:
+
+```
+--hybrid-embedding           # turn on FTS+embedding RRF fusion
+--embed-provider openrouter|ollama
+--embed-model <model>        # default text-embedding-3-small or nomic-embed-text
+--ollama-host http://...
+--max-embed-chars 6000       # cap embedding inputs
+--chunk-chars 0              # 0 = truncate, >0 = sliding-window chunk + max-pool cosine
+--chunk-overlap 500
+--fusion-k 60                # RRF constant
+--fts-pool 50                # FTS candidate pool before fusion
+--embed-pool 50              # embedding candidate pool
+```
