@@ -508,3 +508,120 @@ a follow-up.
 This is the FTS-only baseline. A hybrid run (`--hybrid` equivalent for
 LoCoMo) is a natural next experiment, expected to close the single-hop and
 multi-hop gaps the same way it did on LongMemEval.
+
+---
+
+## BEAM (Tavakoli et al, ICLR 2026)
+
+BEAM (Beyond a Million Tokens, [arXiv:2510.27246](https://arxiv.org/pdf/2510.27246))
+is the memory benchmark designed for production-scale agent contexts.
+Conversations exist at four token scales (100K, 500K, 1M, 10M) and span 10
+probing-question categories: abstention, contradiction_resolution,
+event_ordering, information_extraction, instruction_following,
+knowledge_update, multi_session_reasoning, preference_following,
+summarization, temporal_reasoning. Each non-abstention question has
+`source_chat_ids` — the integer turn IDs that justify the answer.
+
+Recoil's BEAM retrieval score: did top-K include at least one source turn ID?
+
+Run with:
+
+```sh
+bash bench/fetch_beam.sh 100K
+bash bench/fetch_beam.sh 1M       # ~168 MB
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam --scale 100K
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam --scale 1M
+```
+
+### 100K scale (35 conversations, 5732 turns)
+
+| metric | value |
+|---|---|
+| R@5 | **0.5042** |
+| R@10 | 0.5944 |
+| MRR | 0.4434 |
+| scored questions | 355 (40 abstention) |
+| ingest total | 6.16 s |
+| search p50 / p95 | 22 ms / 49 ms |
+
+Per category:
+
+| category | n | R@5 | R@10 |
+|---|---|---|---|
+| contradiction_resolution | 40 | **0.950** | 1.000 |
+| temporal_reasoning | 40 | 0.850 | 0.975 |
+| knowledge_update | 40 | 0.825 | 0.925 |
+| information_extraction | 40 | 0.675 | 0.700 |
+| multi_session_reasoning | 40 | 0.575 | 0.725 |
+| summarization | 36 | 0.306 | 0.444 |
+| preference_following | 39 | 0.180 | 0.308 |
+| event_ordering | 40 | 0.075 | 0.150 |
+| instruction_following | 40 | 0.075 | 0.100 |
+
+### 1M scale (35 conversations, 74630 turns)
+
+| metric | value |
+|---|---|
+| R@5 | **0.3702** |
+| R@10 | 0.4647 |
+| MRR | 0.3988 |
+| scored questions | 624 (70 abstention) |
+| ingest total | 85.37 s |
+| search p50 / p95 | 62 ms / 120 ms |
+
+Per category:
+
+| category | n | R@5 | R@10 |
+|---|---|---|---|
+| contradiction_resolution | 70 | **0.843** | 0.900 |
+| knowledge_update | 70 | 0.743 | 0.814 |
+| temporal_reasoning | 70 | 0.543 | 0.743 |
+| information_extraction | 70 | 0.343 | 0.400 |
+| multi_session_reasoning | 70 | 0.343 | 0.529 |
+| summarization | 66 | 0.197 | 0.394 |
+| preference_following | 69 | 0.130 | 0.174 |
+| event_ordering | 69 | 0.087 | 0.101 |
+| instruction_following | 70 | 0.086 | 0.114 |
+
+### Observations
+
+The shape of the per-category numbers matches what LoCoMo and LongMemEval
+have already shown: BM25-style retrieval handles factual recall well and
+struggles with reasoning. Specifically:
+
+- **High-performing** (R@5 > 0.5 at 1M): contradiction_resolution,
+  knowledge_update, temporal_reasoning. These have specific entities and
+  date language that recoil's existing scoring picks up directly.
+- **Low-performing** (R@5 < 0.2 at 1M): event_ordering,
+  instruction_following, preference_following. These don't have a single
+  evidence turn — they require state tracking across many turns or
+  reasoning about user preferences/instructions in aggregate. Pure
+  retrieval can't surface the right answer when there isn't one specific
+  passage to find.
+- **Scale degradation**: R@5 drops from 0.50 (100K) → 0.37 (1M). The
+  biggest single-category drops are information_extraction (-33pp) and
+  temporal_reasoning (-31pp). At 10× more turns, noise increases and FTS
+  alone loses signal; this is where the existing `--hybrid` embedding
+  path would close the gap.
+- **Latency stays sane**: search p95 went 49 ms → 120 ms going from
+  ~5,700 → ~75,000 ingested turns. Linear-ish scaling, well within
+  interactive bounds. Ingest at 1M scale = ~870 turns/sec via direct
+  store.AddMemory (no CLI overhead).
+
+### What the numbers do not say
+
+Mem0's published BEAM numbers (64.1 at 1M, 48.6 at 10M) are end-to-end
+LLM-graded answer scores. They retrieve, generate an answer, and judge it
+with an LLM. We're measuring the retrieval leg only — given the right
+source turn ID, did recoil surface it in top-K. Mem0's published number
+includes the answer-generation step as well as ranking quality beyond
+just "did the right turn appear in top-K." The fair direct comparison
+would be Mem0's retrieval R@5 (not published as a standalone number).
+
+### 10M scale
+
+Not run in this pass. The 10M dataset is ~1.4 GB and based on the 1M
+trend would take ~15 minutes ingest plus longer search per question.
+The harness supports it via `--scale 10M` once the data is fetched with
+`bash bench/fetch_beam.sh 10M`; documenting here as the obvious next
+experiment.

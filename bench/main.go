@@ -46,6 +46,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "locomo: %v\n", err)
 			os.Exit(1)
 		}
+	case "beam":
+		if err := runBEAM(args); err != nil {
+			fmt.Fprintf(os.Stderr, "beam: %v\n", err)
+			os.Exit(1)
+		}
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -63,6 +68,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  longmemeval-qa      LongMemEval QA: retrieval -> answerer LLM -> hypothesis JSONL")
 	fmt.Fprintln(os.Stderr, "  longmemeval-grade   Grade hypothesis JSONL with LLM-as-judge (paper-exact prompts)")
 	fmt.Fprintln(os.Stderr, "  locomo              LoCoMo retrieval (turn-grain + session-grain recall@5/10, per-category)")
+	fmt.Fprintln(os.Stderr, "  beam                BEAM retrieval (turn-grain recall@5/10, per-category, --scale=100K|500K|1M|10M)")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Run with -h on any subcommand for its flags.")
 }
