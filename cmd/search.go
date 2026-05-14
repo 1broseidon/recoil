@@ -130,9 +130,14 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 	if len(variants) <= 1 {
 		return st.Search(ctx, p)
 	}
-	pool := limit * 10
-	if pool < 50 {
-		pool = 50
+	// Pool must be wide enough that operational docs (root README, CONTRIBUTING,
+	// SECURITY) survive into the candidate set on large repos where short-form
+	// docs lose FTS to deeper, denser docs. We tripped over this on transformers
+	// where root README's FTS rank for broad queries was beyond top-50 in the
+	// >2k-chunk corpus, so the +3 root_readme prior never fired.
+	pool := limit * 20
+	if pool < 100 {
+		pool = 100
 	}
 	if pool > 100 {
 		pool = 100

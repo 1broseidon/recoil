@@ -339,11 +339,20 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	limit := p.Limit
 	sqlLimit := limit
 	temporalCue := p.SignalRerank && retrieval.HasTemporalCue(p.Query)
+	if p.SignalRerank {
+		// Always widen the candidate pool when reranking; otherwise FTS's `LIMIT
+		// <limit>` clamp can drop high-prior docs (e.g. root README earning a
+		// +3 wantsOverview boost) before the prior even runs.
+		sqlLimit = maxInt(sqlLimit, maxInt(limit*10, 50))
+	}
 	if temporalCue {
-		sqlLimit = maxInt(limit*4, 20)
-		if sqlLimit > 100 {
-			sqlLimit = 100
-		}
+		// Temporal cues benefit from a wider date-aware re-rank pool. Use the
+		// max of the existing SignalRerank widening and the temporal-specific
+		// width so we never *shrink* the pool when both apply.
+		sqlLimit = maxInt(sqlLimit, maxInt(limit*4, 20))
+	}
+	if sqlLimit > 100 {
+		sqlLimit = 100
 	}
 	where, args, err := scopedFilter("m", memoryQueryFilter{
 		ScopeKind:   p.ScopeKind,

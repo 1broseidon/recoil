@@ -70,7 +70,7 @@ func ClassifyWithOptions(sourcePath string, opts Options) Info {
 	case base == "security.md" || p == ".github/security.md" || strings.HasSuffix(p, "/.well-known/security.txt") || p == ".well-known/security.txt":
 		info.DocClass = ClassSecurity
 		info.IsSecurityDisclosure = true
-	case strings.HasPrefix(base, "contributing"):
+	case strings.HasPrefix(base, "contributing") || strings.HasPrefix(base, "contribute"):
 		info.DocClass = ClassContributing
 	case strings.HasPrefix(base, "developers") || strings.Contains(p, "developer-guide"):
 		info.DocClass = ClassDevelopers
@@ -151,6 +151,21 @@ func ScorePriorWithOptions(query, sourcePath, metadataJSON, mode string, opts Op
 		}
 	}
 
+	// Explicit "contributor guide" / "contributing" intent — the canonical
+	// answer is CONTRIBUTING.md regardless of how content-dense the README is.
+	if wantsContributorGuide(q) {
+		switch info.DocClass {
+		case ClassContributing:
+			score += 3.5
+		case ClassDevelopers:
+			score += 1.5
+		case ClassRootReadme:
+			score -= 0.5
+		case ClassReadme:
+			score -= 1.0
+		}
+	}
+
 	if wantsTests(q) {
 		switch info.DocClass {
 		case ClassAgentInstructions, ClassContributing, ClassDevelopers:
@@ -168,7 +183,36 @@ func ScorePriorWithOptions(query, sourcePath, metadataJSON, mode string, opts Op
 			score += 1.0
 		case ClassChangelog:
 			score -= 0.55
+		case ClassSecurity:
+			// release-process queries should NOT surface security-advisory or
+			// vuln-disclosure docs even when they happen to mention release/publish.
+			score -= 1.5
 		}
+	}
+
+	if wantsOverview(q) {
+		switch info.DocClass {
+		case ClassRootReadme:
+			score += 3.0
+		case ClassReadme:
+			score += 0.6
+		case ClassAgentInstructions:
+			score += 0.4
+		case ClassContributing, ClassDevelopers:
+			// These describe how to *work on* the project, not what the project is.
+			score -= 0.4
+		case ClassFixture, ClassGenerated, ClassExample, ClassChangelog:
+			score -= 1.2
+		}
+	}
+
+	// Non-English locale paths under docs/<lang>/... or site/<lang>/...
+	// shouldn't beat the English equivalent for English queries. Apply a
+	// general penalty whenever a translated doc surfaces and the query is in
+	// English (we approximate "in English" by checking the query contains only
+	// ASCII letters, which all our query battery queries do).
+	if isEnglishQuery(q) && isLocalizedTranslation(sourcePath) {
+		score -= 1.0
 	}
 
 	if isBroadQuery(q) {
@@ -222,7 +266,9 @@ func isRootOperationalBase(base string) bool {
 		base == "claude.md" ||
 		base == "security.md" ||
 		strings.HasPrefix(base, "contributing") ||
+		strings.HasPrefix(base, "contribute") ||
 		strings.HasPrefix(base, "developers") ||
+		strings.HasPrefix(base, "developing") ||
 		strings.HasPrefix(base, "readme")
 }
 
@@ -251,10 +297,117 @@ func hasAnyPathPart(p string, parts ...string) bool {
 }
 
 func wantsSecurity(q string) bool {
-	return strings.Contains(q, "security") ||
-		strings.Contains(q, "vulnerability") ||
-		strings.Contains(q, "disclosure") ||
-		strings.Contains(q, "hackerone")
+	markers := []string{
+		"security", "vulnerability", "vulnerable", "vuln",
+		"disclosure", "hackerone", "exploit", "cve",
+		"report a bug", "found exploit", "found a vulnerability", "responsible disclosure",
+	}
+	for _, m := range markers {
+		if strings.Contains(q, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// isEnglishQuery returns true for queries that look like English (ASCII-only
+// letters). This is a conservative proxy — non-Latin scripts won't match so
+// we keep our hands off mixed-language corpora.
+func isEnglishQuery(q string) bool {
+	for _, r := range q {
+		if r > 127 {
+			return false
+		}
+	}
+	return true
+}
+
+// isLocalizedTranslation detects path patterns like docs/fr/foo.md,
+// site/zh-CN/bar.md, doc/ja/baz.md — locale-prefixed translated content. The
+// English locale ("en") is the canonical, not a translation.
+func isLocalizedTranslation(sourcePath string) bool {
+	p := normalizePath(sourcePath)
+	if p == "" {
+		return false
+	}
+	parts := strings.Split(p, "/")
+	// We need at least docs/<lang>/<file>.
+	if len(parts) < 3 {
+		return false
+	}
+	for i := 0; i < len(parts)-1; i++ {
+		switch parts[i] {
+		case "docs", "doc", "documentation", "site", "guides", "source", "translations", "i18n":
+			next := parts[i+1]
+			if isLocaleCode(next) && next != "en" && next != "en-us" && next != "en-gb" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isLocaleCode(s string) bool {
+	if len(s) < 2 || len(s) > 7 {
+		return false
+	}
+	// Plain 2-letter or 3-letter ISO code, or BCP-47 like "pt-br", "zh-cn".
+	known := map[string]bool{
+		"ar": true, "az": true, "bg": true, "bn": true, "ca": true, "cs": true,
+		"da": true, "de": true, "el": true, "es": true, "et": true, "fa": true,
+		"fi": true, "fr": true, "he": true, "hi": true, "hr": true, "hu": true,
+		"id": true, "it": true, "ja": true, "ka": true, "ko": true, "lt": true,
+		"lv": true, "mk": true, "mn": true, "ms": true, "my": true, "nb": true,
+		"nl": true, "no": true, "pl": true, "pt": true, "ro": true, "ru": true,
+		"si": true, "sk": true, "sl": true, "sq": true, "sr": true, "sv": true,
+		"sw": true, "ta": true, "te": true, "th": true, "tr": true, "uk": true,
+		"ur": true, "vi": true, "yo": true, "zh": true,
+		"pt-br": true, "pt-pt": true, "zh-cn": true, "zh-tw": true, "zh-hk": true,
+		"es-mx": true, "es-es": true, "fr-fr": true, "en-us": true, "en-gb": true,
+		"en": true,
+	}
+	return known[strings.ToLower(s)]
+}
+
+// wantsContributorGuide detects queries explicitly asking for the contributor
+// guide / contributing docs. README.md should not beat CONTRIBUTING.md here,
+// no matter how dense its content.
+func wantsContributorGuide(q string) bool {
+	markers := []string{
+		"contributor guide", "contributors guide",
+		"contributor guidelines", "contributing guide",
+		"contributing guidelines", "contribution guide",
+		"how to contribute", "how do i contribute",
+		"contributor docs", "contributors documentation",
+		"contributing docs", "contributing documentation",
+	}
+	for _, m := range markers {
+		if strings.Contains(q, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// wantsOverview detects queries asking for the project's high-level summary —
+// the canonical answer is the root README, not a content-dense CONTRIBUTING.
+func wantsOverview(q string) bool {
+	markers := []string{
+		"what is this project", "what does this project",
+		"what is this repo", "what does this repo",
+		"about this project", "about the project",
+		"about this repo", "about the repo",
+		"project overview", "repo overview", "high level overview",
+		"summary of the project", "what is this thing",
+		"what does it do", "what does this do",
+		"project description", "describe this project",
+	}
+	for _, m := range markers {
+		if strings.Contains(q, m) {
+			return true
+		}
+	}
+	return false
 }
 
 func wantsOnboarding(q string) bool {

@@ -120,6 +120,43 @@ func ExpandedQueryText(query string) string {
 	if strings.Contains(queryLower, "session evidence") || strings.Contains(queryLower, "session-evidence") || strings.Contains(queryLower, "min chars") || strings.Contains(queryLower, "min-chars") {
 		add("session", "evidence", "session-evidence", "min", "chars", "minimum", "character", "characters", "default", "threshold")
 	}
+	// Security intent → pull SECURITY.md into the candidate set even when the
+	// user's exact wording (exploit, cve, "who do I email") doesn't appear in the
+	// security policy text. Without these aliases, FTS doesn't surface SECURITY.md
+	// and the sourcequality +5 prior can't take effect.
+	if strings.Contains(queryLower, "exploit") ||
+		strings.Contains(queryLower, "cve") ||
+		strings.Contains(queryLower, "vuln") ||
+		strings.Contains(queryLower, "vulnerability") ||
+		strings.Contains(queryLower, "disclosure") ||
+		strings.Contains(queryLower, "security") {
+		add("security", "vulnerability", "disclosure", "policy", "reporting", "advisory", "responsible", "report", "contact", "contacts")
+	}
+	// Onboarding / contributor intent → ensure CONTRIBUTING* gets pulled in for
+	// queries that use morphological variants ("contributor", "contributors",
+	// "contribution") which FTS does not stem to "contributing".
+	if strings.Contains(queryLower, "contributor") ||
+		strings.Contains(queryLower, "contributors") ||
+		strings.Contains(queryLower, "contribution") ||
+		strings.Contains(queryLower, "contribute") {
+		add("contributing", "contributor", "contributors", "contribute", "contribution", "guide", "guidelines")
+	}
+	// Bug-report / "who do I talk to" → contributing or security is the right
+	// place; expand to give both classes a chance to surface.
+	if strings.Contains(queryLower, "found a bug") ||
+		strings.Contains(queryLower, "report a bug") ||
+		strings.Contains(queryLower, "who do i talk to") ||
+		strings.Contains(queryLower, "who do i email") ||
+		strings.Contains(queryLower, "who to email") ||
+		strings.Contains(queryLower, "where do i report") {
+		add("contributing", "contribute", "issue", "issues", "bug", "report", "reporting", "tracker")
+	}
+	// Release intent → expand so docs in dedicated release/ subtrees get found.
+	if strings.Contains(queryLower, "release") ||
+		strings.Contains(queryLower, "cut a version") ||
+		strings.Contains(queryLower, "publish") {
+		add("release", "release-notes", "publish", "publishing", "version", "tag", "changelog")
+	}
 	terms = uniqueStrings(terms)
 	if len(terms) == 0 {
 		return query
