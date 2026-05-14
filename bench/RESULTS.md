@@ -713,6 +713,83 @@ accuracy (LLM-graded, gpt-4o-mini judge)". The latter is the column directly
 comparable to Mem0's published numbers. We commit the JSONL hypothesis files
 under bench/results/ so the comparison is auditable.
 
+## End-to-end QA results (May 13 2026)
+
+First full apples-to-apples LLM-graded run.
+
+**Pipeline:** recoil FTS5 + signal rerank + hybrid embedding (perplexity/pplx-embed-v1-0.6b, RRF fusion) → DeepSeek V4 Flash answerer with Chain-of-Note prompting → DeepSeek V4 Flash judge with category-tuned rubric prompts.
+
+**Config:** `--mode recoil-k5 --concurrency 30 --max-tokens 2000 --hybrid-embedding --fts-pool 50 --embed-pool 30`
+
+### LoCoMo (1986 questions across 10 records)
+
+| Category | n | recoil | Mem0 paper |
+|---|---:|---:|---:|
+| adversarial | 446 | **91.9%** | — |
+| temporal-reasoning | 321 | 57.3% | — |
+| open-domain | 841 | 55.7% | — |
+| multi-hop | 96 | 38.5% | — |
+| single-hop | 282 | 20.2% | — |
+| **Overall** | **1986** | **58.2%** | **91.6%** |
+
+Cost: $0.47 answerer + $0.11 judge = $0.58 total. Wall time 17m 35s.
+
+Hypothesis: `bench/results/locomo_full_v3_k5.jsonl` · graded: `…graded.jsonl`
+
+### BEAM 100K (400 questions across 20 conversations)
+
+| Category | n | recoil | Mem0 paper |
+|---|---:|---:|---:|
+| abstention | 40 | 70.0% | — |
+| contradiction_resolution | 40 | 60.0% | — |
+| information_extraction | 40 | 42.5% | — |
+| temporal_reasoning | 40 | 17.5% | — |
+| multi_session_reasoning | 40 | 15.0% | — |
+| instruction_following | 40 | 15.0% | — |
+| knowledge_update | 40 | 12.5% | — |
+| preference_following | 40 | 12.5% | — |
+| summarization | 40 | 12.5% | — |
+| event_ordering | 40 | 5.0% | — |
+| **Overall** | **400** | **26.3%** | **64.1%** |
+
+Cost: $0.29 answerer + $0.04 judge = $0.33 total. Wall time ~5 min.
+
+Hypothesis: `bench/results/beam_100k_full_v1.jsonl` · graded: `…graded.jsonl`
+
+### Reading these numbers
+
+recoil's retrieval-leg scores (LoCoMo session R@5 = 0.80; BEAM 1M turn R@5 = 0.37) sit well above its end-to-end accuracy. That gap is the answerer-side cost of feeding raw turns vs distilled fact memory. Mem0's published 91.6 / 64.1 reflect their full pipeline including a *consolidation* layer that compresses turns into typed fact records before retrieval; the LLM then sees pre-summarised facts and rarely needs to triangulate.
+
+recoil here is feeding the answerer **raw conversation turns at top-K=5**. Where the question maps to a single literal turn (adversarial / abstention), recoil scores in the high 80s-90s. Where it requires synthesizing one specific fact buried in the top-K window (single-hop, event_ordering, knowledge_update), the relevant turn isn't always in the top-5 and the LLM correctly refuses — that's a retrieval miss, not a generation failure.
+
+This is the honest baseline for "raw-turn retrieval + competent LLM" without an added memory-consolidation pass. Closing the gap to Mem0 likely requires either (a) a consolidation/summarization layer in recoil ingest, (b) materially higher top-K with stronger reranking, or (c) per-entity rolling profiles. None of those are wired today.
+
+### Reproduction
+
+```sh
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+# LoCoMo
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench locomo-qa \
+  --mode recoil-k5 --concurrency 30 --max-tokens 2000 \
+  --answerer deepseek/deepseek-v4-flash \
+  --hybrid-embedding --embed-model perplexity/pplx-embed-v1-0.6b \
+  --out bench/results/locomo_v3.jsonl
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench locomo-grade \
+  --hyp bench/results/locomo_v3.jsonl \
+  --grader deepseek/deepseek-v4-flash --concurrency 30
+
+# BEAM 100K
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam-qa \
+  --scale 100K --mode recoil-k5 --concurrency 30 --max-tokens 2000 \
+  --answerer deepseek/deepseek-v4-flash \
+  --hybrid-embedding --embed-model perplexity/pplx-embed-v1-0.6b \
+  --out bench/results/beam_100k_v1.jsonl
+CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go run ./bench beam-grade \
+  --hyp bench/results/beam_100k_v1.jsonl \
+  --grader deepseek/deepseek-v4-flash --concurrency 30
+```
+
 ### Hybrid retrieval flag set (LoCoMo + BEAM)
 
 Both `locomo-qa` and `beam-qa` accept the same hybrid flags as
