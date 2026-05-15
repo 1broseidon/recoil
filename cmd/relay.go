@@ -67,6 +67,11 @@ and use the relay only as a durable machine-to-machine pipe.`,
 	}
 	c.AddCommand(newRelayServeCommand())
 	c.AddCommand(newRelayInviteCommand())
+	c.AddCommand(newRelayStatusCommand())
+	c.AddCommand(newRelayMemberCommand())
+	c.AddCommand(newRelayChannelCommand())
+	c.AddCommand(newRelaySetupCommand())
+	c.AddCommand(newRelayDoctorCommand())
 	return c
 }
 
@@ -128,6 +133,7 @@ func newRelayInviteCommand() *cobra.Command {
 	c.Flags().StringVar(&inviteOpts.channel, "channel", "default", "channel name or id")
 	c.Flags().StringVar(&inviteOpts.relayURL, "relay-url", "http://localhost:8787", "externally reachable relay URL")
 	c.Flags().DurationVar(&inviteOpts.ttl, "ttl", 24*time.Hour, "invite lifetime")
+	c.AddCommand(newRelayInviteListCommand(), newRelayInviteStatusCommand(), newRelayInviteRevokeCommand())
 	return c
 }
 
@@ -447,6 +453,9 @@ func authenticateRelayRequest(r *http.Request, body []byte, channelDir string) (
 	card, err := relayRosterCard(channelDir, nodeID)
 	if err != nil {
 		return channelpkg.RosterCard{}, fmt.Errorf("node is not registered for channel")
+	}
+	if relayLastSeenStale(card.LastSeen, defaultRelayStaleAfter) {
+		return channelpkg.RosterCard{}, fmt.Errorf("node roster card is stale")
 	}
 	if err := channelpkg.VerifyRequest(r.Method, relayRequestTarget(r), timestamp, body, card.PublicKey, signature); err != nil {
 		return channelpkg.RosterCard{}, err

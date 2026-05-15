@@ -201,6 +201,110 @@ func TestRelayPublishesAndSyncsBetweenTwoDatabases(t *testing.T) {
 	}
 }
 
+func TestRelayRefreshImportsNewArtifactsAndReportsPeerDelta(t *testing.T) {
+	relayData := t.TempDir()
+	server := httptest.NewServer(newRelayHandler(relayData))
+	defer server.Close()
+
+	scopeID := "relay-refresh"
+	dbA := filepath.Join(t.TempDir(), "a.db")
+	dbB := filepath.Join(t.TempDir(), "b.db")
+	ctx := context.Background()
+
+	stA, err := store.Open(dbA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := stA.AddMemory(ctx, store.AddMemoryParams{
+		Role:      "decision",
+		Content:   "Relay refresh imports peer artifacts before context composition.",
+		ScopeKind: "session",
+		ScopeID:   scopeID,
+		Validity:  "active",
+		ClaimKey:  "relay.refresh",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := stA.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	inviteA, _, err := createRelayInvite(relayData, "agents", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runChannelCommandWithDB(t, dbA, "join", "--session", scopeID, "--agent", "alpha", server.URL+"/v1/invites/"+inviteA.Token)
+	runChannelCommandWithDB(t, dbA, "publish", "--claim-key", "relay.refresh")
+
+	inviteB, _, err := createRelayInvite(relayData, "agents", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runChannelCommandWithDB(t, dbB, "join", "--session", scopeID, "--agent", "beta", server.URL+"/v1/invites/"+inviteB.Token)
+
+	refresh := runChannelCommandWithDB(t, dbB, "refresh")
+	for _, want := range []string{"imported: 1", "new_peers: 1", "agent=alpha"} {
+		if !strings.Contains(refresh, want) {
+			t.Fatalf("expected %q in refresh output:\n%s", want, refresh)
+		}
+	}
+	second := runChannelCommandWithDB(t, dbB, "refresh")
+	if !strings.Contains(second, "imported: 0") || !strings.Contains(second, "new_peers: 0") {
+		t.Fatalf("expected cursor-backed no-op refresh, got:\n%s", second)
+	}
+}
+
+func TestChannelPublishPrecisionDryRunAndClaimKey(t *testing.T) {
+	channelDir := t.TempDir()
+	scopeID := "publish-precision"
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	ctx := context.Background()
+
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:      "decision",
+		Content:   "Publish this exact claim-keyed decision.",
+		ScopeKind: "session",
+		ScopeID:   scopeID,
+		Validity:  "active",
+		ClaimKey:  "publish.precise",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:      "decision",
+		Content:   "This decision intentionally lacks a claim key.",
+		ScopeKind: "session",
+		ScopeID:   scopeID,
+		Validity:  "active",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	runChannelCommandWithDB(t, dbPath, "join", "--session", scopeID, "--agent", "alpha", "--name", "demo", channelDir)
+	preview := runChannelCommandWithDB(t, dbPath, "publish", "--dry-run")
+	if !strings.Contains(preview, "planned: 1") || !strings.Contains(preview, "dry_run: true") {
+		t.Fatalf("expected default dry-run to plan only claim-keyed memory, got:\n%s", preview)
+	}
+	events, err := channelpkg.ReadEvents(channelDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("dry-run wrote %d events", len(events))
+	}
+	publish := runChannelCommandWithDB(t, dbPath, "publish", "--claim-key", "publish.precise")
+	if !strings.Contains(publish, "published: 1") {
+		t.Fatalf("expected claim-key publish, got:\n%s", publish)
+	}
+}
+
 func TestRelayRequiresSignedRequests(t *testing.T) {
 	relayData := t.TempDir()
 	server := httptest.NewServer(newRelayHandler(relayData))
@@ -323,6 +427,32 @@ func TestRelayInviteIsSingleUseUnderConcurrentJoins(t *testing.T) {
 	}
 }
 
+func TestRelayOperatorLifecycleCommands(t *testing.T) {
+	relayData := t.TempDir()
+	invite, manifest, err := createRelayInvite(relayData, "ops", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := runRelayCommand(t, "status", "--data", relayData)
+	for _, want := range []string{"channel_count: 1", "outstanding_invites: 1"} {
+		if !strings.Contains(status, want) {
+			t.Fatalf("expected %q in status output:\n%s", want, status)
+		}
+	}
+	inviteStatus := runRelayCommand(t, "invite", "status", "--data", relayData, invite.Token)
+	if !strings.Contains(inviteStatus, "status: outstanding") {
+		t.Fatalf("expected outstanding invite, got:\n%s", inviteStatus)
+	}
+	revoked := runRelayCommand(t, "invite", "revoke", "--data", relayData, invite.Token)
+	if !strings.Contains(revoked, "status: revoked") {
+		t.Fatalf("expected revoked invite, got:\n%s", revoked)
+	}
+	inspect := runRelayCommand(t, "channel", "inspect", "--data", relayData, manifest.ChannelID)
+	if !strings.Contains(inspect, "name: ops") {
+		t.Fatalf("expected inspected channel, got:\n%s", inspect)
+	}
+}
+
 func runChannelCommandWithDB(t *testing.T, dbPath string, args ...string) string {
 	t.Helper()
 	oldOpts := opts
@@ -330,6 +460,23 @@ func runChannelCommandWithDB(t *testing.T, dbPath string, args ...string) string
 	defer func() { opts = oldOpts }()
 
 	c := newChannelCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs(args)
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
+}
+
+func runRelayCommand(t *testing.T, args ...string) string {
+	t.Helper()
+	oldOpts := opts
+	opts = globalOptions{}
+	defer func() { opts = oldOpts }()
+
+	c := newRelayCommand()
 	var out bytes.Buffer
 	c.SetOut(&out)
 	c.SetErr(&bytes.Buffer{})

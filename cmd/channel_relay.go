@@ -112,9 +112,17 @@ func relayUpdateRoster(ctx context.Context, ch store.ChannelSubscription, identi
 }
 
 func relayReadEvents(ctx context.Context, ch store.ChannelSubscription, identity store.ChannelIdentity) ([]channelpkg.MemoryArtifactEvent, error) {
+	events, _, err := relayReadEventsAfter(ctx, ch, identity, 0)
+	return events, err
+}
+
+func relayReadEventsAfter(ctx context.Context, ch store.ChannelSubscription, identity store.ChannelIdentity, after int) ([]channelpkg.MemoryArtifactEvent, int, error) {
+	if after < 0 {
+		after = 0
+	}
 	var response relayEventsResponse
-	err := relayDoSigned(ctx, http.MethodGet, ch, "/v1/channels/"+ch.ChannelID+"/events", "after=0", identity, nil, &response)
-	return response.Events, err
+	err := relayDoSigned(ctx, http.MethodGet, ch, "/v1/channels/"+ch.ChannelID+"/events", fmt.Sprintf("after=%d", after), identity, nil, &response)
+	return response.Events, response.Cursor, err
 }
 
 func relayAppendEvent(ctx context.Context, ch store.ChannelSubscription, identity store.ChannelIdentity, event channelpkg.MemoryArtifactEvent) (bool, error) {

@@ -180,12 +180,19 @@ The current experimental path is:
   a channel.
 - `recoil channel join <invite-url>` registers the local node key with the
   relay and stores the channel subscription locally.
-- `recoil channel publish` writes selected current guidance memories as signed
-  artifact events.
+- `recoil wake` refreshes joined channels with a short fail-soft timeout before
+  composing context.
+- `recoil channel refresh` explicitly refreshes roster state and imports new
+  artifact events since the local cursor.
+- `recoil channel publish --claim-key/--id/--since --dry-run` writes precise
+  signed artifact events instead of broad accidental batches.
 - `recoil channel roster` shows the channel's verified peer roster and artifact
   index.
 - `recoil channel sync` imports remote artifacts into the local scope with
   `source_kind: remote_artifact` and provenance metadata.
+- `recoil relay status`, `relay invite list/status/revoke`, `relay member
+  list/kick`, `relay channel create/inspect`, `relay setup`, and `relay doctor`
+  expose the relay lifecycle without filesystem surgery.
 
 MCP remains a local query/access bridge. Channel relay is the distribution
 plane. A future Cloudflare Worker should host the same signed channel log API
@@ -193,16 +200,15 @@ without becoming the source of truth.
 
 Access on the relay is keyed by the node's ed25519 roster card, not by the
 invite. Invites are strictly one-time bootstraps; once a roster card is on the
-relay, the node can publish, sync, and read indefinitely by signing requests
-with its private key. Open gaps to address before the relay is more than V0:
+relay, the node can publish, refresh, sync, and read by signing requests with
+its private key until an operator kicks the member or the roster card ages out.
+Open gaps to address before the relay is more than V0:
 
-- No revocation. Removing a node today means manually deleting its
-  `roster/<node_id>.json` file on the relay; there is no kick command, no
-  revocation list, and no signed tombstone propagated to peers.
-- No idle/expiry policy. `last_seen` is informational; a node that has not
-  checked in for months still authenticates.
 - No key rotation. A node's keypair is generated once per local database; if
-  the private key leaks, the only mitigation is operator-side roster deletion.
+  the private key leaks, the operator-side mitigation is member kick plus
+  re-join under a new identity.
+- TLS is still expected at the reverse proxy or tunnel layer. The relay warns
+  on plain HTTP but does not terminate TLS itself.
 
 ## Stale Memory Rule
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	channelpkg "github.com/1broseidon/recoil/internal/channel"
 	"github.com/1broseidon/recoil/internal/store"
@@ -21,12 +22,21 @@ type channelPublishOptions struct {
 	channel       string
 	limit         int
 	roles         []string
+	claimKeys     []string
+	ids           []string
+	since         time.Duration
 	all           bool
 	includeRemote bool
+	dryRun        bool
 }
 
 type channelSyncOptions struct {
 	channel string
+}
+
+type channelRefreshOptions struct {
+	channel string
+	timeout time.Duration
 }
 
 type channelRosterOptions struct {
@@ -47,7 +57,9 @@ type channelJoinResult struct {
 type channelPublishResult struct {
 	ChannelID string                           `json:"channel_id"`
 	Published int                              `json:"published"`
+	Planned   int                              `json:"planned,omitempty"`
 	Skipped   int                              `json:"skipped"`
+	DryRun    bool                             `json:"dry_run,omitempty"`
 	Events    []channelpkg.MemoryArtifactEvent `json:"events"`
 }
 
@@ -67,6 +79,21 @@ type channelSyncResult struct {
 	Imports          []channelSyncImport `json:"imports"`
 }
 
+type channelRefreshResult struct {
+	ChannelID        string              `json:"channel_id"`
+	Name             string              `json:"name,omitempty"`
+	RosterCount      int                 `json:"roster_count"`
+	EventCursor      int                 `json:"event_cursor"`
+	Imported         int                 `json:"imported"`
+	SkippedSelf      int                 `json:"skipped_self"`
+	SkippedDuplicate int                 `json:"skipped_duplicate"`
+	SkippedInvalid   int                 `json:"skipped_invalid"`
+	NewPeers         []store.ChannelPeer `json:"new_peers,omitempty"`
+	MissingPeers     []store.ChannelPeer `json:"missing_peers,omitempty"`
+	Imports          []channelSyncImport `json:"imports,omitempty"`
+	Error            string              `json:"error,omitempty"`
+}
+
 func newChannelCommand() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "channel",
@@ -82,6 +109,7 @@ as remote evidence, and each node keeps its own local memory projection.`,
 	c.AddCommand(newChannelRosterCommand())
 	c.AddCommand(newChannelPublishCommand())
 	c.AddCommand(newChannelSyncCommand())
+	c.AddCommand(newChannelRefreshCommand())
 	return c
 }
 
@@ -269,30 +297,33 @@ func newChannelPublishCommand() *cobra.Command {
 			if _, err := loadJoinedChannelManifest(ctx, ch); err != nil {
 				return err
 			}
-			card := channelpkg.BuildRosterCard(ch, identity)
-			if isRelayTarget(ch.Path) {
-				if err := channelpkg.SignRosterCard(&card, identity.PrivateKey); err != nil {
+			if !publishOpts.dryRun {
+				card := channelpkg.BuildRosterCard(ch, identity)
+				if isRelayTarget(ch.Path) {
+					if err := channelpkg.SignRosterCard(&card, identity.PrivateKey); err != nil {
+						return err
+					}
+					if err := relayUpdateRoster(ctx, ch, identity, card); err != nil {
+						return err
+					}
+				} else if err := channelpkg.WriteRosterCard(ch.Path, card, identity.PrivateKey); err != nil {
 					return err
 				}
-				if err := relayUpdateRoster(ctx, ch, identity, card); err != nil {
-					return err
-				}
-			} else if err := channelpkg.WriteRosterCard(ch.Path, card, identity.PrivateKey); err != nil {
-				return err
 			}
-			memories, err := st.List(ctx, store.ListParams{
-				ScopeKind: ch.ScopeKind,
-				ScopeID:   ch.ScopeID,
-				Limit:     publishOpts.limit,
-				Lifecycle: store.LifecycleCurrent,
-			})
+			memories, err := channelPublishCandidates(ctx, st, ch, publishOpts)
 			if err != nil {
 				return err
 			}
-			result := channelPublishResult{ChannelID: ch.ChannelID}
+			result := channelPublishResult{ChannelID: ch.ChannelID, DryRun: publishOpts.dryRun}
 			roleSet := publishRoleSet(publishOpts.roles, publishOpts.all)
+			defaultSelection := len(publishOpts.ids) == 0 && len(publishOpts.claimKeys) == 0 && publishOpts.since == 0 && !publishOpts.all
+			roleFilteredSelection := !publishOpts.all && (len(publishOpts.roles) > 0 || (len(publishOpts.ids) == 0 && len(publishOpts.claimKeys) == 0))
 			for _, mem := range memories {
-				if !publishOpts.all && !roleSet[strings.ToLower(strings.TrimSpace(mem.Role))] {
+				if roleFilteredSelection && !roleSet[strings.ToLower(strings.TrimSpace(mem.Role))] {
+					result.Skipped++
+					continue
+				}
+				if defaultSelection && strings.TrimSpace(mem.ClaimKey) == "" {
 					result.Skipped++
 					continue
 				}
@@ -303,6 +334,11 @@ func newChannelPublishCommand() *cobra.Command {
 				event := channelpkg.NewMemoryArtifactEvent(ch, identity, mem)
 				if err := channelpkg.SignMemoryArtifactEvent(&event, identity.PrivateKey); err != nil {
 					return err
+				}
+				if publishOpts.dryRun {
+					result.Planned++
+					result.Events = append(result.Events, event)
+					continue
 				}
 				duplicate, err := appendChannelEvent(ctx, ch, identity, event)
 				if err != nil {
@@ -321,15 +357,21 @@ func newChannelPublishCommand() *cobra.Command {
 			return frontmatter(cmd.OutOrStdout(), []kv{
 				{k: "channel_id", v: result.ChannelID},
 				{k: "published", v: fmt.Sprintf("%d", result.Published)},
+				{k: "planned", v: fmt.Sprintf("%d", result.Planned)},
 				{k: "skipped", v: fmt.Sprintf("%d", result.Skipped)},
+				{k: "dry_run", v: fmt.Sprintf("%t", result.DryRun)},
 			}, channelPublishedBlocks(result.Events))
 		},
 	}
 	c.Flags().StringVar(&publishOpts.channel, "channel", "", "channel id, name, or path")
 	c.Flags().IntVar(&publishOpts.limit, "limit", 100, "maximum local memories to consider")
 	c.Flags().StringSliceVar(&publishOpts.roles, "role", nil, "memory role to publish; repeat or comma-separate")
+	c.Flags().StringSliceVar(&publishOpts.claimKeys, "claim-key", nil, "publish memories with this claim key; repeat or comma-separate")
+	c.Flags().StringSliceVar(&publishOpts.ids, "id", nil, "publish a specific memory id or prefix; repeat or comma-separate")
+	c.Flags().DurationVar(&publishOpts.since, "since", 0, "publish current memories created within this duration")
 	c.Flags().BoolVar(&publishOpts.all, "all", false, "publish all current local memories in the joined scope")
 	c.Flags().BoolVar(&publishOpts.includeRemote, "include-remote", false, "allow republishing imported remote artifacts")
+	c.Flags().BoolVar(&publishOpts.dryRun, "dry-run", false, "preview publish candidates without writing to the channel")
 	return c
 }
 
@@ -375,6 +417,44 @@ func newChannelSyncCommand() *cobra.Command {
 	return c
 }
 
+func newChannelRefreshCommand() *cobra.Command {
+	var refreshOpts channelRefreshOptions
+	c := &cobra.Command{
+		Use:   "refresh",
+		Short: "Refresh channel roster and import new remote artifacts",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			st, _, err := openStore()
+			if err != nil {
+				return err
+			}
+			defer st.Close()
+			ctx := context.Background()
+			if refreshOpts.timeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, refreshOpts.timeout)
+				defer cancel()
+			}
+			identity, err := st.GetOrCreateChannelIdentity(ctx)
+			if err != nil {
+				return err
+			}
+			channels, err := resolveChannelSubscriptions(ctx, st, refreshOpts.channel, true)
+			if err != nil {
+				return err
+			}
+			results := refreshChannels(ctx, st, identity, channels)
+			if opts.json {
+				return writeJSON(cmd.OutOrStdout(), "channel_refresh_result", results)
+			}
+			return writeChannelRefresh(cmd, results)
+		},
+	}
+	c.Flags().StringVar(&refreshOpts.channel, "channel", "", "channel id, name, or path")
+	c.Flags().DurationVar(&refreshOpts.timeout, "timeout", 5*time.Second, "maximum time to spend refreshing channels")
+	return c
+}
+
 func resolveChannelSubscriptions(ctx context.Context, st *store.Store, selector string, allWhenEmpty bool) ([]store.ChannelSubscription, error) {
 	if strings.TrimSpace(selector) != "" || !allWhenEmpty {
 		ch, err := st.ResolveChannelSubscription(ctx, selector)
@@ -412,6 +492,78 @@ func syncChannel(ctx context.Context, st *store.Store, identity store.ChannelIde
 	if err != nil {
 		return channelSyncResult{}, err
 	}
+	return syncChannelEvents(ctx, st, identity, ch, events)
+}
+
+func refreshChannels(ctx context.Context, st *store.Store, identity store.ChannelIdentity, channels []store.ChannelSubscription) []channelRefreshResult {
+	results := make([]channelRefreshResult, 0, len(channels))
+	for _, ch := range channels {
+		results = append(results, refreshChannel(ctx, st, identity, ch))
+	}
+	return results
+}
+
+func refreshChannel(ctx context.Context, st *store.Store, identity store.ChannelIdentity, ch store.ChannelSubscription) channelRefreshResult {
+	result := channelRefreshResult{
+		ChannelID: ch.ChannelID,
+		Name:      ch.Name,
+	}
+	if _, err := loadJoinedChannelManifest(ctx, ch); err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	card := channelpkg.BuildRosterCard(ch, identity)
+	if isRelayTarget(ch.Path) {
+		if err := channelpkg.SignRosterCard(&card, identity.PrivateKey); err != nil {
+			result.Error = err.Error()
+			return result
+		}
+		if err := relayUpdateRoster(ctx, ch, identity, card); err != nil {
+			result.Error = err.Error()
+			return result
+		}
+	} else if err := channelpkg.WriteRosterCard(ch.Path, card, identity.PrivateKey); err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	roster, err := readChannelRoster(ctx, ch, identity)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	result.RosterCount = len(roster)
+	peers := channelPeersFromRoster(ch.ChannelID, identity.NodeID, roster)
+	delta, err := st.RecordChannelPeers(ctx, ch.ChannelID, peers)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	result.NewPeers = delta.NewPeers
+	result.MissingPeers = delta.MissingPeers
+
+	events, cursor, err := readChannelEventsSinceCursor(ctx, st, ch, identity)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	syncResult, err := syncChannelEvents(ctx, st, identity, ch, events)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	result.EventCursor = cursor
+	result.Imported = syncResult.Imported
+	result.SkippedSelf = syncResult.SkippedSelf
+	result.SkippedDuplicate = syncResult.SkippedDuplicate
+	result.SkippedInvalid = syncResult.SkippedInvalid
+	result.Imports = syncResult.Imports
+	if err := st.RecordChannelRefresh(ctx, ch.ChannelID, cursor); err != nil {
+		result.Error = err.Error()
+	}
+	return result
+}
+
+func syncChannelEvents(ctx context.Context, st *store.Store, identity store.ChannelIdentity, ch store.ChannelSubscription, events []channelpkg.MemoryArtifactEvent) (channelSyncResult, error) {
 	result := channelSyncResult{ChannelID: ch.ChannelID}
 	for _, event := range events {
 		if event.ChannelID != ch.ChannelID {
@@ -482,6 +634,114 @@ func syncChannel(ctx context.Context, st *store.Store, identity store.ChannelIde
 		})
 	}
 	return result, nil
+}
+
+func readChannelEventsSinceCursor(ctx context.Context, st *store.Store, ch store.ChannelSubscription, identity store.ChannelIdentity) ([]channelpkg.MemoryArtifactEvent, int, error) {
+	if isRelayTarget(ch.Path) {
+		state, err := st.ChannelRefreshState(ctx, ch.ChannelID)
+		if err != nil {
+			return nil, 0, err
+		}
+		return relayReadEventsAfter(ctx, ch, identity, state.EventCursor)
+	}
+	events, err := channelpkg.ReadEvents(ch.Path)
+	if err != nil {
+		return nil, 0, err
+	}
+	state, err := st.ChannelRefreshState(ctx, ch.ChannelID)
+	if err != nil {
+		return nil, 0, err
+	}
+	after := state.EventCursor
+	if after < 0 {
+		after = 0
+	}
+	if after > len(events) {
+		after = len(events)
+	}
+	return events[after:], len(events), nil
+}
+
+func channelPublishCandidates(ctx context.Context, st *store.Store, ch store.ChannelSubscription, opts channelPublishOptions) ([]store.Memory, error) {
+	ids := splitCSV(opts.ids)
+	if len(ids) > 0 {
+		seen := map[string]bool{}
+		memories := make([]store.Memory, 0, len(ids))
+		for _, id := range ids {
+			mem, err := st.GetMemory(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if mem.ScopeKind != ch.ScopeKind || mem.ScopeID != ch.ScopeID {
+				return nil, fmt.Errorf("memory %s is outside channel scope %s:%s", mem.ID, ch.ScopeKind, ch.ScopeID)
+			}
+			if seen[mem.ID] {
+				continue
+			}
+			seen[mem.ID] = true
+			memories = append(memories, *mem)
+		}
+		return memories, nil
+	}
+
+	params := store.ListParams{
+		ScopeKind: ch.ScopeKind,
+		ScopeID:   ch.ScopeID,
+		Limit:     opts.limit,
+		Lifecycle: store.LifecycleCurrent,
+	}
+	if opts.since > 0 {
+		params.Since = time.Now().UTC().Add(-opts.since).Format(time.RFC3339)
+	}
+	memories, err := st.List(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	claimKeys := splitCSV(opts.claimKeys)
+	if len(claimKeys) == 0 {
+		return memories, nil
+	}
+	allowed := map[string]bool{}
+	for _, key := range claimKeys {
+		allowed[key] = true
+	}
+	filtered := make([]store.Memory, 0, len(memories))
+	for _, mem := range memories {
+		if allowed[strings.TrimSpace(mem.ClaimKey)] {
+			filtered = append(filtered, mem)
+		}
+	}
+	return filtered, nil
+}
+
+func splitCSV(values []string) []string {
+	var out []string
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				out = append(out, part)
+			}
+		}
+	}
+	return out
+}
+
+func channelPeersFromRoster(channelID, selfNodeID string, roster []channelpkg.RosterCard) []store.ChannelPeer {
+	peers := make([]store.ChannelPeer, 0, len(roster))
+	for _, card := range roster {
+		if card.NodeID == selfNodeID {
+			continue
+		}
+		peers = append(peers, store.ChannelPeer{
+			ChannelID: channelID,
+			NodeID:    card.NodeID,
+			Agent:     card.Agent,
+			LastSeen:  card.LastSeen,
+			Present:   true,
+		})
+	}
+	return peers
 }
 
 func readChannelRoster(ctx context.Context, ch store.ChannelSubscription, identity store.ChannelIdentity) ([]channelpkg.RosterCard, error) {
@@ -646,6 +906,60 @@ func writeChannelSync(cmd *cobra.Command, results []channelSyncResult) error {
 	return frontmatter(cmd.OutOrStdout(), []kv{
 		{k: "channel_count", v: fmt.Sprintf("%d", len(results))},
 		{k: "imported", v: fmt.Sprintf("%d", imported)},
+	}, b.String())
+}
+
+func writeChannelRefresh(cmd *cobra.Command, results []channelRefreshResult) error {
+	var b strings.Builder
+	imported := 0
+	newPeers := 0
+	missingPeers := 0
+	errors := 0
+	for _, result := range results {
+		imported += result.Imported
+		newPeers += len(result.NewPeers)
+		missingPeers += len(result.MissingPeers)
+		if result.Error != "" {
+			errors++
+		}
+		fmt.Fprintf(&b, "## Channel %s\n", firstNonEmpty(result.Name, result.ChannelID))
+		fmt.Fprintf(&b, "channel_id: %s\nroster_count: %d\nevent_cursor: %d\nimported: %d\nskipped_self: %d\nskipped_duplicate: %d\nskipped_invalid: %d\n",
+			result.ChannelID, result.RosterCount, result.EventCursor, result.Imported, result.SkippedSelf, result.SkippedDuplicate, result.SkippedInvalid)
+		if result.Error != "" {
+			fmt.Fprintf(&b, "error: %s\n", result.Error)
+		}
+		b.WriteByte('\n')
+		if len(result.NewPeers) > 0 {
+			b.WriteString("### New peers\n")
+			for _, peer := range result.NewPeers {
+				fmt.Fprintf(&b, "- %s agent=%s last_seen=%s\n", peer.NodeID, firstNonEmpty(peer.Agent, "unknown"), peer.LastSeen)
+			}
+			b.WriteByte('\n')
+		}
+		if len(result.MissingPeers) > 0 {
+			b.WriteString("### Missing peers\n")
+			for _, peer := range result.MissingPeers {
+				fmt.Fprintf(&b, "- %s agent=%s last_seen=%s\n", peer.NodeID, firstNonEmpty(peer.Agent, "unknown"), peer.LastSeen)
+			}
+			b.WriteByte('\n')
+		}
+		for _, item := range result.Imports {
+			fmt.Fprintf(&b, "- imported %s -> %s", item.ArtifactID, item.MemoryID)
+			if item.Reason != "" {
+				fmt.Fprintf(&b, " (%s)", item.Reason)
+			}
+			b.WriteByte('\n')
+		}
+		if len(result.Imports) > 0 {
+			b.WriteByte('\n')
+		}
+	}
+	return frontmatter(cmd.OutOrStdout(), []kv{
+		{k: "channel_count", v: fmt.Sprintf("%d", len(results))},
+		{k: "imported", v: fmt.Sprintf("%d", imported)},
+		{k: "new_peers", v: fmt.Sprintf("%d", newPeers)},
+		{k: "missing_peers", v: fmt.Sprintf("%d", missingPeers)},
+		{k: "errors", v: fmt.Sprintf("%d", errors)},
 	}, b.String())
 }
 

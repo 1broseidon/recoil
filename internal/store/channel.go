@@ -58,6 +58,26 @@ type ChannelImportParams struct {
 	SkippedReason string
 }
 
+type ChannelPeer struct {
+	ChannelID string `json:"channel_id"`
+	NodeID    string `json:"node_id"`
+	Agent     string `json:"agent,omitempty"`
+	LastSeen  string `json:"last_seen,omitempty"`
+	SeenAt    string `json:"seen_at,omitempty"`
+	Present   bool   `json:"present"`
+}
+
+type ChannelPeerDelta struct {
+	NewPeers     []ChannelPeer `json:"new_peers,omitempty"`
+	MissingPeers []ChannelPeer `json:"missing_peers,omitempty"`
+}
+
+type ChannelRefreshState struct {
+	ChannelID       string `json:"channel_id"`
+	EventCursor     int    `json:"event_cursor"`
+	LastRefreshedAt string `json:"last_refreshed_at,omitempty"`
+}
+
 func (s *Store) ensureChannelTables() error {
 	for _, stmt := range []string{
 		`CREATE TABLE IF NOT EXISTS channel_identities (
@@ -88,8 +108,23 @@ func (s *Store) ensureChannelTables() error {
 			imported_at TEXT NOT NULL,
 			skipped_reason TEXT
 		)`,
+		`CREATE TABLE IF NOT EXISTS channel_peers (
+			channel_id TEXT NOT NULL,
+			node_id TEXT NOT NULL,
+			agent TEXT,
+			last_seen TEXT,
+			seen_at TEXT NOT NULL,
+			present INTEGER NOT NULL DEFAULT 1,
+			PRIMARY KEY(channel_id, node_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS channel_refresh_state (
+			channel_id TEXT PRIMARY KEY,
+			event_cursor INTEGER NOT NULL DEFAULT 0,
+			last_refreshed_at TEXT NOT NULL
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_channel_subscriptions_name ON channel_subscriptions(name)`,
 		`CREATE INDEX IF NOT EXISTS idx_channel_imports_channel ON channel_imports(channel_id, artifact_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_channel_peers_channel ON channel_peers(channel_id, present)`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil {
 			return err
@@ -328,5 +363,132 @@ func (s *Store) RecordChannelImport(ctx context.Context, p ChannelImportParams) 
 			skipped_reason = excluded.skipped_reason`,
 		p.EventID, p.ChannelID, p.ArtifactID, emptyToNull(strings.TrimSpace(p.PublisherNode)),
 		emptyToNull(strings.TrimSpace(p.MemoryID)), now, emptyToNull(strings.TrimSpace(p.SkippedReason)))
+	return err
+}
+
+func (s *Store) RecordChannelPeers(ctx context.Context, channelID string, peers []ChannelPeer) (ChannelPeerDelta, error) {
+	channelID = strings.TrimSpace(channelID)
+	if channelID == "" {
+		return ChannelPeerDelta{}, fmt.Errorf("channel id is required")
+	}
+	existing, err := s.channelPeers(ctx, channelID, true)
+	if err != nil {
+		return ChannelPeerDelta{}, err
+	}
+	existingByNode := map[string]ChannelPeer{}
+	for _, peer := range existing {
+		existingByNode[peer.NodeID] = peer
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	current := map[string]ChannelPeer{}
+	delta := ChannelPeerDelta{}
+	for _, peer := range peers {
+		peer.ChannelID = channelID
+		peer.NodeID = strings.TrimSpace(peer.NodeID)
+		peer.Agent = strings.TrimSpace(peer.Agent)
+		peer.LastSeen = strings.TrimSpace(peer.LastSeen)
+		if peer.NodeID == "" {
+			continue
+		}
+		peer.SeenAt = now
+		peer.Present = true
+		current[peer.NodeID] = peer
+		if _, found := existingByNode[peer.NodeID]; !found {
+			delta.NewPeers = append(delta.NewPeers, peer)
+		}
+	}
+	return s.recordRemainingChannelPeers(ctx, channelID, existingByNode, current, delta)
+}
+
+func (s *Store) recordRemainingChannelPeers(ctx context.Context, channelID string, existingByNode, current map[string]ChannelPeer, delta ChannelPeerDelta) (ChannelPeerDelta, error) {
+	for _, peer := range current {
+		if _, err := s.db.ExecContext(ctx, `
+			INSERT INTO channel_peers (channel_id, node_id, agent, last_seen, seen_at, present)
+			VALUES (?, ?, ?, ?, ?, 1)
+			ON CONFLICT(channel_id, node_id) DO UPDATE SET
+				agent = excluded.agent,
+				last_seen = excluded.last_seen,
+				seen_at = excluded.seen_at,
+				present = 1`,
+			peer.ChannelID, peer.NodeID, emptyToNull(peer.Agent), emptyToNull(peer.LastSeen), peer.SeenAt); err != nil {
+			return ChannelPeerDelta{}, err
+		}
+	}
+	for nodeID, peer := range existingByNode {
+		if _, found := current[nodeID]; found {
+			continue
+		}
+		peer.Present = false
+		delta.MissingPeers = append(delta.MissingPeers, peer)
+		if _, err := s.db.ExecContext(ctx, `
+			UPDATE channel_peers
+			SET present = 0, seen_at = ?
+			WHERE channel_id = ? AND node_id = ?`,
+			time.Now().UTC().Format(time.RFC3339), channelID, nodeID); err != nil {
+			return ChannelPeerDelta{}, err
+		}
+	}
+	return delta, nil
+}
+
+func (s *Store) channelPeers(ctx context.Context, channelID string, presentOnly bool) ([]ChannelPeer, error) {
+	query := `
+		SELECT channel_id, node_id, COALESCE(agent, ''), COALESCE(last_seen, ''), seen_at, present
+		FROM channel_peers
+		WHERE channel_id = ?`
+	if presentOnly {
+		query += ` AND present = 1`
+	}
+	rows, err := s.db.QueryContext(ctx, query, strings.TrimSpace(channelID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var peers []ChannelPeer
+	for rows.Next() {
+		var peer ChannelPeer
+		var present int
+		if err := rows.Scan(&peer.ChannelID, &peer.NodeID, &peer.Agent, &peer.LastSeen, &peer.SeenAt, &present); err != nil {
+			return nil, err
+		}
+		peer.Present = present == 1
+		peers = append(peers, peer)
+	}
+	return peers, rows.Err()
+}
+
+func (s *Store) ChannelRefreshState(ctx context.Context, channelID string) (ChannelRefreshState, error) {
+	channelID = strings.TrimSpace(channelID)
+	row := s.db.QueryRowContext(ctx, `
+		SELECT channel_id, event_cursor, last_refreshed_at
+		FROM channel_refresh_state
+		WHERE channel_id = ?`, channelID)
+	var state ChannelRefreshState
+	if err := row.Scan(&state.ChannelID, &state.EventCursor, &state.LastRefreshedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ChannelRefreshState{ChannelID: channelID}, nil
+		}
+		return ChannelRefreshState{}, err
+	}
+	return state, nil
+}
+
+func (s *Store) RecordChannelRefresh(ctx context.Context, channelID string, eventCursor int) error {
+	channelID = strings.TrimSpace(channelID)
+	if channelID == "" {
+		return fmt.Errorf("channel id is required")
+	}
+	if eventCursor < 0 {
+		eventCursor = 0
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO channel_refresh_state (channel_id, event_cursor, last_refreshed_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(channel_id) DO UPDATE SET
+			event_cursor = excluded.event_cursor,
+			last_refreshed_at = excluded.last_refreshed_at`,
+		channelID, eventCursor, now)
 	return err
 }

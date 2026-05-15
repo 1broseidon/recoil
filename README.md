@@ -487,9 +487,11 @@ The relay is intentionally dumb. It stores signed roster cards and signed
 memory artifact events, but it does not search memory, merge databases, or own
 truth. Recoil clients keep their own local memory projection.
 
-Run a self-hosted relay:
+Bootstrap or run a self-hosted relay:
 
 ```sh
+recoil relay setup --data ./recoil-relay-data --channel agents --relay-url http://localhost:8787
+
 docker build -t recoil-relay .
 docker run -p 8787:8787 -v recoil-relay:/data recoil-relay
 ```
@@ -510,23 +512,30 @@ Join from another Recoil database:
 recoil channel join http://localhost:8787/v1/invites/<token> --agent codex
 ```
 
-Publish current local guidance memories from the joined scope:
+Publish exact artifacts from the joined scope:
 
 ```sh
-recoil channel publish
+recoil channel publish --claim-key architecture.relay
+recoil channel publish --id mem_abc123
+recoil channel publish --since 2h --dry-run
 ```
 
-Inspect the channel's peer roster and artifact index:
+Agents normally do not need a manual sync at session start: `recoil wake`
+refreshes joined channels with a short fail-soft timeout before composing
+context. For explicit mid-session syncs, use:
+
+```sh
+recoil channel refresh
+```
+
+Inspect the channel's peer roster and artifact index, or operate the relay:
 
 ```sh
 recoil channel roster
-```
-
-Replay remote artifacts into the local database as `source_kind:
-remote_artifact` evidence:
-
-```sh
-recoil channel sync
+recoil relay status --data /data
+recoil relay invite list --data /data
+recoil relay member list --data /data
+recoil relay doctor --data /data --relay-url http://localhost:8787
 ```
 
 Each Recoil database keeps its own node identity, joined-channel registry, and

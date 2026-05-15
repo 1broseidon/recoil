@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sourcequality"
@@ -23,14 +24,15 @@ type wakeOptions struct {
 }
 
 type wakeResult struct {
-	Query         string               `json:"query,omitempty"`
-	Scope         string               `json:"scope"`
-	ScopeID       string               `json:"scope_id"`
-	SelectedCount int                  `json:"selected_count"`
-	Refresh       sourceRefreshSummary `json:"refresh"`
-	Layers        []wakeLayerResult    `json:"layers"`
-	Results       []store.Memory       `json:"results"`
-	DecisionTrail []decisionTrailItem  `json:"decision_trail,omitempty"`
+	Query          string                 `json:"query,omitempty"`
+	Scope          string                 `json:"scope"`
+	ScopeID        string                 `json:"scope_id"`
+	SelectedCount  int                    `json:"selected_count"`
+	Refresh        sourceRefreshSummary   `json:"refresh"`
+	ChannelRefresh []channelRefreshResult `json:"channel_refresh,omitempty"`
+	Layers         []wakeLayerResult      `json:"layers"`
+	Results        []store.Memory         `json:"results"`
+	DecisionTrail  []decisionTrailItem    `json:"decision_trail,omitempty"`
 }
 
 type wakeLayerResult struct {
@@ -79,6 +81,7 @@ func newWakeCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			channelRefresh := wakeChannelRefresh(ctx, st)
 			fetchLimit := wakeFetchLimit(wakeOpts.limit)
 			var queryResults []store.Memory
 			if query != "" {
@@ -116,14 +119,15 @@ func newWakeCommand() *cobra.Command {
 				}
 			}
 			result := wakeResult{
-				Query:         query,
-				Scope:         sc.Kind,
-				ScopeID:       sc.ID,
-				SelectedCount: len(results),
-				Refresh:       refresh,
-				Layers:        wakeLayerResults(layers),
-				Results:       results,
-				DecisionTrail: trail,
+				Query:          query,
+				Scope:          sc.Kind,
+				ScopeID:        sc.ID,
+				SelectedCount:  len(results),
+				Refresh:        refresh,
+				ChannelRefresh: channelRefresh,
+				Layers:         wakeLayerResults(layers),
+				Results:        results,
+				DecisionTrail:  trail,
 			}
 			if opts.json {
 				return writeJSON(w, "wake_result", result)
@@ -148,6 +152,8 @@ func newWakeCommand() *cobra.Command {
 				{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
 				{k: "refreshed_sources", v: fmt.Sprintf("%d", refresh.RefreshedSources)},
 				{k: "staled_memories", v: fmt.Sprintf("%d", refresh.StaledMemories)},
+				{k: "channel_imported", v: fmt.Sprintf("%d", channelRefreshImported(channelRefresh))},
+				{k: "channel_errors", v: fmt.Sprintf("%d", channelRefreshErrors(channelRefresh))},
 				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
 			}, body)
@@ -257,6 +263,38 @@ func wakeFetchLimit(limit int) int {
 		return 1000
 	}
 	return fetchLimit
+}
+
+func wakeChannelRefresh(ctx context.Context, st *store.Store) []channelRefreshResult {
+	channels, err := st.ChannelSubscriptions(ctx)
+	if err != nil || len(channels) == 0 {
+		return nil
+	}
+	refreshCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	identity, err := st.GetOrCreateChannelIdentity(refreshCtx)
+	if err != nil {
+		return []channelRefreshResult{{Error: err.Error()}}
+	}
+	return refreshChannels(refreshCtx, st, identity, channels)
+}
+
+func channelRefreshImported(results []channelRefreshResult) int {
+	total := 0
+	for _, result := range results {
+		total += result.Imported
+	}
+	return total
+}
+
+func channelRefreshErrors(results []channelRefreshResult) int {
+	total := 0
+	for _, result := range results {
+		if result.Error != "" {
+			total++
+		}
+	}
+	return total
 }
 
 func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, qualityOpts ...sourcequality.Options) []wakeLayer {
