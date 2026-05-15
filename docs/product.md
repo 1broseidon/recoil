@@ -177,6 +177,19 @@ MCP remains a local query/access bridge. Channel relay is the distribution
 plane. A future Cloudflare Worker should host the same signed channel log API
 without becoming the source of truth.
 
+Access on the relay is keyed by the node's ed25519 roster card, not by the
+invite. Invites are strictly one-time bootstraps; once a roster card is on the
+relay, the node can publish, sync, and read indefinitely by signing requests
+with its private key. Open gaps to address before the relay is more than V0:
+
+- No revocation. Removing a node today means manually deleting its
+  `roster/<node_id>.json` file on the relay; there is no kick command, no
+  revocation list, and no signed tombstone propagated to peers.
+- No idle/expiry policy. `last_seen` is informational; a node that has not
+  checked in for months still authenticates.
+- No key rotation. A node's keypair is generated once per local database; if
+  the private key leaks, the only mitigation is operator-side roster deletion.
+
 ## Stale Memory Rule
 
 Old evidence is not automatically bad. It becomes dangerous when it looks like
