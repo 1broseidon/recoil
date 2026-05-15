@@ -145,6 +145,9 @@ func newSetupCommand() *cobra.Command {
 			if channelResult != nil {
 				fmt.Fprintf(&body, "sharing peer: %s\n", channelResult.Channel.Agent)
 			}
+			if result.Posture == setupPostureManualShare {
+				body.WriteString("note: writes stay local until you run `recoil channel publish` or `recoil channel outbox flush`.\n")
+			}
 			body.WriteString("next: recoil wake\n")
 			return frontmatter(cmd.OutOrStdout(), []kv{
 				{k: "tree", v: "project"},

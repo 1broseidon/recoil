@@ -89,11 +89,14 @@ func buildSwarmResult(ctx context.Context, st *store.Store, refresh bool) (swarm
 		return swarmResult{}, err
 	}
 	result := swarmResult{
-		Tree:     tree,
-		Scope:    scopeKind,
-		ScopeID:  scopeID,
-		Posture:  inferSwarmPosture(settings, channels),
-		Sharing:  "off",
+		Tree:    tree,
+		Scope:   scopeKind,
+		ScopeID: scopeID,
+		Posture: inferSwarmPosture(settings, channels),
+		Sharing: "off",
+		// TODO(inbox): populate Review from the proposed-memory queue once
+		// recoil inbox ships (item 7 of product.v0.1-handoff-as-harvest).
+		// Today this is a placeholder so the swarm card stays stable.
 		Evidence: swarmEvidenceState(settings),
 		Review:   "0",
 		Channels: channels,
