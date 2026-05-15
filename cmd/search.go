@@ -270,7 +270,7 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 		coverage := signalTokenCoverage(p.Query, item.mem)
 		item.score += 0.08 * coverage
 		item.score += sourcequality.ScorePriorWithOptions(p.Query, item.mem.SourcePath, item.mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
-		if coverage >= 0.5 && item.mem.SourceKind == "direct" && isGuidanceRole(item.mem.Role) {
+		if coverage >= 0.5 && (item.mem.SourceKind == "direct" || item.mem.SourceKind == "remote_artifact") && isGuidanceRole(item.mem.Role) {
 			item.score += 0.75
 		}
 		item.mem.Score = item.score
