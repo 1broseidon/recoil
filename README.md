@@ -179,6 +179,14 @@ recoil mine session-evidence --dry-run
 recoil profile --entity "Caroline"
 recoil mcp
 
+# Channel relay and artifacts (experimental)
+recoil relay serve --addr :8787 --data /data
+recoil relay invite --data /data --channel agents --relay-url http://localhost:8787
+recoil channel join http://localhost:8787/v1/invites/<token> --agent codex
+recoil channel publish
+recoil channel roster
+recoil channel sync
+
 # Session evidence (opt-in)
 recoil config set session-evidence.enabled true
 recoil session-evidence ingest --agent codex --session-id sess_a8f3 --file transcript.json
@@ -215,8 +223,8 @@ All commands support `--json` for programmatic use; scan commands also support
 
 **Storage.** SQLite with FTS5 through `github.com/mattn/go-sqlite3` (CGO).
 WAL, busy timeout, foreign keys on, deterministic public IDs, deterministic
-redaction before hashing/persistence. No daemon — the binary opens the DB,
-does its work, and exits.
+redaction before hashing/persistence. The core local memory path has no daemon:
+the binary opens the DB, does its work, and exits.
 
 **Scope.** Three explicit scopes:
 
@@ -456,6 +464,67 @@ such as commands, quotes, stack traces, or line numbers. Use
 `recoil_search` and `recoil_wake` tools read-only by default; start with
 `recoil mcp --allow-write` to expose `recoil_add`.
 
+## Channel Relay And Artifacts
+
+`recoil channel` and `recoil relay` are the experimental machine-to-machine
+exchange layer for distributed agent memory. Local and adjacent-project memory
+on one machine should stay fully local through normal Recoil scopes and search.
+The channel/relay path is for sharing selected artifacts between machines.
+
+The relay is intentionally dumb. It stores signed roster cards and signed
+memory artifact events, but it does not search memory, merge databases, or own
+truth. Recoil clients keep their own local memory projection.
+
+Run a self-hosted relay:
+
+```sh
+docker build -t recoil-relay .
+docker run -p 8787:8787 -v recoil-relay:/data recoil-relay
+```
+
+Create a one-time registration invite:
+
+```sh
+docker run --rm -v recoil-relay:/data recoil-relay \
+  relay invite \
+  --data /data \
+  --channel agents \
+  --relay-url http://localhost:8787
+```
+
+Join from another Recoil database:
+
+```sh
+recoil channel join http://localhost:8787/v1/invites/<token> --agent codex
+```
+
+Publish current local guidance memories from the joined scope:
+
+```sh
+recoil channel publish
+```
+
+Inspect the channel's peer roster and artifact index:
+
+```sh
+recoil channel roster
+```
+
+Replay remote artifacts into the local database as `source_kind:
+remote_artifact` evidence:
+
+```sh
+recoil channel sync
+```
+
+Each Recoil database keeps its own node identity, joined-channel registry, and
+import dedupe table. Imported artifacts preserve remote provenance in
+`metadata_json` and remain local evidence; operators can search, inspect,
+promote, supersede, or ignore them like any other scoped memory.
+
+The local filesystem channel transport remains useful for tests and local
+harnesses, but the intended machine-to-machine V0 is the Docker relay.
+
 ## Embeddings and Hybrid Retrieval
 
 Embeddings are an opt-in retrieval layer that **fuses with** FTS5 rather
@@ -521,8 +590,8 @@ Stable today:
 
 Explicit non-goals for v0:
 
-- No cloud sync
-- No daemon
+- No cloud sync in the core local memory path
+- No daemon in the core local memory path
 - No hosted dashboard
 - No embeddings in the required path
 - No LLM-based extraction in the default write path
@@ -532,6 +601,8 @@ Experimental:
 
 - Optional embeddings sidecar (`recoil embed`)
 - Eval-driven retrieval modes (`fts`, `semantic`, `hybrid`)
+- Channel relay/artifact exchange (`recoil channel`, `recoil relay`) between
+  Recoil databases on different machines
 
 ## License
 

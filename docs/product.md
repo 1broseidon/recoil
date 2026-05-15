@@ -52,6 +52,11 @@ recoil eval
 recoil eval --suite workflows
 recoil eval --suite workflows --out eval/results
 recoil mcp
+recoil relay serve --addr :8787 --data /data
+recoil relay invite --data /data --channel agents --relay-url http://localhost:8787
+recoil channel join http://localhost:8787/v1/invites/<token> --agent <agent>
+recoil channel publish
+recoil channel sync
 recoil list
 recoil show <memory-id>
 recoil mark <memory-id> --validity stale
@@ -142,6 +147,36 @@ freshness posture: before `search` or `wake`, check source fingerprints or
 cursors, refresh dirty source-derived chunks, prune or supersede deleted/changed
 evidence, and preserve provenance.
 
+## Distributed Memory Direction
+
+Distributed memory is not global memory. On one machine, Recoil should stay
+fully local: project/user/session scopes and local search are enough for cross
+or adjacent project memory. The network path exists for machine-to-machine
+exchange.
+
+Current product decision: Recoil channel/relay exchange moves signed memory
+artifacts over a durable replay log; each node keeps its own local memory
+projection. The relay is a dumb pipe, not a memory authority.
+
+The current experimental path is:
+
+- `recoil relay serve` runs a self-hosted Docker-friendly relay backed by a
+  data directory.
+- `recoil relay invite` creates a one-time no-password registration invite for
+  a channel.
+- `recoil channel join <invite-url>` registers the local node key with the
+  relay and stores the channel subscription locally.
+- `recoil channel publish` writes selected current guidance memories as signed
+  artifact events.
+- `recoil channel roster` shows the channel's verified peer roster and artifact
+  index.
+- `recoil channel sync` imports remote artifacts into the local scope with
+  `source_kind: remote_artifact` and provenance metadata.
+
+MCP remains a local query/access bridge. Channel relay is the distribution
+plane. A future Cloudflare Worker should host the same signed channel log API
+without becoming the source of truth.
+
 ## Stale Memory Rule
 
 Old evidence is not automatically bad. It becomes dangerous when it looks like
@@ -160,8 +195,8 @@ current guidance unmistakable. In practice:
 
 ## Non-Goals For The Core Path
 
-- No hosted service.
-- No daemon.
-- No cloud sync in v0.
+- No hosted service in the core local memory path.
+- No daemon in the core local memory path.
+- No cloud sync in the core local memory path.
 - No LLM in the write path.
 - No inferred knowledge graph before verbatim recall is solid.

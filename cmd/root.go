@@ -58,6 +58,8 @@ func init() {
 	rootCmd.AddCommand(newRepairCommand())
 	rootCmd.AddCommand(newHookCommand())
 	rootCmd.AddCommand(newMCPCommand())
+	rootCmd.AddCommand(newChannelCommand())
+	rootCmd.AddCommand(newRelayCommand())
 	rootCmd.AddCommand(newVersionCommand())
 }
 

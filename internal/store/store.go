@@ -1442,6 +1442,9 @@ func (s *Store) migrate() error {
 	if err := s.ensureSourceColumns(); err != nil {
 		return err
 	}
+	if err := s.ensureChannelTables(); err != nil {
+		return err
+	}
 	for _, stmt := range []string{
 		`CREATE INDEX IF NOT EXISTS idx_memories_validity ON memories(validity)`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_claim_scope ON memories(scope_kind, scope_id, claim_key)`,
