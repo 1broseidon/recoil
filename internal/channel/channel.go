@@ -13,10 +13,28 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/1broseidon/recoil/internal/store"
 )
+
+var (
+	appendLocksMu sync.Mutex
+	appendLocks   = map[string]*sync.Mutex{}
+)
+
+func appendLockFor(path string) *sync.Mutex {
+	key := filepath.Clean(path)
+	appendLocksMu.Lock()
+	defer appendLocksMu.Unlock()
+	m, ok := appendLocks[key]
+	if !ok {
+		m = &sync.Mutex{}
+		appendLocks[key] = m
+	}
+	return m
+}
 
 const (
 	Version             = "0.1"
@@ -272,6 +290,9 @@ func NewMemoryArtifactEvent(ch store.ChannelSubscription, id store.ChannelIdenti
 }
 
 func AppendEventIfMissing(path string, event MemoryArtifactEvent) (bool, error) {
+	lock := appendLockFor(path)
+	lock.Lock()
+	defer lock.Unlock()
 	events, err := ReadEvents(path)
 	if err != nil {
 		return false, err

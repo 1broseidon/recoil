@@ -189,12 +189,20 @@ func handleRelayInvite(w http.ResponseWriter, r *http.Request, dataDir string) {
 			http.Error(w, "roster card channel mismatch", http.StatusBadRequest)
 			return
 		}
+		if err := channelpkg.VerifyRosterCard(card); err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		if err := consumeRelayInvite(dataDir, token); err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if err := channelpkg.WriteSignedRosterCard(channelDir, card); err != nil {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
 		invite.UsedAt = time.Now().UTC().Format(time.RFC3339)
-		if err := saveRelayInvite(dataDir, invite); err != nil {
+		if err := writeConsumedInvite(dataDir, invite); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -376,6 +384,27 @@ func saveRelayInvite(dataDir string, invite relayInvite) error {
 	}
 	data = append(data, '\n')
 	return os.WriteFile(filepath.Join(relayInvitesDir(dataDir), invite.Token+".json"), data, 0o600)
+}
+
+func consumeRelayInvite(dataDir, token string) error {
+	src := filepath.Join(relayInvitesDir(dataDir), token+".json")
+	dst := filepath.Join(relayInvitesDir(dataDir), token+".used.json")
+	if err := os.Rename(src, dst); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("invite has already been used")
+		}
+		return err
+	}
+	return nil
+}
+
+func writeConsumedInvite(dataDir string, invite relayInvite) error {
+	data, err := json.MarshalIndent(invite, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(filepath.Join(relayInvitesDir(dataDir), invite.Token+".used.json"), data, 0o600)
 }
 
 func loadRelayInvite(dataDir, token string) (relayInvite, error) {

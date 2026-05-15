@@ -3,13 +3,16 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	channelpkg "github.com/1broseidon/recoil/internal/channel"
 	"github.com/1broseidon/recoil/internal/store"
 )
 
@@ -214,6 +217,109 @@ func TestRelayRequiresSignedRequests(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected unsigned event read to be rejected, got %s", resp.Status)
+	}
+}
+
+func TestRelayInviteIsSingleUseUnderConcurrentJoins(t *testing.T) {
+	relayData := t.TempDir()
+	server := httptest.NewServer(newRelayHandler(relayData))
+	defer server.Close()
+
+	invite, _, err := createRelayInvite(relayData, "concurrent", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	stA, err := store.Open(filepath.Join(t.TempDir(), "a.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stA.Close()
+	stB, err := store.Open(filepath.Join(t.TempDir(), "b.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stB.Close()
+
+	idA, err := stA.GetOrCreateChannelIdentity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idB, err := stB.GetOrCreateChannelIdentity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cardFor := func(id store.ChannelIdentity, agent string) []byte {
+		ch := store.ChannelSubscription{
+			ChannelID: invite.ChannelID,
+			NodeID:    id.NodeID,
+			Agent:     agent,
+			ScopeKind: "session",
+			ScopeID:   "concurrent",
+		}
+		card := channelpkg.BuildRosterCard(ch, id)
+		if err := channelpkg.SignRosterCard(&card, id.PrivateKey); err != nil {
+			t.Fatal(err)
+		}
+		body, err := json.Marshal(card)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
+
+	bodyA := cardFor(idA, "alpha")
+	bodyB := cardFor(idB, "beta")
+	url := server.URL + "/v1/invites/" + invite.Token + "/join"
+
+	var wg sync.WaitGroup
+	var statusA, statusB int
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		resp, err := http.Post(url, "application/json", bytes.NewReader(bodyA))
+		if err != nil {
+			t.Errorf("alpha post: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+		statusA = resp.StatusCode
+	}()
+	go func() {
+		defer wg.Done()
+		resp, err := http.Post(url, "application/json", bytes.NewReader(bodyB))
+		if err != nil {
+			t.Errorf("beta post: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+		statusB = resp.StatusCode
+	}()
+	wg.Wait()
+
+	ok, fail := 0, 0
+	for _, s := range []int{statusA, statusB} {
+		if s == http.StatusOK {
+			ok++
+		} else if s == http.StatusForbidden {
+			fail++
+		} else {
+			t.Fatalf("unexpected status %d (alpha=%d beta=%d)", s, statusA, statusB)
+		}
+	}
+	if ok != 1 || fail != 1 {
+		t.Fatalf("expected exactly one join to succeed; got alpha=%d beta=%d", statusA, statusB)
+	}
+
+	resp, err := http.Post(url, "application/json", bytes.NewReader(bodyA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		t.Fatalf("expected a third join to be rejected, got %s", resp.Status)
 	}
 }
 
