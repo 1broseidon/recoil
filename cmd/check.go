@@ -313,6 +313,7 @@ func checkFrontmatter(result checkResult) []kv {
 		kv{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
 		kv{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
 	)
+	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
 	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
 	return meta
 }

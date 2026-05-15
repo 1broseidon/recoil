@@ -142,6 +142,9 @@ func newWakeCommand() *cobra.Command {
 			}
 			rendered := layeredMemoryBlocks(layers, wakeOpts.maxChars, true)
 			body := rendered.Body
+			if presence := swarmPresenceLine(ctx, st, channelFreshness); presence != "" {
+				body = presence + "\n\n" + body
+			}
 			if wakeOpts.decisions {
 				body = combineWakeDecisionTrail(renderDecisionTrail(trail), body)
 			}
@@ -159,6 +162,7 @@ func newWakeCommand() *cobra.Command {
 				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
 			}
+			meta = append(meta, channelFriendlyFrontmatter(channelFreshness)...)
 			meta = append(meta, channelOutboxFrontmatter("channel_", channelFreshness.Outbox)...)
 			return frontmatter(w, meta, body)
 		},
@@ -299,7 +303,7 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	recent = rankWakeCandidates(recent, wakePolicyQuery(query), quality)
 	layers := []wakeLayer{
 		{Key: "current_decisions", Title: "Current Decisions"},
-		{Key: "remote_artifacts", Title: "Remote Artifacts"},
+		{Key: "remote_artifacts", Title: "Peer Memory"},
 		{Key: "project_docs", Title: "Project Docs"},
 		{Key: "recent_evidence", Title: "Recent Evidence"},
 	}

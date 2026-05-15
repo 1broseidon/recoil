@@ -363,7 +363,7 @@ func newChannelPublishCommand() *cobra.Command {
 	c.Flags().StringSliceVar(&publishOpts.ids, "id", nil, "publish a specific memory id or prefix; repeat or comma-separate")
 	c.Flags().DurationVar(&publishOpts.since, "since", 0, "publish current memories created within this duration")
 	c.Flags().BoolVar(&publishOpts.all, "all", false, "publish all current local memories in the joined scope")
-	c.Flags().BoolVar(&publishOpts.includeRemote, "include-remote", false, "allow republishing imported remote artifacts")
+	c.Flags().BoolVar(&publishOpts.includeRemote, "include-remote", false, "allow republishing imported peer memory")
 	c.Flags().BoolVar(&publishOpts.dryRun, "dry-run", false, "preview publish candidates without writing to the channel")
 	return c
 }
@@ -414,7 +414,7 @@ func newChannelRefreshCommand() *cobra.Command {
 	var refreshOpts channelRefreshOptions
 	c := &cobra.Command{
 		Use:   "refresh",
-		Short: "Refresh channel roster and import new remote artifacts",
+		Short: "Refresh channel roster and import new peer memory",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			st, _, err := openStore()

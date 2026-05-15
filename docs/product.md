@@ -43,6 +43,10 @@ foundation.
 
 ```sh
 recoil setup
+recoil setup --relay http://localhost:8787/v1/invites/<token>
+recoil setup --manual-share --relay http://localhost:8787/v1/invites/<token>
+recoil swarm
+recoil instruct <agent>
 recoil init
 recoil wake --max-chars 1600
 recoil search "<topic>"
@@ -58,9 +62,6 @@ recoil eval --suite workflows --out eval/results
 recoil mcp
 recoil relay serve --addr :8787 --data /data
 recoil relay invite --data /data --channel agents --relay-url http://localhost:8787
-recoil channel join http://localhost:8787/v1/invites/<token> --agent <agent>
-recoil channel publish
-recoil channel sync
 recoil list
 recoil show <memory-id>
 recoil mark <memory-id> --validity stale
@@ -69,8 +70,14 @@ recoil forget <memory-id>
 ```
 
 `setup` is the operator bootstrap command: initialize, first mine, auto-detect
-installed agents and install hooks, optionally join a relay, then print
-`recoil wake` as the next command.
+installed agents and install hooks, optionally join sharing, then print
+`recoil wake` as the next command. `--relay` defaults to collaborative posture;
+`--manual-share --relay` receives peer memory but leaves automatic sharing off;
+`--standalone` keeps the memory tree local only.
+
+`swarm` is the daily operator health card: tree, posture, sharing, peers,
+memory, peer memory, evidence, review, and pending share. `instruct` prints the
+short agent contract for `wake`, `remember`, and `handoff`.
 
 `wake` is the session boot command. It refreshes changed tracked project files
 just-in-time, then orients an agent with grouped, sourced context rather than
@@ -168,40 +175,43 @@ fully local: project/user/session scopes and local search are enough for cross
 or adjacent project memory. The network path exists for machine-to-machine
 exchange.
 
-Current product decision: Recoil channel/relay exchange moves signed memory
-artifacts over a durable replay log; each node keeps its own local memory
-projection. The relay is a dumb pipe, not a memory authority.
+Current product decision: a workspace has a memory tree. A relay lets another
+tree receive selected peer memory over a durable signed replay log; each node
+keeps its own local memory projection. The relay is a dumb pipe, not a memory
+authority.
 
 The current experimental path is:
 
+- `recoil setup --relay <invite-url>` joins sharing in collaborative posture:
+  automatic eligible-memory sharing, context-time peer-memory refresh, and
+  session evidence enabled with redaction.
+- `recoil setup --manual-share --relay <invite-url>` receives peer memory but
+  keeps automatic sharing off.
+- `recoil swarm` summarizes tree health without exposing transport internals;
+  `recoil swarm --refresh` sends pending shares and receives peer memory.
+- `recoil instruct <agent>` generates the short agent contract: `wake` at
+  start, `remember` when durable intent is explicit, `handoff` at the end.
 - `recoil relay serve` runs a self-hosted Docker-friendly relay backed by a
   data directory.
-- `recoil relay invite` creates a one-time no-password registration invite for
-  a channel.
-- `recoil channel join <invite-url>` registers the local node key with the
-  relay and stores the channel subscription locally.
-- `recoil wake`, `search`, `check`, and `handoff` refresh joined channels with
-  a short fail-soft timeout before returning context or closing out work.
-- `recoil channel refresh` explicitly refreshes roster state and imports new
-  artifact events since the local cursor.
-- `recoil channel publish --claim-key/--id/--since --dry-run` writes precise
-  signed artifact events instead of broad accidental batches.
-- `channel.auto_publish=off|guidance|all-local` can publish eligible artifacts
-  from write verbs automatically. Guidance mode shares claim-keyed durable
-  guidance; failed publishes remain in the local channel outbox.
-- `recoil channel outbox` and `recoil channel outbox flush` expose the durable
-  local publish queue.
-- `recoil channel roster` shows the channel's verified peer roster and artifact
-  index.
-- `recoil channel sync` imports remote artifacts into the local scope with
-  `source_kind: remote_artifact` and provenance metadata.
+- `recoil relay invite` creates a one-time no-password registration invite.
+- `recoil wake`, `search`, `check`, and `handoff` receive peer memory with a
+  short fail-soft timeout before returning context or closing out work.
+- `recoil channel refresh`, `channel publish --claim-key/--id/--since
+  --dry-run`, `channel outbox`, and `channel roster` remain lower-level admin
+  surfaces for operators who need transport precision.
+- `channel.auto_publish=off|guidance|all-local` can share eligible memory from
+  write verbs automatically. Guidance mode shares claim-keyed durable guidance;
+  failed shares remain pending locally.
+- Peer memory imports into the local scope with `source_kind: remote_artifact`
+  and provenance metadata for compatibility, while user-facing output says
+  Peer Memory and `shared by <agent>`.
 - `recoil relay status`, `relay invite list/status/revoke`, `relay member
   list/kick`, `relay channel create/inspect`, `relay setup`, and `relay doctor`
   expose the relay lifecycle without filesystem surgery.
 
-MCP remains a local query/access bridge. Channel relay is the distribution
-plane. A future Cloudflare Worker should host the same signed channel log API
-without becoming the source of truth.
+MCP remains a local query/access bridge. The relay is the distribution plane. A
+future Cloudflare Worker should host the same signed log API without becoming
+the source of truth.
 
 Access on the relay is keyed by the node's ed25519 roster card, not by the
 invite. Invites are strictly one-time bootstraps; once a roster card is on the
@@ -228,7 +238,7 @@ current guidance unmistakable. In practice:
 - `wake` excludes rejected, superseded, stale, historical, and tombstoned
   memories by default, and self-refreshes changed tracked file chunks before
   rendering.
-- `search` and `wake` group output into Current Decisions, Remote Artifacts,
+- `search` and `wake` group output into Current Decisions, Peer Memory,
   Project Docs, Recent Evidence, and Historical lanes, with a one-line `why`
   explanation per result.
 - evals must include stale/superseded cases before ranking is tuned.

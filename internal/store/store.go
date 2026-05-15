@@ -993,6 +993,17 @@ func (s *Store) Counts(ctx context.Context) (Counts, error) {
 	return counts, nil
 }
 
+func (s *Store) ActiveSourceKindCount(ctx context.Context, sourceKind string) (int, error) {
+	sourceKind = normalizeSourceKind(sourceKind)
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM memories
+		WHERE tombstoned_at IS NULL
+			AND COALESCE(source_kind, '') = ?`, sourceKind).Scan(&count)
+	return count, err
+}
+
 func (s *Store) FileSources(ctx context.Context, scopeKind, scopeID, agent string) ([]FileSource, error) {
 	args := []any{strings.TrimSpace(scopeKind), strings.TrimSpace(scopeID)}
 	agentWhere := ""

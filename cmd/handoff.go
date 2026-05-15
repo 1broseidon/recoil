@@ -93,6 +93,7 @@ func newHandoffCommand() *cobra.Command {
 				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
 				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(freshness))},
 			}
+			meta = append(meta, channelFriendlyFrontmatter(freshness)...)
 			meta = append(meta, channelOutboxFrontmatter("channel_", freshness.Outbox)...)
 			meta = append(meta, autoPublishFrontmatter(publish)...)
 			return frontmatter(cmd.OutOrStdout(), meta, mem.Content)

@@ -481,6 +481,10 @@ func (s *Store) channelPeers(ctx context.Context, channelID string, presentOnly 
 	return peers, rows.Err()
 }
 
+func (s *Store) PresentChannelPeers(ctx context.Context, channelID string) ([]ChannelPeer, error) {
+	return s.channelPeers(ctx, channelID, true)
+}
+
 func (s *Store) ChannelRefreshState(ctx context.Context, channelID string) (ChannelRefreshState, error) {
 	channelID = strings.TrimSpace(channelID)
 	row := s.db.QueryRowContext(ctx, `

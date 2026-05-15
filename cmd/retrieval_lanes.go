@@ -27,7 +27,7 @@ type searchResult struct {
 func structuredRetrievalLanes(query string, current, historical []store.Memory) []retrievalLaneResult {
 	laneDefs := []retrievalLaneResult{
 		{Key: "current_decisions", Title: "Current Decisions"},
-		{Key: "remote_artifacts", Title: "Remote Artifacts"},
+		{Key: "remote_artifacts", Title: "Peer Memory"},
 		{Key: "project_docs", Title: "Project Docs"},
 		{Key: "recent_evidence", Title: "Recent Evidence"},
 		{Key: "historical", Title: "Historical"},
@@ -107,7 +107,7 @@ func whyMemorySurfaced(mem store.Memory, query string, fromQuery, historical boo
 		return "matched query but lifecycle marks it historical, stale, rejected, or superseded"
 	}
 	if strings.EqualFold(mem.SourceKind, "remote_artifact") {
-		return "synced remote artifact from " + firstNonEmpty(mem.SourceAgent, "another agent")
+		return "shared by " + firstNonEmpty(mem.SourceAgent, "another agent")
 	}
 	if strings.EqualFold(mem.SourceKind, "file") {
 		return "project document chunk from " + firstNonEmpty(mem.SourcePath, "a mined source")

@@ -100,14 +100,7 @@ func newHookInstallCommand(uninstall bool) *cobra.Command {
 	return c
 }
 
-const hookReminderText = `Recoil memory guidance:
-- At session start in a project, run ` + "`recoil wake --max-chars 1600`" + ` and treat the result as sourced working context.
-- Before making or explaining a durable decision, run ` + "`recoil search \"<topic>\"`" + `.
-- During work, store durable conclusions with ` + "`recoil remember --agent <agent> \"<memory>\"`" + `.
-- Before compaction or session end, close out with ` + "`recoil handoff --agent <agent> \"<summary>\"`" + `.
-- If Session Evidence is enabled and supported hooks are installed, session-end evidence is captured as selected redacted evidence, not raw transcript storage.
-- Use ` + "`--user`" + ` only for cross-project preferences, and ` + "`--session <id>`" + ` for one-session memories.
-- Treat Recoil results as evidence with IDs and provenance, not unquestionable truth.`
+var hookReminderText = agentInstructionText("<agent>")
 
 func emitHookReminder(w io.Writer, format string) error {
 	return emitHookReminderText(w, format, hookReminderText)
@@ -765,11 +758,7 @@ func codexInstructionsPath(scope string) (string, error) {
 }
 
 func codexManagedBlock() string {
-	return codexManagedBlockOpen + `
-# Recoil memory
-
-At session start in this project, run ` + "`recoil hook remind`" + ` and follow it as persistent memory guidance. In particular, run ` + "`recoil wake --max-chars 1600`" + ` before starting substantive work, run ` + "`recoil search \"<topic>\"`" + ` before relying on memory for durable decisions, store durable conclusions with ` + "`recoil remember --agent codex \"<memory>\"`" + `, and close out with ` + "`recoil handoff --agent codex \"<summary>\"`" + `.
-` + codexManagedBlockEnd + "\n"
+	return codexManagedBlockOpen + "\n" + strings.TrimSpace(agentInstructionText("codex")) + "\n" + codexManagedBlockEnd + "\n"
 }
 
 func installCodexInstructionHooks(scope string, dryRun bool) (string, string, error) {

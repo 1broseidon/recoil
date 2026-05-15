@@ -12,12 +12,21 @@ import (
 )
 
 type setupOptions struct {
-	agents     []string
-	noHooks    bool
-	hookScope  string
-	relay      string
-	relayAgent string
+	agents        []string
+	noHooks       bool
+	hookScope     string
+	relay         string
+	relayAgent    string
+	standalone    bool
+	collaborative bool
+	manualShare   bool
 }
+
+const (
+	setupPostureStandalone    = "standalone"
+	setupPostureCollaborative = "collaborative"
+	setupPostureManualShare   = "manual-share"
+)
 
 type setupHookResult struct {
 	Agent  string `json:"agent"`
@@ -31,6 +40,7 @@ type setupResult struct {
 	Detected    []string           `json:"detected_agents"`
 	Hooks       []setupHookResult  `json:"hooks"`
 	Channel     *channelJoinResult `json:"channel,omitempty"`
+	Posture     string             `json:"posture,omitempty"`
 	NextCommand string             `json:"next_command"`
 }
 
@@ -42,9 +52,18 @@ func newSetupCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
+			posture, err := setupPosture(setupOpts)
+			if err != nil {
+				return err
+			}
 			initResult, sc, err := runInitProject(ctx)
 			if err != nil {
 				return err
+			}
+			if posture != "" {
+				if err := writeSetupPostureConfig(sc, posture); err != nil {
+					return err
+				}
 			}
 			st, _, err := openStore()
 			if err != nil {
@@ -99,12 +118,17 @@ func newSetupCommand() *cobra.Command {
 				Detected:    agents,
 				Hooks:       hooks,
 				Channel:     channelResult,
+				Posture:     setupDisplayPosture(posture, channelResult),
 				NextCommand: "recoil wake",
 			}
 			if opts.json {
 				return writeJSON(cmd.OutOrStdout(), "setup_result", result)
 			}
 			var body strings.Builder
+			fmt.Fprintf(&body, "memory tree: project\n")
+			fmt.Fprintf(&body, "posture: %s\n", result.Posture)
+			fmt.Fprintf(&body, "sharing: %s\n", setupSharingState(channelResult))
+			fmt.Fprintf(&body, "evidence: %s\n\n", setupEvidenceState(result.Posture))
 			fmt.Fprintf(&body, "indexed %d chunks from %d files\n", mineResult.Chunks, mineResult.FilesScanned)
 			if len(agents) > 0 {
 				fmt.Fprintf(&body, "detected agents: %s\n", strings.Join(agents, ", "))
@@ -119,10 +143,14 @@ func newSetupCommand() *cobra.Command {
 				}
 			}
 			if channelResult != nil {
-				fmt.Fprintf(&body, "joined channel: %s\n", channelResult.Channel.Name)
+				fmt.Fprintf(&body, "sharing peer: %s\n", channelResult.Channel.Agent)
 			}
 			body.WriteString("next: recoil wake\n")
 			return frontmatter(cmd.OutOrStdout(), []kv{
+				{k: "tree", v: "project"},
+				{k: "posture", v: result.Posture},
+				{k: "sharing", v: setupSharingState(channelResult)},
+				{k: "evidence", v: setupEvidenceState(result.Posture)},
 				{k: "project_root", v: initResult.ProjectRoot},
 				{k: "project_id", v: initResult.ProjectID},
 				{k: "chunks", v: fmt.Sprintf("%d", mineResult.Chunks)},
@@ -136,7 +164,94 @@ func newSetupCommand() *cobra.Command {
 	c.Flags().StringVar(&setupOpts.hookScope, "hook-scope", "project", "hook install scope: project or user")
 	c.Flags().StringVar(&setupOpts.relay, "relay", "", "optional channel relay invite URL to join")
 	c.Flags().StringVar(&setupOpts.relayAgent, "relay-agent", "", "agent name for optional relay join")
+	c.Flags().BoolVar(&setupOpts.standalone, "standalone", false, "local memory tree only")
+	c.Flags().BoolVar(&setupOpts.collaborative, "collaborative", false, "join sharing with automatic memory sharing")
+	c.Flags().BoolVar(&setupOpts.manualShare, "manual-share", false, "join sharing but keep automatic memory sharing off")
 	return c
+}
+
+func setupPosture(opts setupOptions) (string, error) {
+	selected := 0
+	for _, enabled := range []bool{opts.standalone, opts.collaborative, opts.manualShare} {
+		if enabled {
+			selected++
+		}
+	}
+	if selected > 1 {
+		return "", fmt.Errorf("choose only one posture: --standalone, --collaborative, or --manual-share")
+	}
+	hasRelay := strings.TrimSpace(opts.relay) != ""
+	if opts.standalone && hasRelay {
+		return "", fmt.Errorf("--standalone cannot be used with --relay")
+	}
+	if opts.collaborative && !hasRelay {
+		return "", fmt.Errorf("--collaborative requires --relay")
+	}
+	if opts.manualShare && !hasRelay {
+		return "", fmt.Errorf("--manual-share requires --relay")
+	}
+	switch {
+	case opts.standalone:
+		return setupPostureStandalone, nil
+	case opts.manualShare:
+		return setupPostureManualShare, nil
+	case opts.collaborative || hasRelay:
+		return setupPostureCollaborative, nil
+	default:
+		return "", nil
+	}
+}
+
+func writeSetupPostureConfig(sc scope.Scope, posture string) error {
+	path, err := config.ResolveSettingsPath(sc.Root)
+	if err != nil {
+		return err
+	}
+	settings, err := config.LoadSettings(path)
+	if err != nil {
+		return err
+	}
+	switch posture {
+	case setupPostureStandalone:
+		settings.Set("channel.auto_publish", channelAutoPublishOff)
+		settings.Set("channel.jit_refresh", channelJITOff)
+		settings.Set("session-evidence.enabled", "false")
+	case setupPostureCollaborative:
+		settings.Set("channel.auto_publish", channelAutoPublishGuidance)
+		settings.Set("channel.jit_refresh", channelJITContext)
+		settings.Set("session-evidence.enabled", "true")
+	case setupPostureManualShare:
+		settings.Set("channel.auto_publish", channelAutoPublishOff)
+		settings.Set("channel.jit_refresh", channelJITContext)
+		settings.Set("session-evidence.enabled", "false")
+	default:
+		return fmt.Errorf("unknown setup posture %q", posture)
+	}
+	return config.SaveSettings(path, settings)
+}
+
+func setupDisplayPosture(posture string, channelResult *channelJoinResult) string {
+	if posture != "" {
+		return posture
+	}
+	if channelResult == nil {
+		return setupPostureStandalone
+	}
+	return "custom"
+}
+
+func setupSharingState(channelResult *channelJoinResult) string {
+	if channelResult == nil {
+		return "off"
+	}
+	return "connected"
+}
+
+func setupEvidenceState(posture string) string {
+	if posture == setupPostureCollaborative {
+		return "on"
+	}
+	return "off"
 }
 
 func runInitProject(ctx context.Context) (initResult, scope.Scope, error) {

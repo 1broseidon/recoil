@@ -371,9 +371,18 @@ func channelOutboxFrontmatter(prefix string, result channelOutboxFlushResult) []
 	}
 }
 
+func channelFriendlyFrontmatter(freshness channelFreshnessResult) []kv {
+	return []kv{
+		{k: "peer_memory_received", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
+		{k: "memory_shared", v: fmt.Sprintf("%d", freshness.Outbox.Published)},
+		{k: "pending_share", v: fmt.Sprintf("%d", freshness.Outbox.Pending)},
+	}
+}
+
 func autoPublishFrontmatter(result channelAutoPublishResult) []kv {
 	return []kv{
 		{k: "publish_mode", v: result.Mode},
+		{k: "memory_shared", v: fmt.Sprintf("%d", result.Published)},
 		{k: "publish_published", v: fmt.Sprintf("%d", result.Published)},
 		{k: "publish_queued", v: fmt.Sprintf("%d", result.Queued)},
 		{k: "publish_duplicate", v: fmt.Sprintf("%d", result.Duplicate)},

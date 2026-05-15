@@ -32,7 +32,7 @@ func TestHookRemindFormats(t *testing.T) {
 	if err := json.Unmarshal(generic.Bytes(), &genericPayload); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(genericPayload.SystemMessage, "recoil search") {
+	if !strings.Contains(genericPayload.SystemMessage, "recoil remember") {
 		t.Fatalf("expected generic JSON systemMessage, got:\n%s", generic.String())
 	}
 
@@ -53,7 +53,7 @@ func TestHookRemindFormats(t *testing.T) {
 	if claudePayload.HookSpecificOutput.HookEventName != "SessionStart" {
 		t.Fatalf("expected Claude SessionStart payload, got:\n%s", claude.String())
 	}
-	if !strings.Contains(claudePayload.HookSpecificOutput.AdditionalContext, "Recoil memory guidance") {
+	if !strings.Contains(claudePayload.HookSpecificOutput.AdditionalContext, "Recoil memory contract") {
 		t.Fatalf("expected Claude additionalContext, got:\n%s", claude.String())
 	}
 	if claudePayload.SystemMessage != "" {

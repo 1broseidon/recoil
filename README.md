@@ -70,7 +70,15 @@ Initialize recoil inside a project:
 ```sh
 cd my-project
 recoil setup
-recoil status
+recoil swarm
+recoil instruct codex
+```
+
+Join a shared memory tree when you have a relay invite:
+
+```sh
+recoil setup --relay http://relay.example/v1/invites/<token>
+recoil swarm
 ```
 
 Wake an agent session with bounded layered context:
@@ -156,20 +164,24 @@ defines what automation may and may not do is three lines:
 
 > Durable memory is authored by an agent or operator action.
 > Automation may enrich, connect, publish, and review it.
-> Automation may propose new memory, but proposals go to the inbox unless
+> Automation may propose new memory, but proposals go to Review unless
 > explicitly accepted.
 
 This is what keeps the write path trustworthy. No LLM ever silently
 summarizes a transcript into durable project memory. Mining harvests sourced
 text from files you control. `recoil remember` / `decide` / `handoff` are
-explicit authorship signals. The auto-publish, JIT-refresh, and outbox layers
-move authored memory around — they do not invent it.
+explicit authorship signals. The sharing and freshness layers move authored
+memory around — they do not invent it.
 
 ## Commands at a Glance
 
 ```sh
 # Bootstrap
 recoil setup
+recoil setup --relay http://localhost:8787/v1/invites/<token>
+recoil setup --manual-share --relay http://localhost:8787/v1/invites/<token>
+recoil swarm
+recoil instruct codex
 recoil init
 recoil status
 recoil config
@@ -213,13 +225,10 @@ recoil mine session-evidence --dry-run
 recoil profile --entity "Caroline"
 recoil mcp
 
-# Channel relay and artifacts (experimental)
+# Sharing admin
+recoil swarm --refresh
 recoil relay serve --addr :8787 --data /data
 recoil relay invite --data /data --channel agents --relay-url http://localhost:8787
-recoil channel join http://localhost:8787/v1/invites/<token> --agent codex
-recoil channel publish
-recoil channel roster
-recoil channel sync
 
 # Session evidence (opt-in)
 recoil config set session-evidence.enabled true
@@ -228,6 +237,7 @@ recoil session-evidence list
 recoil session-evidence forget sess_a8f3
 
 # Agent integration
+recoil instruct claude-code
 recoil hook remind
 recoil hook install claude-code
 recoil hook install opencode
@@ -287,7 +297,7 @@ exact metadata matches and decision-like roles. Filters: `--role`,
 `--claim-key`, `--validity`, `--current`, `--historical`, `--since`,
 `--before`, `--source-kind`, `--source`, `--agent`. `wake` self-refreshes
 changed tracked project files before returning context, then both `wake` and
-`search` group results into product lanes: Current Decisions, Remote Artifacts,
+`search` group results into product lanes: Current Decisions, Peer Memory,
 Project Docs, Recent Evidence, and Historical. Each result includes a short
 `why` line explaining why it surfaced.
 
@@ -500,16 +510,35 @@ such as commands, quotes, stack traces, or line numbers. Use
 `recoil_search` and `recoil_wake` tools read-only by default; start with
 `recoil mcp --allow-write` to expose `recoil_add`.
 
-## Channel Relay And Artifacts
+## Memory Sharing
 
-`recoil channel` and `recoil relay` are the experimental machine-to-machine
-exchange layer for distributed agent memory. Local and adjacent-project memory
-on one machine should stay fully local through normal Recoil scopes and search.
-The channel/relay path is for sharing selected artifacts between machines.
+Your workspace has a memory tree. A relay lets another tree receive selected
+peer memory without merging databases or making the relay a source of truth.
+Local and adjacent-project memory on one machine stays local through normal
+Recoil scopes and search.
+
+Most operators join sharing through setup:
+
+```sh
+recoil setup --relay http://localhost:8787/v1/invites/<token>
+recoil swarm
+recoil instruct codex
+```
+
+`--relay` defaults to collaborative posture: eligible claim-keyed memory is
+shared automatically, peer memory is received before `wake` and other context
+commands, and session evidence capture is enabled with redaction. Use
+`--manual-share --relay <invite>` when the workspace should receive peer memory
+but only share intentionally. Use `--standalone` for a local memory tree only.
+
+`recoil swarm` is the daily operator card. It shows the tree posture, sharing
+state, peers, local memory, peer memory, evidence capture, review count, and
+pending share count. `recoil swarm --refresh` sends pending shares and receives
+peer memory immediately.
 
 The relay is intentionally dumb. It stores signed roster cards and signed
-memory artifact events, but it does not search memory, merge databases, or own
-truth. Recoil clients keep their own local memory projection.
+memory events, but it does not search memory, merge databases, or own truth.
+Recoil clients keep their own local memory projection.
 
 Bootstrap or run a self-hosted relay:
 
@@ -530,13 +559,14 @@ docker run --rm -v recoil-relay:/data recoil-relay \
   --relay-url http://localhost:8787
 ```
 
-Join from another Recoil database:
+Setup is the preferred join path, but the lower-level admin command remains
+available:
 
 ```sh
 recoil channel join http://localhost:8787/v1/invites/<token> --agent codex
 ```
 
-Publish exact artifacts from the joined scope:
+Manual precision sharing is available for operators who need it:
 
 ```sh
 recoil channel publish --claim-key architecture.relay
@@ -544,31 +574,32 @@ recoil channel publish --id mem_abc123
 recoil channel publish --since 2h --dry-run
 ```
 
-Or let write verbs publish eligible artifacts automatically:
+Collaborative setup normally handles this by configuration:
 
 ```sh
 recoil config set channel.auto_publish guidance
-recoil decide --claim-key architecture.relay "Use the relay outbox for agent-to-agent sharing."
+recoil decide --claim-key architecture.relay "Use peer memory for agent-to-agent sharing."
 ```
 
 Auto-publish modes are `off`, `guidance`, and `all-local`. The guidance mode
 publishes claim-keyed decisions, ADRs, constraints, preferences, rules, and
-handoffs by default. Failed publishes stay in a local durable outbox and are
-flushed by later writes, `wake`, `search`, `check`, `handoff`, or explicit
-channel commands.
+handoffs by default. Failed shares stay pending locally and are retried by
+later writes, `wake`, `search`, `check`, `handoff`, `swarm --refresh`, or
+explicit admin commands.
 
 Agents normally do not need a manual sync before acting on context: `wake`,
-`search`, `check`, and `handoff` refresh joined channels with a short fail-soft
-timeout before returning context or closing out. For explicit mid-session syncs
-and outbox inspection, use:
+`search`, `check`, and `handoff` receive peer memory with a short fail-soft
+timeout before returning context or closing out. For explicit mid-session
+refreshes and pending-share inspection, use:
 
 ```sh
+recoil swarm --refresh
 recoil channel refresh
 recoil channel outbox
 recoil channel outbox flush
 ```
 
-Inspect the channel's peer roster and artifact index, or operate the relay:
+Operate the relay and inspect admin state:
 
 ```sh
 recoil channel roster
@@ -579,9 +610,10 @@ recoil relay doctor --data /data --relay-url http://localhost:8787
 ```
 
 Each Recoil database keeps its own node identity, joined-channel registry, and
-import dedupe table. Imported artifacts preserve remote provenance in
-`metadata_json` and remain local evidence; operators can search, inspect,
-promote, supersede, or ignore them like any other scoped memory.
+import dedupe table. Peer memory preserves provenance in `metadata_json` and
+remains local evidence; operators can search, inspect, promote, supersede, or
+ignore it like any other scoped memory. For compatibility, imported peer memory
+still uses `source_kind: remote_artifact` in JSON and stored metadata.
 
 The local filesystem channel transport remains useful for tests and local
 harnesses, but the intended machine-to-machine V0 is the Docker relay.
@@ -648,6 +680,8 @@ Stable today:
 - Deterministic entity profiles (`recoil profile`) with profile-aware search
 - Read-only MCP stdio server (`recoil mcp`)
 - JSON envelope (`{version, kind, data}`)
+- Memory-tree sharing posture (`recoil setup --relay`, `recoil swarm`,
+  `recoil instruct`)
 
 Explicit non-goals for v0:
 
@@ -662,8 +696,8 @@ Experimental:
 
 - Optional embeddings sidecar (`recoil embed`)
 - Eval-driven retrieval modes (`fts`, `semantic`, `hybrid`)
-- Channel relay/artifact exchange (`recoil channel`, `recoil relay`) between
-  Recoil databases on different machines
+- Lower-level sharing admin (`recoil channel`, `recoil relay`) between Recoil
+  databases on different machines
 
 ## License
 
