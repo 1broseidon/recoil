@@ -2,11 +2,18 @@
 
 Fast local operational memory for long-running agentic workflows.
 
+> Agents do not manage memory. They author intent. Recoil handles freshness,
+> sharing, review, and lifecycle hygiene around that intent.
+
 recoil is a single Go binary backed by SQLite FTS5. It gives agents a sourced,
 lifecycle-aware memory store for bounded projects — no cloud, no daemon, no
 LLM in the required write path. Coding agents are the first wedge, but the
 core loop is broader: **make the right local evidence cheaper to retrieve than
 guessing.**
+
+The mental model is a **memory tree** per workspace. A relay lets other
+workspaces exchange selected branches. Operators choose the sharing posture;
+agents just work the tree.
 
 Use it when you need:
 
@@ -24,6 +31,7 @@ Use it when you need:
 - [Install](#install)
 - [Quick Start](#quick-start)
 - [Why recoil](#why-recoil)
+- [Authorship Principle](#authorship-principle)
 - [Commands at a Glance](#commands-at-a-glance)
 - [How It Works](#how-it-works)
 - [Lifecycle Model](#lifecycle-model)
@@ -140,6 +148,22 @@ recoil solves a narrower problem cheaply:
 If you've used [cymbal](https://github.com/1broseidon/cymbal) for code
 navigation, recoil sits in the same lane for project memory: a fast,
 deterministic local CLI primitive that agents call instead of guessing.
+
+## Authorship Principle
+
+Recoil draws a hard line between authorship and automation. The contract that
+defines what automation may and may not do is three lines:
+
+> Durable memory is authored by an agent or operator action.
+> Automation may enrich, connect, publish, and review it.
+> Automation may propose new memory, but proposals go to the inbox unless
+> explicitly accepted.
+
+This is what keeps the write path trustworthy. No LLM ever silently
+summarizes a transcript into durable project memory. Mining harvests sourced
+text from files you control. `recoil remember` / `decide` / `handoff` are
+explicit authorship signals. The auto-publish, JIT-refresh, and outbox layers
+move authored memory around — they do not invent it.
 
 ## Commands at a Glance
 

@@ -1,5 +1,6 @@
 {
   "values": {
+    "channel.auto_publish": "guidance",
     "session-evidence.enabled": "true"
   }
 }
