@@ -88,16 +88,6 @@ func newSearchCommand() *cobra.Command {
 				return err
 			}
 
-			w := cmd.OutOrStdout()
-			if opts.json {
-				return writeJSON(w, "search_result", current)
-			}
-			if searchOpts.minimal {
-				for _, r := range current {
-					writeMinimalMemory(w, r, true)
-				}
-				return nil
-			}
 			var historical []store.Memory
 			if !explicitLifecycle {
 				historicalParams := params
@@ -114,6 +104,33 @@ func newSearchCommand() *cobra.Command {
 					return err
 				}
 			}
+			lanes := structuredRetrievalLanes(query, current, historical)
+			currentWithWhy := make([]store.Memory, 0, len(current))
+			for _, lane := range lanes {
+				if lane.Key == "historical" {
+					continue
+				}
+				currentWithWhy = append(currentWithWhy, lane.Results...)
+			}
+
+			w := cmd.OutOrStdout()
+			if opts.json {
+				return writeJSON(w, "search_result", searchResult{
+					Query:        query,
+					Scope:        sc.Kind,
+					ScopeID:      sc.ID,
+					ResultCount:  len(current),
+					HistoryCount: len(historical),
+					Lanes:        lanes,
+					Results:      currentWithWhy,
+				})
+			}
+			if searchOpts.minimal {
+				for _, r := range currentWithWhy {
+					writeMinimalMemory(w, r, true)
+				}
+				return nil
+			}
 
 			return frontmatter(w, []kv{
 				{k: "query", v: query},
@@ -121,7 +138,7 @@ func newSearchCommand() *cobra.Command {
 				{k: "scope_id", v: sc.ID},
 				{k: "result_count", v: fmt.Sprintf("%d", len(current))},
 				{k: "history_count", v: fmt.Sprintf("%d", len(historical))},
-			}, searchMemoryBlocks(current, historical, searchOpts.maxChars))
+			}, retrievalLaneBlocks(lanes, searchOpts.maxChars))
 		},
 	}
 	addScopeFlags(c, &searchOpts.scope)

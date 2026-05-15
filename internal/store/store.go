@@ -56,6 +56,7 @@ type Memory struct {
 	TombstonedAt string  `json:"tombstoned_at,omitempty"`
 	Score        float64 `json:"score,omitempty"`
 	Excerpt      string  `json:"excerpt,omitempty"`
+	Why          string  `json:"why,omitempty"`
 }
 
 type AddMemoryParams struct {
@@ -196,6 +197,20 @@ type SourceRefreshResult struct {
 	ID      string
 	Changed bool
 	Staled  int
+}
+
+type FileSource struct {
+	ID          string `json:"id"`
+	Path        string `json:"path"`
+	Agent       string `json:"agent,omitempty"`
+	ScopeKind   string `json:"scope_kind"`
+	ScopeID     string `json:"scope_id"`
+	ContentHash string `json:"content_hash,omitempty"`
+	ModTime     string `json:"mod_time,omitempty"`
+	SizeBytes   int64  `json:"size_bytes,omitempty"`
+	ChunkCount  int    `json:"chunk_count,omitempty"`
+	LastMinedAt string `json:"last_mined_at,omitempty"`
+	DeletedAt   string `json:"deleted_at,omitempty"`
 }
 
 type Counts struct {
@@ -976,6 +991,44 @@ func (s *Store) Counts(ctx context.Context) (Counts, error) {
 		return counts, err
 	}
 	return counts, nil
+}
+
+func (s *Store) FileSources(ctx context.Context, scopeKind, scopeID, agent string) ([]FileSource, error) {
+	args := []any{strings.TrimSpace(scopeKind), strings.TrimSpace(scopeID)}
+	agentWhere := ""
+	if strings.TrimSpace(agent) != "" {
+		agentWhere = "AND COALESCE(agent, '') = ?"
+		args = append(args, strings.TrimSpace(agent))
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, COALESCE(path, ''), COALESCE(agent, ''), COALESCE(scope_kind, ''),
+			COALESCE(scope_id, ''), COALESCE(content_hash, ''), COALESCE(mod_time, ''),
+			COALESCE(size_bytes, 0), COALESCE(chunk_count, 0), COALESCE(last_mined_at, ''),
+			COALESCE(deleted_at, '')
+		FROM sources
+		WHERE kind = 'file'
+			AND scope_kind = ?
+			AND scope_id = ?
+			AND deleted_at IS NULL
+			`+agentWhere+`
+		ORDER BY path, agent`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var sources []FileSource
+	for rows.Next() {
+		var src FileSource
+		if err := rows.Scan(
+			&src.ID, &src.Path, &src.Agent, &src.ScopeKind, &src.ScopeID,
+			&src.ContentHash, &src.ModTime, &src.SizeBytes, &src.ChunkCount,
+			&src.LastMinedAt, &src.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		sources = append(sources, src)
+	}
+	return sources, rows.Err()
 }
 
 func (s *Store) RefreshSource(ctx context.Context, p SourceRefreshParams) (SourceRefreshResult, error) {

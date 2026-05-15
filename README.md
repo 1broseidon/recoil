@@ -61,7 +61,7 @@ Initialize recoil inside a project:
 
 ```sh
 cd my-project
-recoil init
+recoil setup
 recoil status
 ```
 
@@ -71,9 +71,16 @@ Wake an agent session with bounded layered context:
 recoil wake --max-chars 1600
 ```
 
-Record a durable decision before compaction or handoff:
+Record durable context during work, then close the session with a handoff:
 
 ```sh
+recoil remember --agent codex \
+  "Use net/http with a 5s default timeout, not a third-party client."
+
+recoil handoff --agent codex \
+  --decision "Kept net/http for the HTTP client." \
+  --next-step "Add timeout tests around gateway calls."
+
 recoil decide --claim-key dependency.http-client \
   "We use net/http with a 5s default timeout, not a third-party client."
 
@@ -138,11 +145,14 @@ deterministic local CLI primitive that agents call instead of guessing.
 
 ```sh
 # Bootstrap
+recoil setup
 recoil init
 recoil status
 recoil config
 
 # Write
+recoil remember "Auth tokens live in the keyring" --agent codex
+recoil handoff --agent codex --next-step "Verify auth token migration."
 recoil add "Prefers vim keybindings"
 recoil add "Auth tokens live in the keyring" --agent codex --role decision
 recoil decide --claim-key auth.token-storage "Auth tokens live in the keyring"
@@ -235,7 +245,7 @@ the binary opens the DB, does its work, and exits.
 | session | `--session <id>` | One-session scratch memory |
 
 Inside an initialized project (`.recoil/project.json` present), the common
-path needs no flags: `recoil wake`, `recoil search "..."`, `recoil add "..."`.
+path needs no flags: `recoil wake`, `recoil search "..."`, `recoil remember "..."`.
 If the current directory is not inside an initialized project, commands warn
 on stderr and use a local fallback scope.
 
@@ -251,9 +261,11 @@ useful for the next agent session.
 agent, source path, and source_ref, with conservative ranking boosts for
 exact metadata matches and decision-like roles. Filters: `--role`,
 `--claim-key`, `--validity`, `--current`, `--historical`, `--since`,
-`--before`, `--source-kind`, `--source`, `--agent`. `wake` returns a layered
-startup view — current context, durable decisions/constraints, recent
-supporting evidence — bounded by `--max-chars`.
+`--before`, `--source-kind`, `--source`, `--agent`. `wake` self-refreshes
+changed tracked project files before returning context, then both `wake` and
+`search` group results into product lanes: Current Decisions, Remote Artifacts,
+Project Docs, Recent Evidence, and Historical. Each result includes a short
+`why` line explaining why it surfaced.
 
 **Output.** Default is agent-readable frontmatter (the fields an agent needs
 to cite) followed by content. `--json` returns a stable envelope:

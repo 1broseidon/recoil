@@ -60,8 +60,9 @@ func TestSearchCommandSeparatesCurrentAndHistoricalResults(t *testing.T) {
 	for _, want := range []string{
 		"result_count: 1",
 		"history_count: 1",
-		"## Current Results",
-		"## Historical Results",
+		"## Current Decisions",
+		"## Historical",
+		"why: current adr with claim_key dependency.sqlite-driver",
 		active.ID,
 		"validity: rejected",
 	} {
@@ -121,8 +122,8 @@ func TestSearchCommandCurrentResultsSurviveHistoricalCrowding(t *testing.T) {
 		"result_count: 1",
 		"history_count: 5",
 		active.ID,
-		"## Current Results",
-		"## Historical Results",
+		"## Current Decisions",
+		"## Historical",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in output:\n%s", want, got)

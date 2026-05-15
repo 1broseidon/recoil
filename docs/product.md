@@ -29,11 +29,12 @@ planning, and other non-coding projects with durable decisions and preferences.
 
 The minimum loop:
 
-1. Operator runs `recoil init`.
+1. Operator runs `recoil setup`.
 2. Agent starts with `recoil wake`.
 3. Agent searches before relying on prior project context.
-4. Agent stores durable decisions before compaction or handoff.
-5. Operator can inspect and correct memory with `list`, `show`, and `forget`.
+4. Agent stores durable context during work with `recoil remember`.
+5. Agent closes the session with `recoil handoff`.
+6. Operator can inspect and correct memory with `list`, `show`, and `forget`.
 
 If that loop is fast, sourced, and boring, richer retrieval and sync have a
 foundation.
@@ -41,10 +42,13 @@ foundation.
 ## Core Commands
 
 ```sh
+recoil setup
 recoil init
 recoil wake --max-chars 1600
 recoil search "<topic>"
 recoil search "<topic>" --profiles auto
+recoil remember --agent <agent> "<durable memory>"
+recoil handoff --agent <agent> --next-step "<next action>"
 recoil add --agent <agent> --role decision "<durable memory>"
 recoil mine
 recoil profile --entity "<name>"
@@ -64,8 +68,18 @@ recoil supersede <old-memory-id> "<replacement memory>"
 recoil forget <memory-id>
 ```
 
-`wake` is the session boot command. It should orient an agent with layered,
-sourced context rather than behave like an unstructured recent-memory dump.
+`setup` is the operator bootstrap command: initialize, first mine, auto-detect
+installed agents and install hooks, optionally join a relay, then print
+`recoil wake` as the next command.
+
+`wake` is the session boot command. It refreshes changed tracked project files
+just-in-time, then orients an agent with grouped, sourced context rather than
+behave like an unstructured recent-memory dump.
+
+`remember` is the default write verb. It infers role and claim key
+deterministically, with `add` and `decide` remaining as explicit power-user
+paths. `handoff` is the session-end pair to `wake`, capturing decisions made,
+constraints discovered, next steps, supersessions, and open questions.
 
 Inside an initialized project, no scope flag means the current project. Use
 `--user` for durable cross-project preferences and `--session <id>` for
@@ -201,9 +215,11 @@ current guidance unmistakable. In practice:
 - memories carry `validity`, `claim_key`, `supersedes`, and `superseded_by`
   fields in the store.
 - `wake` excludes rejected, superseded, stale, historical, and tombstoned
-  memories by default.
-- `search` shows active/unknown current guidance first and labels
-  rejected/superseded/stale/historical matches as history in text output.
+  memories by default, and self-refreshes changed tracked file chunks before
+  rendering.
+- `search` and `wake` group output into Current Decisions, Remote Artifacts,
+  Project Docs, Recent Evidence, and Historical lanes, with a one-line `why`
+  explanation per result.
 - evals must include stale/superseded cases before ranking is tuned.
 
 ## Non-Goals For The Core Path

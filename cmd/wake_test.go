@@ -39,15 +39,15 @@ func TestBuildWakeLayersPrioritizesContextAndDecisions(t *testing.T) {
 	layers := buildWakeLayers("", nil, recent, 3)
 	flat := flattenWakeLayers(layers)
 	got := ids(flat)
-	want := "mem_handoff,mem_decision,mem_recent"
+	want := "mem_decision,mem_recent,mem_handoff"
 	if got != want {
 		t.Fatalf("unexpected wake order: got %s, want %s", got, want)
 	}
-	if layers[0].Key != "l0_current_context" || len(layers[0].Memories) != 1 {
-		t.Fatalf("expected handoff in L0, got %+v", layers[0])
+	if layers[0].Key != "current_decisions" || len(layers[0].Memories) != 1 {
+		t.Fatalf("expected decision in Current Decisions, got %+v", layers[0])
 	}
-	if layers[1].Key != "l1_decisions_constraints" || len(layers[1].Memories) != 1 {
-		t.Fatalf("expected decision in L1, got %+v", layers[1])
+	if layers[3].Key != "recent_evidence" || ids(layers[3].Memories) != "mem_recent,mem_handoff" {
+		t.Fatalf("expected handoff in Recent Evidence, got %+v", layers[3])
 	}
 }
 
@@ -178,8 +178,8 @@ func TestBuildWakeLayersPromotesQueryMatchesAndDedupes(t *testing.T) {
 	if got != want {
 		t.Fatalf("unexpected query wake order: got %s, want %s", got, want)
 	}
-	if len(layers[0].Memories) != 1 || layers[0].Memories[0].ID != "mem_match" {
-		t.Fatalf("expected query match in L0, got %+v", layers[0])
+	if len(layers[3].Memories) == 0 || layers[3].Memories[0].ID != "mem_match" {
+		t.Fatalf("expected query match in Recent Evidence, got %+v", layers[3])
 	}
 }
 
@@ -207,18 +207,19 @@ func TestBuildWakeLayersCapsSessionEvidence(t *testing.T) {
 		{ID: "mem_doc", SourceKind: "file", Role: "source", Content: "docs say auth uses bearer tokens."},
 	}
 	layers := buildWakeLayers("", nil, recent, 8)
-	if got := ids(layers[0].Memories); got != "mem_handoff_evidence" {
-		t.Fatalf("expected one session evidence item in L0, got %s", got)
+	if got := ids(layers[3].Memories); !strings.Contains(got, "mem_handoff_evidence") {
+		t.Fatalf("expected session evidence in Recent Evidence, got %s", got)
 	}
-	if strings.Contains(ids(layers[1].Memories), "mem_must_not_l1") {
-		t.Fatalf("did not expect session evidence promoted into L1, got %+v", layers[1].Memories)
+	if strings.Contains(ids(layers[0].Memories), "mem_must_not_l1") {
+		t.Fatalf("did not expect session evidence promoted into Current Decisions, got %+v", layers[0].Memories)
 	}
-	l2IDs := ids(layers[2].Memories)
-	if strings.Count(l2IDs, "mem_evidence") > 2 || strings.Contains(l2IDs, "mem_evidence_3") {
-		t.Fatalf("expected L2 session evidence cap of two, got %s", l2IDs)
+	recentIDs := ids(layers[3].Memories)
+	if strings.Count(recentIDs, "mem_evidence") > 2 || strings.Contains(recentIDs, "mem_evidence_3") {
+		t.Fatalf("expected Recent Evidence session evidence cap of two, got %s", recentIDs)
 	}
-	if !strings.Contains(l2IDs, "mem_doc") {
-		t.Fatalf("expected ordinary file evidence to remain eligible, got %s", l2IDs)
+	docIDs := ids(layers[2].Memories)
+	if !strings.Contains(docIDs, "mem_doc") {
+		t.Fatalf("expected ordinary file evidence to remain eligible, got %s", docIDs)
 	}
 }
 

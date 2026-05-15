@@ -61,6 +61,9 @@ func memoryBlocks(memories []store.Memory, maxChars int, includeScore bool) stri
 		if mem.SourceRef != "" {
 			fmt.Fprintf(&b, "source_ref: %s\n", mem.SourceRef)
 		}
+		if mem.Why != "" {
+			fmt.Fprintf(&b, "why: %s\n", mem.Why)
+		}
 		body := mem.Content
 		if remaining > 0 {
 			body = truncateText(body, remaining)

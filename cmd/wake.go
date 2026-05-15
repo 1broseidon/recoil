@@ -23,13 +23,14 @@ type wakeOptions struct {
 }
 
 type wakeResult struct {
-	Query         string              `json:"query,omitempty"`
-	Scope         string              `json:"scope"`
-	ScopeID       string              `json:"scope_id"`
-	SelectedCount int                 `json:"selected_count"`
-	Layers        []wakeLayerResult   `json:"layers"`
-	Results       []store.Memory      `json:"results"`
-	DecisionTrail []decisionTrailItem `json:"decision_trail,omitempty"`
+	Query         string               `json:"query,omitempty"`
+	Scope         string               `json:"scope"`
+	ScopeID       string               `json:"scope_id"`
+	SelectedCount int                  `json:"selected_count"`
+	Refresh       sourceRefreshSummary `json:"refresh"`
+	Layers        []wakeLayerResult    `json:"layers"`
+	Results       []store.Memory       `json:"results"`
+	DecisionTrail []decisionTrailItem  `json:"decision_trail,omitempty"`
 }
 
 type wakeLayerResult struct {
@@ -74,6 +75,10 @@ func newWakeCommand() *cobra.Command {
 			}
 			qualityOpts := effectiveSourceQualityOptions(settings)
 			ctx := context.Background()
+			refresh, err := refreshTrackedProjectSources(ctx, st, sc)
+			if err != nil {
+				return err
+			}
 			fetchLimit := wakeFetchLimit(wakeOpts.limit)
 			var queryResults []store.Memory
 			if query != "" {
@@ -115,6 +120,7 @@ func newWakeCommand() *cobra.Command {
 				Scope:         sc.Kind,
 				ScopeID:       sc.ID,
 				SelectedCount: len(results),
+				Refresh:       refresh,
 				Layers:        wakeLayerResults(layers),
 				Results:       results,
 				DecisionTrail: trail,
@@ -140,6 +146,8 @@ func newWakeCommand() *cobra.Command {
 				{k: "result_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
 				{k: "selected_count", v: fmt.Sprintf("%d", len(results))},
 				{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
+				{k: "refreshed_sources", v: fmt.Sprintf("%d", refresh.RefreshedSources)},
+				{k: "staled_memories", v: fmt.Sprintf("%d", refresh.StaledMemories)},
 				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
 			}, body)
@@ -262,9 +270,10 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	queryResults = rankWakeCandidates(queryResults, query, quality)
 	recent = rankWakeCandidates(recent, wakePolicyQuery(query), quality)
 	layers := []wakeLayer{
-		{Key: "l0_current_context", Title: "L0 Current Context"},
-		{Key: "l1_decisions_constraints", Title: "L1 Decisions And Constraints"},
-		{Key: "l2_recent_evidence", Title: "L2 Recent Notes And Evidence"},
+		{Key: "current_decisions", Title: "Current Decisions"},
+		{Key: "remote_artifacts", Title: "Remote Artifacts"},
+		{Key: "project_docs", Title: "Project Docs"},
+		{Key: "recent_evidence", Title: "Recent Evidence"},
 	}
 	seen := make(map[string]bool)
 	sessionEvidenceByLayer := map[int]int{}
@@ -280,14 +289,12 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 			return
 		}
 		layerIndex := classifyWakeMemory(mem, query, fromQuery)
+		mem.Why = whyMemorySurfaced(mem, query, fromQuery, false)
 		if isSessionEvidence(mem) && !fromQuery {
-			if layerIndex == 1 {
-				layerIndex = 2
+			if layerIndex == 0 {
+				layerIndex = 3
 			}
-			if layerIndex == 0 && sessionEvidenceByLayer[layerIndex] >= 1 {
-				return
-			}
-			if layerIndex == 2 && sessionEvidenceByLayer[layerIndex] >= 2 {
+			if layerIndex == 3 && sessionEvidenceByLayer[layerIndex] >= 2 {
 				return
 			}
 			sessionEvidenceByLayer[layerIndex]++
@@ -333,16 +340,10 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 	role := strings.ToLower(mem.Role)
 	sourcePath := strings.ToLower(mem.SourcePath)
 	content := strings.ToLower(mem.Content)
-	if fromQuery && strings.TrimSpace(query) != "" {
-		return 0
+	if strings.EqualFold(mem.SourceKind, "remote_artifact") {
+		return 1
 	}
-	if isSessionEvidence(mem) {
-		if strings.Contains(content, "handoff") ||
-			strings.Contains(content, "next active task") ||
-			strings.Contains(content, "next step") ||
-			strings.Contains(content, "blocker") {
-			return 0
-		}
+	if strings.EqualFold(mem.SourceKind, "file") {
 		return 2
 	}
 	if strings.Contains(sourcePath, "handoff") ||
@@ -350,19 +351,22 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 		strings.Contains(content, "next active task") ||
 		strings.Contains(content, "next build step") ||
 		strings.Contains(content, "current task") {
-		return 0
+		return 3
 	}
 	switch role {
 	case "decision", "adr", "constraint", "preference", "rule":
-		return 1
+		return 0
 	}
 	if strings.Contains(content, "do not ") ||
 		strings.Contains(content, "must ") ||
 		strings.Contains(content, "non-goal") ||
 		strings.Contains(content, "settled decision") {
-		return 1
+		return 0
 	}
-	return 2
+	if fromQuery && strings.TrimSpace(query) != "" {
+		return 3
+	}
+	return 3
 }
 
 func isSessionEvidence(mem store.Memory) bool {
@@ -460,6 +464,9 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	}
 	if mem.SourceRef != "" {
 		fmt.Fprintf(&meta, "source_ref: %s\n", mem.SourceRef)
+	}
+	if mem.Why != "" {
+		fmt.Fprintf(&meta, "why: %s\n", mem.Why)
 	}
 	meta.WriteString("\n")
 

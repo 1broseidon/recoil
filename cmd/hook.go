@@ -103,7 +103,8 @@ func newHookInstallCommand(uninstall bool) *cobra.Command {
 const hookReminderText = `Recoil memory guidance:
 - At session start in a project, run ` + "`recoil wake --max-chars 1600`" + ` and treat the result as sourced working context.
 - Before making or explaining a durable decision, run ` + "`recoil search \"<topic>\"`" + `.
-- Before compaction or handoff, store durable conclusions with ` + "`recoil add --agent <agent> --role decision \"<memory>\"`" + `.
+- During work, store durable conclusions with ` + "`recoil remember --agent <agent> \"<memory>\"`" + `.
+- Before compaction or session end, close out with ` + "`recoil handoff --agent <agent> \"<summary>\"`" + `.
 - If Session Evidence is enabled and supported hooks are installed, session-end evidence is captured as selected redacted evidence, not raw transcript storage.
 - Use ` + "`--user`" + ` only for cross-project preferences, and ` + "`--session <id>`" + ` for one-session memories.
 - Treat Recoil results as evidence with IDs and provenance, not unquestionable truth.`
@@ -162,6 +163,9 @@ func hookWakeContext(limit, maxChars int) (string, bool) {
 	}
 	quality := effectiveSourceQualityOptions(settings)
 	ctx := context.Background()
+	if _, err := refreshTrackedProjectSources(ctx, st, sc); err != nil {
+		return "", false
+	}
 	recent, err := wakeRecentMemories(ctx, st, sc, memoryFilterOptions{}, wakeFetchLimit(limit), limit, quality)
 	if err != nil {
 		return "", false
@@ -764,7 +768,7 @@ func codexManagedBlock() string {
 	return codexManagedBlockOpen + `
 # Recoil memory
 
-At session start in this project, run ` + "`recoil hook remind`" + ` and follow it as persistent memory guidance. In particular, run ` + "`recoil wake --max-chars 1600`" + ` before starting substantive work, run ` + "`recoil search \"<topic>\"`" + ` before relying on memory for durable decisions, and store durable conclusions with ` + "`recoil add --agent codex --role decision \"<memory>\"`" + `.
+At session start in this project, run ` + "`recoil hook remind`" + ` and follow it as persistent memory guidance. In particular, run ` + "`recoil wake --max-chars 1600`" + ` before starting substantive work, run ` + "`recoil search \"<topic>\"`" + ` before relying on memory for durable decisions, store durable conclusions with ` + "`recoil remember --agent codex \"<memory>\"`" + `, and close out with ` + "`recoil handoff --agent codex \"<summary>\"`" + `.
 ` + codexManagedBlockEnd + "\n"
 }
 

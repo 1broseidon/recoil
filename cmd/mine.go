@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/1broseidon/recoil/internal/mine"
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
@@ -112,41 +113,6 @@ func newMineCommand() *cobra.Command {
 			} else if sc.Kind == "project" && sc.Root != "" {
 				path = sc.Root
 			}
-			_, settings, err := loadProjectSettings()
-			if err != nil {
-				return err
-			}
-			policy := effectiveMinePolicy(settings)
-			qualityOpts := effectiveSourceQualityOptions(settings)
-
-			collected, err := mine.Collect(mine.Options{
-				Path:                     path,
-				SourceRoot:               sc.Root,
-				IncludeHidden:            mineOpts.includeHidden,
-				IncludeHiddenOperational: policy.IncludeHiddenOperational,
-				FollowRepoSymlinks:       policy.FollowRepoSymlinks,
-				PolicyConfigured:         true,
-				IncludePaths:             policy.IncludePaths,
-				ExcludePaths:             policy.ExcludePaths,
-				MaxFileBytes:             mineOpts.maxFileBytes,
-				MaxChunkChars:            mineOpts.maxChars,
-				MaxChunks:                mineOpts.limit,
-			})
-			if err != nil {
-				return err
-			}
-
-			result := mineResult{
-				Root:         collected.Root,
-				Scope:        sc.Kind,
-				ScopeID:      sc.ID,
-				DryRun:       mineOpts.dryRun,
-				FilesScanned: collected.FilesScanned,
-				FilesSkipped: collected.FilesSkipped,
-				Chunks:       len(collected.Chunks),
-				Skipped:      collected.Skipped,
-			}
-
 			ctx := context.Background()
 			var st *store.Store
 			if !mineOpts.dryRun {
@@ -157,86 +123,9 @@ func newMineCommand() *cobra.Command {
 				}
 				defer st.Close()
 			}
-
-			sourceIDs := map[string][]string{}
-			sourceChunks := map[string][]mine.Chunk{}
-			for _, chunk := range collected.Chunks {
-				info := sourcequality.ClassifyWithOptions(chunk.SourcePath, qualityOpts)
-				item := mineChunkResult{
-					SourcePath:     chunk.SourcePath,
-					SourceRef:      chunk.SourceRef,
-					DocClass:       info.DocClass,
-					OperationalDoc: info.IsOperationalDoc,
-				}
-				if !mineOpts.dryRun {
-					metadata, err := mineMetadataJSON(chunk, qualityOpts)
-					if err != nil {
-						return err
-					}
-					mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
-						Role:         mineOpts.role,
-						Content:      chunk.Content,
-						SourceKind:   "file",
-						SourceAgent:  mineOpts.agent,
-						SourcePath:   chunk.SourcePath,
-						SourceRef:    chunk.SourceRef,
-						ScopeKind:    sc.Kind,
-						ScopeID:      sc.ID,
-						ProjectID:    sc.ProjectID,
-						SessionID:    sc.SessionID,
-						MetadataJSON: metadata,
-					})
-					if err != nil {
-						return err
-					}
-					item.ID = mem.ID
-					item.Duplicate = duplicate
-					sourceIDs[chunk.SourcePath] = append(sourceIDs[chunk.SourcePath], mem.ID)
-					sourceChunks[chunk.SourcePath] = append(sourceChunks[chunk.SourcePath], chunk)
-					if duplicate {
-						result.Duplicates++
-					} else {
-						result.Added++
-					}
-				}
-				result.Results = append(result.Results, item)
-			}
-			if !mineOpts.dryRun {
-				for sourcePath, chunks := range sourceChunks {
-					if len(chunks) == 0 {
-						continue
-					}
-					first := chunks[0]
-					refreshed, err := st.RefreshSource(ctx, store.SourceRefreshParams{
-						Kind:            "file",
-						Path:            sourcePath,
-						Agent:           mineOpts.agent,
-						ScopeKind:       sc.Kind,
-						ScopeID:         sc.ID,
-						Role:            mineOpts.role,
-						ContentHash:     first.FileHash,
-						ModTime:         first.FileMTime,
-						Size:            first.FileSize,
-						ChunkCount:      len(chunks),
-						ActiveMemoryIDs: sourceIDs[sourcePath],
-					})
-					if err != nil {
-						return err
-					}
-					result.Sources++
-					result.Staled += refreshed.Staled
-				}
-				if sc.Kind == "project" && sc.Root != "" && collected.Root == sc.Root {
-					paths := make([]string, 0, len(sourceChunks))
-					for path := range sourceChunks {
-						paths = append(paths, path)
-					}
-					staled, err := st.StaleMissingSources(ctx, sc.Kind, sc.ID, mineOpts.agent, paths)
-					if err != nil {
-						return err
-					}
-					result.Staled += staled
-				}
+			result, err := runMineFiles(ctx, st, sc, path, mineOpts)
+			if err != nil {
+				return err
 			}
 
 			w := cmd.OutOrStdout()
@@ -267,6 +156,125 @@ func newMineCommand() *cobra.Command {
 	c.Flags().StringVar(&mineOpts.role, "role", "source", "role assigned to mined memories")
 	c.Flags().StringVar(&mineOpts.agent, "agent", "recoil", "source agent assigned to mined memories")
 	return c
+}
+
+func runMineFiles(ctx context.Context, st *store.Store, sc scope.Scope, path string, mineOpts mineOptions) (mineResult, error) {
+	_, settings, err := loadProjectSettings()
+	if err != nil {
+		return mineResult{}, err
+	}
+	policy := effectiveMinePolicy(settings)
+	qualityOpts := effectiveSourceQualityOptions(settings)
+
+	collected, err := mine.Collect(mine.Options{
+		Path:                     path,
+		SourceRoot:               sc.Root,
+		IncludeHidden:            mineOpts.includeHidden,
+		IncludeHiddenOperational: policy.IncludeHiddenOperational,
+		FollowRepoSymlinks:       policy.FollowRepoSymlinks,
+		PolicyConfigured:         true,
+		IncludePaths:             policy.IncludePaths,
+		ExcludePaths:             policy.ExcludePaths,
+		MaxFileBytes:             mineOpts.maxFileBytes,
+		MaxChunkChars:            mineOpts.maxChars,
+		MaxChunks:                mineOpts.limit,
+	})
+	if err != nil {
+		return mineResult{}, err
+	}
+
+	result := mineResult{
+		Root:         collected.Root,
+		Scope:        sc.Kind,
+		ScopeID:      sc.ID,
+		DryRun:       mineOpts.dryRun,
+		FilesScanned: collected.FilesScanned,
+		FilesSkipped: collected.FilesSkipped,
+		Chunks:       len(collected.Chunks),
+		Skipped:      collected.Skipped,
+	}
+
+	sourceIDs := map[string][]string{}
+	sourceChunks := map[string][]mine.Chunk{}
+	for _, chunk := range collected.Chunks {
+		info := sourcequality.ClassifyWithOptions(chunk.SourcePath, qualityOpts)
+		item := mineChunkResult{
+			SourcePath:     chunk.SourcePath,
+			SourceRef:      chunk.SourceRef,
+			DocClass:       info.DocClass,
+			OperationalDoc: info.IsOperationalDoc,
+		}
+		if !mineOpts.dryRun {
+			metadata, err := mineMetadataJSON(chunk, qualityOpts)
+			if err != nil {
+				return mineResult{}, err
+			}
+			mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
+				Role:         mineOpts.role,
+				Content:      chunk.Content,
+				SourceKind:   "file",
+				SourceAgent:  mineOpts.agent,
+				SourcePath:   chunk.SourcePath,
+				SourceRef:    chunk.SourceRef,
+				ScopeKind:    sc.Kind,
+				ScopeID:      sc.ID,
+				ProjectID:    sc.ProjectID,
+				SessionID:    sc.SessionID,
+				MetadataJSON: metadata,
+			})
+			if err != nil {
+				return mineResult{}, err
+			}
+			item.ID = mem.ID
+			item.Duplicate = duplicate
+			sourceIDs[chunk.SourcePath] = append(sourceIDs[chunk.SourcePath], mem.ID)
+			sourceChunks[chunk.SourcePath] = append(sourceChunks[chunk.SourcePath], chunk)
+			if duplicate {
+				result.Duplicates++
+			} else {
+				result.Added++
+			}
+		}
+		result.Results = append(result.Results, item)
+	}
+	if !mineOpts.dryRun {
+		for sourcePath, chunks := range sourceChunks {
+			if len(chunks) == 0 {
+				continue
+			}
+			first := chunks[0]
+			refreshed, err := st.RefreshSource(ctx, store.SourceRefreshParams{
+				Kind:            "file",
+				Path:            sourcePath,
+				Agent:           mineOpts.agent,
+				ScopeKind:       sc.Kind,
+				ScopeID:         sc.ID,
+				Role:            mineOpts.role,
+				ContentHash:     first.FileHash,
+				ModTime:         first.FileMTime,
+				Size:            first.FileSize,
+				ChunkCount:      len(chunks),
+				ActiveMemoryIDs: sourceIDs[sourcePath],
+			})
+			if err != nil {
+				return mineResult{}, err
+			}
+			result.Sources++
+			result.Staled += refreshed.Staled
+		}
+		if sc.Kind == "project" && sc.Root != "" && collected.Root == sc.Root {
+			paths := make([]string, 0, len(sourceChunks))
+			for path := range sourceChunks {
+				paths = append(paths, path)
+			}
+			staled, err := st.StaleMissingSources(ctx, sc.Kind, sc.ID, mineOpts.agent, paths)
+			if err != nil {
+				return mineResult{}, err
+			}
+			result.Staled += staled
+		}
+	}
+	return result, nil
 }
 
 func mineMetadataJSON(chunk mine.Chunk, qualityOpts ...sourcequality.Options) (string, error) {

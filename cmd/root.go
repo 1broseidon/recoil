@@ -36,8 +36,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&opts.json, "json", false, "output as JSON")
 
 	rootCmd.AddCommand(newInitCommand())
+	rootCmd.AddCommand(newSetupCommand())
 	rootCmd.AddCommand(newAddCommand())
 	rootCmd.AddCommand(newDecideCommand())
+	rootCmd.AddCommand(newRememberCommand())
+	rootCmd.AddCommand(newHandoffCommand())
 	rootCmd.AddCommand(newCheckCommand())
 	rootCmd.AddCommand(newSearchCommand())
 	rootCmd.AddCommand(newWakeCommand())

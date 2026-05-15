@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/1broseidon/recoil/internal/config"
-	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/spf13/cobra"
 )
 
@@ -26,56 +24,22 @@ func newInitCommand() *cobra.Command {
 		Short: "Initialize local Recoil state",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, err := config.ResolveDBPath(opts.dbPath)
+			result, _, err := runInitProject(context.Background())
 			if err != nil {
 				return err
-			}
-			stateDir, err := config.ResolveStateDir()
-			if err != nil {
-				return err
-			}
-			userIDPath, err := config.ResolveUserIDPath()
-			if err != nil {
-				return err
-			}
-			userScope, err := scope.UserScope()
-			if err != nil {
-				return err
-			}
-			projectScope, err := scope.InitProject(".")
-			if err != nil {
-				return err
-			}
-			st, _, err := openStore()
-			if err != nil {
-				return err
-			}
-			defer st.Close()
-			if err := st.Repair(context.Background()); err != nil {
-				return err
-			}
-			result := initResult{
-				DBPath:        dbPath,
-				StateDir:      stateDir,
-				UserIDPath:    userIDPath,
-				UserID:        userScope.ID,
-				ProjectRoot:   projectScope.Root,
-				ProjectID:     projectScope.ProjectID,
-				ProjectMarker: projectScope.MarkerPath,
-				FTS5:          true,
 			}
 			w := cmd.OutOrStdout()
 			if opts.json {
 				return writeJSON(w, "init_result", result)
 			}
 			return frontmatter(w, []kv{
-				{k: "db_path", v: dbPath},
-				{k: "state_dir", v: stateDir},
-				{k: "user_id_path", v: userIDPath},
-				{k: "user_id", v: userScope.ID},
-				{k: "project_root", v: projectScope.Root},
-				{k: "project_id", v: projectScope.ProjectID},
-				{k: "project_marker", v: projectScope.MarkerPath},
+				{k: "db_path", v: result.DBPath},
+				{k: "state_dir", v: result.StateDir},
+				{k: "user_id_path", v: result.UserIDPath},
+				{k: "user_id", v: result.UserID},
+				{k: "project_root", v: result.ProjectRoot},
+				{k: "project_id", v: result.ProjectID},
+				{k: "project_marker", v: result.ProjectMarker},
 				{k: "fts5", v: fmt.Sprintf("%t", result.FTS5)},
 			}, "ready\n")
 		},
