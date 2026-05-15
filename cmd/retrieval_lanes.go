@@ -14,13 +14,14 @@ type retrievalLaneResult struct {
 }
 
 type searchResult struct {
-	Query        string                `json:"query"`
-	Scope        string                `json:"scope"`
-	ScopeID      string                `json:"scope_id"`
-	ResultCount  int                   `json:"result_count"`
-	HistoryCount int                   `json:"history_count"`
-	Lanes        []retrievalLaneResult `json:"lanes"`
-	Results      []store.Memory        `json:"results"`
+	Query            string                 `json:"query"`
+	Scope            string                 `json:"scope"`
+	ScopeID          string                 `json:"scope_id"`
+	ResultCount      int                    `json:"result_count"`
+	HistoryCount     int                    `json:"history_count"`
+	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
+	Lanes            []retrievalLaneResult  `json:"lanes"`
+	Results          []store.Memory         `json:"results"`
 }
 
 func structuredRetrievalLanes(query string, current, historical []store.Memory) []retrievalLaneResult {

@@ -78,6 +78,17 @@ type ChannelRefreshState struct {
 	LastRefreshedAt string `json:"last_refreshed_at,omitempty"`
 }
 
+type ChannelOutboxEntry struct {
+	MemoryID  string `json:"memory_id"`
+	ChannelID string `json:"channel_id"`
+	Reason    string `json:"reason,omitempty"`
+	Status    string `json:"status"`
+	Attempts  int    `json:"attempts"`
+	LastError string `json:"last_error,omitempty"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
 func (s *Store) ensureChannelTables() error {
 	for _, stmt := range []string{
 		`CREATE TABLE IF NOT EXISTS channel_identities (
@@ -122,9 +133,21 @@ func (s *Store) ensureChannelTables() error {
 			event_cursor INTEGER NOT NULL DEFAULT 0,
 			last_refreshed_at TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS channel_outbox (
+			memory_id TEXT NOT NULL,
+			channel_id TEXT NOT NULL,
+			reason TEXT,
+			status TEXT NOT NULL DEFAULT 'pending',
+			attempts INTEGER NOT NULL DEFAULT 0,
+			last_error TEXT,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY(memory_id, channel_id)
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_channel_subscriptions_name ON channel_subscriptions(name)`,
 		`CREATE INDEX IF NOT EXISTS idx_channel_imports_channel ON channel_imports(channel_id, artifact_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_channel_peers_channel ON channel_peers(channel_id, present)`,
+		`CREATE INDEX IF NOT EXISTS idx_channel_outbox_status ON channel_outbox(status, updated_at)`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil {
 			return err
@@ -490,5 +513,136 @@ func (s *Store) RecordChannelRefresh(ctx context.Context, channelID string, even
 			event_cursor = excluded.event_cursor,
 			last_refreshed_at = excluded.last_refreshed_at`,
 		channelID, eventCursor, now)
+	return err
+}
+
+func (s *Store) EnqueueChannelOutbox(ctx context.Context, memoryID, channelID, reason string) error {
+	memoryID = strings.TrimSpace(memoryID)
+	channelID = strings.TrimSpace(channelID)
+	if memoryID == "" || channelID == "" {
+		return fmt.Errorf("memory id and channel id are required")
+	}
+	var status string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT status
+		FROM channel_outbox
+		WHERE memory_id = ? AND channel_id = ?`, memoryID, channelID).Scan(&status)
+	if err == nil && status == "published" {
+		return nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO channel_outbox (
+			memory_id, channel_id, reason, status, attempts, last_error, created_at, updated_at
+		) VALUES (?, ?, ?, 'pending', 0, NULL, ?, ?)
+		ON CONFLICT(memory_id, channel_id) DO UPDATE SET
+			reason = excluded.reason,
+			status = 'pending',
+			updated_at = excluded.updated_at`,
+		memoryID, channelID, emptyToNull(strings.TrimSpace(reason)), now, now)
+	return err
+}
+
+func (s *Store) ChannelOutboxEntries(ctx context.Context, channelID string, includePublished bool, limit int) ([]ChannelOutboxEntry, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	where := `WHERE 1=1`
+	args := []any{}
+	if strings.TrimSpace(channelID) != "" {
+		where += ` AND channel_id = ?`
+		args = append(args, strings.TrimSpace(channelID))
+	}
+	if !includePublished {
+		where += ` AND status != 'published'`
+	}
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT memory_id, channel_id, COALESCE(reason, ''), status, attempts,
+			COALESCE(last_error, ''), created_at, updated_at
+		FROM channel_outbox
+		`+where+`
+		ORDER BY updated_at ASC, memory_id ASC
+		LIMIT ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []ChannelOutboxEntry
+	for rows.Next() {
+		var entry ChannelOutboxEntry
+		if err := rows.Scan(
+			&entry.MemoryID, &entry.ChannelID, &entry.Reason, &entry.Status,
+			&entry.Attempts, &entry.LastError, &entry.CreatedAt, &entry.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, rows.Err()
+}
+
+func (s *Store) PendingChannelOutbox(ctx context.Context, channelID string, limit int) ([]ChannelOutboxEntry, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	where := `WHERE status = 'pending'`
+	args := []any{}
+	if strings.TrimSpace(channelID) != "" {
+		where += ` AND channel_id = ?`
+		args = append(args, strings.TrimSpace(channelID))
+	}
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT memory_id, channel_id, COALESCE(reason, ''), status, attempts,
+			COALESCE(last_error, ''), created_at, updated_at
+		FROM channel_outbox
+		`+where+`
+		ORDER BY updated_at ASC, memory_id ASC
+		LIMIT ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []ChannelOutboxEntry
+	for rows.Next() {
+		var entry ChannelOutboxEntry
+		if err := rows.Scan(
+			&entry.MemoryID, &entry.ChannelID, &entry.Reason, &entry.Status,
+			&entry.Attempts, &entry.LastError, &entry.CreatedAt, &entry.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, rows.Err()
+}
+
+func (s *Store) MarkChannelOutboxPublished(ctx context.Context, memoryID, channelID string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE channel_outbox
+		SET status = 'published', last_error = NULL, updated_at = ?
+		WHERE memory_id = ? AND channel_id = ?`,
+		now, strings.TrimSpace(memoryID), strings.TrimSpace(channelID))
+	return err
+}
+
+func (s *Store) RecordChannelOutboxFailure(ctx context.Context, memoryID, channelID, lastError string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE channel_outbox
+		SET status = 'pending', attempts = attempts + 1, last_error = ?, updated_at = ?
+		WHERE memory_id = ? AND channel_id = ?`,
+		strings.TrimSpace(lastError), now, strings.TrimSpace(memoryID), strings.TrimSpace(channelID))
 	return err
 }

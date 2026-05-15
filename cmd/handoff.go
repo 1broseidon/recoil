@@ -19,10 +19,14 @@ type handoffOptions struct {
 	openQuestion []string
 	supersedes   string
 	claimKey     string
+	publish      bool
+	noPublish    bool
 }
 
 type handoffResult struct {
-	Memory *store.Memory `json:"memory"`
+	Memory           *store.Memory            `json:"memory"`
+	Publish          channelAutoPublishResult `json:"publish"`
+	ChannelFreshness channelFreshnessResult   `json:"channel_freshness"`
 }
 
 func newHandoffCommand() *cobra.Command {
@@ -40,6 +44,9 @@ func newHandoffCommand() *cobra.Command {
 			if strings.TrimSpace(content) == "" {
 				return fmt.Errorf("handoff content is empty; pass text or --decision/--constraint/--next-step")
 			}
+			if handoffOpts.publish && handoffOpts.noPublish {
+				return fmt.Errorf("--publish and --no-publish cannot both be set")
+			}
 			sc, err := resolveScope(cmd, handoffOpts.scope)
 			if err != nil {
 				return err
@@ -49,7 +56,9 @@ func newHandoffCommand() *cobra.Command {
 				return err
 			}
 			defer st.Close()
-			mem, _, err := st.AddMemory(context.Background(), store.AddMemoryParams{
+			ctx := context.Background()
+			freshness := ensureFreshContext(ctx, st, "handoff")
+			mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
 				Role:        "handoff",
 				Content:     content,
 				SourceKind:  "direct",
@@ -65,17 +74,28 @@ func newHandoffCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			publish := autoPublishMemory(ctx, st, mem, channelAutoPublishOptions{
+				Command:   "handoff",
+				Force:     handoffOpts.publish,
+				Disabled:  handoffOpts.noPublish,
+				Duplicate: duplicate,
+			})
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), "handoff_result", handoffResult{Memory: mem})
+				return writeJSON(cmd.OutOrStdout(), "handoff_result", handoffResult{Memory: mem, Publish: publish, ChannelFreshness: freshness})
 			}
-			return frontmatter(cmd.OutOrStdout(), []kv{
+			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
 				{k: "role", v: mem.Role},
 				{k: "claim_key", v: mem.ClaimKey},
 				{k: "supersedes", v: mem.Supersedes},
-			}, mem.Content)
+				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
+				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(freshness))},
+			}
+			meta = append(meta, channelOutboxFrontmatter("channel_", freshness.Outbox)...)
+			meta = append(meta, autoPublishFrontmatter(publish)...)
+			return frontmatter(cmd.OutOrStdout(), meta, mem.Content)
 		},
 	}
 	addScopeFlags(c, &handoffOpts.scope)
@@ -87,6 +107,8 @@ func newHandoffCommand() *cobra.Command {
 	c.Flags().StringArrayVar(&handoffOpts.openQuestion, "open-question", nil, "open question for the next session; repeatable")
 	c.Flags().StringVar(&handoffOpts.supersedes, "supersedes", "", "previous handoff memory this handoff supersedes")
 	c.Flags().StringVar(&handoffOpts.claimKey, "claim-key", "handoff.latest", "claim key for the handoff memory")
+	c.Flags().BoolVar(&handoffOpts.publish, "publish", false, "force automatic channel publish for this handoff")
+	c.Flags().BoolVar(&handoffOpts.noPublish, "no-publish", false, "skip automatic channel publish for this handoff")
 	return c
 }
 

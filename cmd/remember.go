@@ -23,6 +23,8 @@ type rememberOptions struct {
 	claimKey     string
 	supersedes   string
 	supersededBy string
+	publish      bool
+	noPublish    bool
 }
 
 type rememberInference struct {
@@ -33,9 +35,10 @@ type rememberInference struct {
 }
 
 type rememberResult struct {
-	Memory    *store.Memory     `json:"memory"`
-	Duplicate bool              `json:"duplicate"`
-	Inference rememberInference `json:"inference"`
+	Memory    *store.Memory            `json:"memory"`
+	Duplicate bool                     `json:"duplicate"`
+	Inference rememberInference        `json:"inference"`
+	Publish   channelAutoPublishResult `json:"publish"`
 }
 
 func newRememberCommand() *cobra.Command {
@@ -51,6 +54,9 @@ func newRememberCommand() *cobra.Command {
 			}
 			if strings.TrimSpace(content) == "" {
 				return fmt.Errorf("memory content is empty")
+			}
+			if rememberOpts.publish && rememberOpts.noPublish {
+				return fmt.Errorf("--publish and --no-publish cannot both be set")
 			}
 			inference := inferRemember(content, rememberOpts.role, rememberOpts.claimKey)
 			metadata := rememberOpts.metadata
@@ -97,11 +103,17 @@ func newRememberCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result := rememberResult{Memory: mem, Duplicate: duplicate, Inference: inference}
+			publish := autoPublishMemory(context.Background(), st, mem, channelAutoPublishOptions{
+				Command:   "remember",
+				Force:     rememberOpts.publish,
+				Disabled:  rememberOpts.noPublish,
+				Duplicate: duplicate,
+			})
+			result := rememberResult{Memory: mem, Duplicate: duplicate, Inference: inference, Publish: publish}
 			if opts.json {
 				return writeJSON(cmd.OutOrStdout(), "remember_result", result)
 			}
-			return frontmatter(cmd.OutOrStdout(), []kv{
+			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
@@ -110,7 +122,9 @@ func newRememberCommand() *cobra.Command {
 				{k: "inference_confidence", v: inference.Confidence},
 				{k: "inference_reason", v: inference.Reason},
 				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
-			}, mem.Content)
+			}
+			meta = append(meta, autoPublishFrontmatter(publish)...)
+			return frontmatter(cmd.OutOrStdout(), meta, mem.Content)
 		},
 	}
 	addScopeFlags(c, &rememberOpts.scope)
@@ -124,6 +138,8 @@ func newRememberCommand() *cobra.Command {
 	c.Flags().StringVar(&rememberOpts.claimKey, "claim-key", "", "override inferred claim key")
 	c.Flags().StringVar(&rememberOpts.supersedes, "supersedes", "", "memory ID this memory supersedes")
 	c.Flags().StringVar(&rememberOpts.supersededBy, "superseded-by", "", "memory ID that supersedes this memory")
+	c.Flags().BoolVar(&rememberOpts.publish, "publish", false, "force automatic channel publish for this memory")
+	c.Flags().BoolVar(&rememberOpts.noPublish, "no-publish", false, "skip automatic channel publish for this memory")
 	return c
 }
 

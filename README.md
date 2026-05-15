@@ -520,12 +520,28 @@ recoil channel publish --id mem_abc123
 recoil channel publish --since 2h --dry-run
 ```
 
-Agents normally do not need a manual sync at session start: `recoil wake`
-refreshes joined channels with a short fail-soft timeout before composing
-context. For explicit mid-session syncs, use:
+Or let write verbs publish eligible artifacts automatically:
+
+```sh
+recoil config set channel.auto_publish guidance
+recoil decide --claim-key architecture.relay "Use the relay outbox for agent-to-agent sharing."
+```
+
+Auto-publish modes are `off`, `guidance`, and `all-local`. The guidance mode
+publishes claim-keyed decisions, ADRs, constraints, preferences, rules, and
+handoffs by default. Failed publishes stay in a local durable outbox and are
+flushed by later writes, `wake`, `search`, `check`, `handoff`, or explicit
+channel commands.
+
+Agents normally do not need a manual sync before acting on context: `wake`,
+`search`, `check`, and `handoff` refresh joined channels with a short fail-soft
+timeout before returning context or closing out. For explicit mid-session syncs
+and outbox inspection, use:
 
 ```sh
 recoil channel refresh
+recoil channel outbox
+recoil channel outbox flush
 ```
 
 Inspect the channel's peer roster and artifact index, or operate the relay:

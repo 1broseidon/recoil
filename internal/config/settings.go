@@ -76,6 +76,48 @@ var settingDefinitions = []Definition{
 		Default:     "200",
 		Description: "Minimum content length for session evidence files before ingestion selects them.",
 	},
+	{
+		Key:         "channel.auto_publish",
+		Type:        TypeString,
+		Default:     "off",
+		Description: "Automatic channel publish mode: off, guidance, or all-local.",
+	},
+	{
+		Key:         "channel.auto_publish_roles",
+		Type:        TypeString,
+		Default:     "decision,adr,constraint,preference,rule,handoff",
+		Description: "Comma-separated roles eligible for channel.auto_publish=guidance.",
+	},
+	{
+		Key:         "channel.auto_publish_requires_claim_key",
+		Type:        TypeBool,
+		Default:     "true",
+		Description: "Require a claim_key before auto-publishing guidance memories.",
+	},
+	{
+		Key:         "channel.auto_publish_include_remote",
+		Type:        TypeBool,
+		Default:     "false",
+		Description: "Allow auto-publishing memories imported from remote artifacts.",
+	},
+	{
+		Key:         "channel.jit_refresh",
+		Type:        TypeString,
+		Default:     "context",
+		Description: "Implicit channel freshness mode: off, wake, context, or all.",
+	},
+	{
+		Key:         "channel.jit_refresh_timeout",
+		Type:        TypeString,
+		Default:     "2s",
+		Description: "Maximum time for implicit channel refresh and outbox flush.",
+	},
+	{
+		Key:         "channel.outbox_flush_timeout",
+		Type:        TypeString,
+		Default:     "2s",
+		Description: "Maximum time for automatic channel outbox flush after writes.",
+	},
 }
 
 var dynamicDefinitions = []Definition{
@@ -298,6 +340,17 @@ func Validate(key, value string) error {
 	}
 	value = strings.TrimSpace(value)
 	switch def.Type {
+	case TypeString:
+		switch key {
+		case "channel.auto_publish":
+			if !oneOf(value, "off", "guidance", "all-local") {
+				return fmt.Errorf("config key %q expects off, guidance, or all-local", key)
+			}
+		case "channel.jit_refresh":
+			if !oneOf(value, "off", "wake", "context", "all") {
+				return fmt.Errorf("config key %q expects off, wake, context, or all", key)
+			}
+		}
 	case TypeBool:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("config key %q expects a boolean", key)
@@ -322,6 +375,15 @@ func Validate(key, value string) error {
 		}
 	}
 	return nil
+}
+
+func oneOf(value string, allowed ...string) bool {
+	for _, item := range allowed {
+		if value == item {
+			return true
+		}
+	}
+	return false
 }
 
 func (s Settings) Int(key string, def int) int {

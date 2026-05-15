@@ -54,6 +54,8 @@ func newSearchCommand() *cobra.Command {
 				return err
 			}
 			defer st.Close()
+			ctx := context.Background()
+			freshness := ensureFreshContext(ctx, st, "search")
 
 			params, err := searchParams(query, sc, searchOpts.filters, searchOpts.limit)
 			if err != nil {
@@ -72,7 +74,7 @@ func newSearchCommand() *cobra.Command {
 			if searchOpts.hybrid {
 				mode = retrievalHybrid
 			}
-			current, err := runRetriever(context.Background(), st, params, retrieverOptions{
+			current, err := runRetriever(ctx, st, params, retrieverOptions{
 				mode:           mode,
 				hybridProvider: searchOpts.hybridProvider,
 				hybridModel:    searchOpts.hybridModel,
@@ -83,7 +85,7 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			current, err = augmentProfileSearch(context.Background(), st, params, current, searchOpts.profiles)
+			current, err = augmentProfileSearch(ctx, st, params, current, searchOpts.profiles)
 			if err != nil {
 				return err
 			}
@@ -92,7 +94,7 @@ func newSearchCommand() *cobra.Command {
 			if !explicitLifecycle {
 				historicalParams := params
 				historicalParams.Lifecycle = store.LifecycleHistorical
-				historical, err = runRetriever(context.Background(), st, historicalParams, retrieverOptions{
+				historical, err = runRetriever(ctx, st, historicalParams, retrieverOptions{
 					mode:           mode,
 					hybridProvider: searchOpts.hybridProvider,
 					hybridModel:    searchOpts.hybridModel,
@@ -116,13 +118,14 @@ func newSearchCommand() *cobra.Command {
 			w := cmd.OutOrStdout()
 			if opts.json {
 				return writeJSON(w, "search_result", searchResult{
-					Query:        query,
-					Scope:        sc.Kind,
-					ScopeID:      sc.ID,
-					ResultCount:  len(current),
-					HistoryCount: len(historical),
-					Lanes:        lanes,
-					Results:      currentWithWhy,
+					Query:            query,
+					Scope:            sc.Kind,
+					ScopeID:          sc.ID,
+					ResultCount:      len(current),
+					HistoryCount:     len(historical),
+					ChannelFreshness: freshness,
+					Lanes:            lanes,
+					Results:          currentWithWhy,
 				})
 			}
 			if searchOpts.minimal {
@@ -132,13 +135,17 @@ func newSearchCommand() *cobra.Command {
 				return nil
 			}
 
-			return frontmatter(w, []kv{
+			meta := []kv{
 				{k: "query", v: query},
 				{k: "scope", v: sc.Kind},
 				{k: "scope_id", v: sc.ID},
 				{k: "result_count", v: fmt.Sprintf("%d", len(current))},
 				{k: "history_count", v: fmt.Sprintf("%d", len(historical))},
-			}, retrievalLaneBlocks(lanes, searchOpts.maxChars))
+				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
+				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(freshness))},
+			}
+			meta = append(meta, channelOutboxFrontmatter("channel_", freshness.Outbox)...)
+			return frontmatter(w, meta, retrievalLaneBlocks(lanes, searchOpts.maxChars))
 		},
 	}
 	addScopeFlags(c, &searchOpts.scope)

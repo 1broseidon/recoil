@@ -24,11 +24,14 @@ type addOptions struct {
 	claimKey     string
 	supersedes   string
 	supersededBy string
+	publish      bool
+	noPublish    bool
 }
 
 type addResult struct {
-	Memory    *store.Memory `json:"memory"`
-	Duplicate bool          `json:"duplicate"`
+	Memory    *store.Memory            `json:"memory"`
+	Duplicate bool                     `json:"duplicate"`
+	Publish   channelAutoPublishResult `json:"publish"`
 }
 
 func newAddCommand() *cobra.Command {
@@ -44,6 +47,9 @@ func newAddCommand() *cobra.Command {
 			}
 			if strings.TrimSpace(content) == "" {
 				return fmt.Errorf("memory content is empty")
+			}
+			if addOpts.publish && addOpts.noPublish {
+				return fmt.Errorf("--publish and --no-publish cannot both be set")
 			}
 
 			sc, err := resolveScope(cmd, addOpts.scope)
@@ -78,10 +84,16 @@ func newAddCommand() *cobra.Command {
 			}
 
 			w := cmd.OutOrStdout()
+			publish := autoPublishMemory(context.Background(), st, mem, channelAutoPublishOptions{
+				Command:   "add",
+				Force:     addOpts.publish,
+				Disabled:  addOpts.noPublish,
+				Duplicate: duplicate,
+			})
 			if opts.json {
-				return writeJSON(w, "add_result", addResult{Memory: mem, Duplicate: duplicate})
+				return writeJSON(w, "add_result", addResult{Memory: mem, Duplicate: duplicate, Publish: publish})
 			}
-			return frontmatter(w, []kv{
+			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
@@ -92,7 +104,9 @@ func newAddCommand() *cobra.Command {
 				{k: "supersedes", v: mem.Supersedes},
 				{k: "superseded_by", v: mem.SupersededBy},
 				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
-			}, mem.Content)
+			}
+			meta = append(meta, autoPublishFrontmatter(publish)...)
+			return frontmatter(w, meta, mem.Content)
 		},
 	}
 	addScopeFlags(c, &addOpts.scope)
@@ -107,6 +121,8 @@ func newAddCommand() *cobra.Command {
 	c.Flags().StringVar(&addOpts.claimKey, "claim-key", "", "stable claim family for supersession")
 	c.Flags().StringVar(&addOpts.supersedes, "supersedes", "", "memory ID this memory supersedes")
 	c.Flags().StringVar(&addOpts.supersededBy, "superseded-by", "", "memory ID that supersedes this memory")
+	c.Flags().BoolVar(&addOpts.publish, "publish", false, "force automatic channel publish for this memory")
+	c.Flags().BoolVar(&addOpts.noPublish, "no-publish", false, "skip automatic channel publish for this memory")
 	return c
 }
 

@@ -17,23 +17,24 @@ type checkOptions struct {
 }
 
 type checkResult struct {
-	Query            string              `json:"query,omitempty"`
-	ClaimKey         string              `json:"claim_key,omitempty"`
-	Verdict          string              `json:"verdict"`
-	PredicateStatus  string              `json:"predicate_status"`
-	Recommendation   string              `json:"recommendation"`
-	Reason           string              `json:"reason"`
-	RecheckPrompt    string              `json:"recheck_prompt,omitempty"`
-	DecisionStance   string              `json:"decision_stance,omitempty"`
-	DecisionSubject  string              `json:"decision_subject,omitempty"`
-	RequestedAction  string              `json:"requested_action,omitempty"`
-	Advisory         string              `json:"advisory,omitempty"`
-	MatchedMemory    *store.Memory       `json:"matched_memory,omitempty"`
-	CurrentDecision  *store.Memory       `json:"current_decision,omitempty"`
-	Replacement      *store.Memory       `json:"replacement,omitempty"`
-	Predicate        *decisionPredicate  `json:"predicate,omitempty"`
-	PredicateDetails predicateEvaluation `json:"predicate_details,omitempty"`
-	Family           []store.Memory      `json:"family,omitempty"`
+	Query            string                 `json:"query,omitempty"`
+	ClaimKey         string                 `json:"claim_key,omitempty"`
+	Verdict          string                 `json:"verdict"`
+	PredicateStatus  string                 `json:"predicate_status"`
+	Recommendation   string                 `json:"recommendation"`
+	Reason           string                 `json:"reason"`
+	RecheckPrompt    string                 `json:"recheck_prompt,omitempty"`
+	DecisionStance   string                 `json:"decision_stance,omitempty"`
+	DecisionSubject  string                 `json:"decision_subject,omitempty"`
+	RequestedAction  string                 `json:"requested_action,omitempty"`
+	Advisory         string                 `json:"advisory,omitempty"`
+	MatchedMemory    *store.Memory          `json:"matched_memory,omitempty"`
+	CurrentDecision  *store.Memory          `json:"current_decision,omitempty"`
+	Replacement      *store.Memory          `json:"replacement,omitempty"`
+	Predicate        *decisionPredicate     `json:"predicate,omitempty"`
+	PredicateDetails predicateEvaluation    `json:"predicate_details,omitempty"`
+	Family           []store.Memory         `json:"family,omitempty"`
+	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
 }
 
 type decisionTrailItem struct {
@@ -68,10 +69,13 @@ func newCheckCommand() *cobra.Command {
 				return err
 			}
 			defer st.Close()
-			result, err := runDecisionCheck(context.Background(), st, sc, query, checkOpts.claimKey, checkOpts.limit)
+			ctx := context.Background()
+			freshness := ensureFreshContext(ctx, st, "check")
+			result, err := runDecisionCheck(ctx, st, sc, query, checkOpts.claimKey, checkOpts.limit)
 			if err != nil {
 				return err
 			}
+			result.ChannelFreshness = freshness
 			w := cmd.OutOrStdout()
 			if opts.json {
 				return writeJSON(w, "check_result", result)
@@ -292,7 +296,7 @@ func predicateSourceRecheck(mem *store.Memory) string {
 }
 
 func checkFrontmatter(result checkResult) []kv {
-	return []kv{
+	meta := []kv{
 		{k: "verdict", v: result.Verdict},
 		{k: "predicate_status", v: result.PredicateStatus},
 		{k: "recommendation", v: result.Recommendation},
@@ -305,6 +309,12 @@ func checkFrontmatter(result checkResult) []kv {
 		{k: "advisory", v: result.Advisory},
 		{k: "recheck", v: result.RecheckPrompt},
 	}
+	meta = append(meta,
+		kv{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
+		kv{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
+	)
+	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
+	return meta
 }
 
 func renderCheckResult(result checkResult) string {

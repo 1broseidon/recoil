@@ -24,6 +24,8 @@ type decideOptions struct {
 	predicate    predicateOptions
 	stance       string
 	subject      string
+	publish      bool
+	noPublish    bool
 }
 
 func newDecideCommand() *cobra.Command {
@@ -45,6 +47,9 @@ decision should participate in contradiction detection.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(decideOpts.claimKey) == "" {
 				return fmt.Errorf("--claim-key is required")
+			}
+			if decideOpts.publish && decideOpts.noPublish {
+				return fmt.Errorf("--publish and --no-publish cannot both be set")
 			}
 			content, err := readAddInput(decideOpts.file, args)
 			if err != nil {
@@ -108,10 +113,16 @@ decision should participate in contradiction detection.`,
 			}
 
 			w := cmd.OutOrStdout()
+			publish := autoPublishMemory(context.Background(), st, mem, channelAutoPublishOptions{
+				Command:   "decide",
+				Force:     decideOpts.publish,
+				Disabled:  decideOpts.noPublish,
+				Duplicate: duplicate,
+			})
 			if opts.json {
-				return writeJSON(w, "decide_result", addResult{Memory: mem, Duplicate: duplicate})
+				return writeJSON(w, "decide_result", addResult{Memory: mem, Duplicate: duplicate, Publish: publish})
 			}
-			return frontmatter(w, []kv{
+			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
@@ -125,7 +136,9 @@ decision should participate in contradiction detection.`,
 				{k: "supersedes", v: mem.Supersedes},
 				{k: "superseded_by", v: mem.SupersededBy},
 				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
-			}, mem.Content)
+			}
+			meta = append(meta, autoPublishFrontmatter(publish)...)
+			return frontmatter(w, meta, mem.Content)
 		},
 	}
 	addScopeFlags(c, &decideOpts.scope)
@@ -141,6 +154,8 @@ decision should participate in contradiction detection.`,
 	c.Flags().StringVar(&decideOpts.subject, "subject", "", "decision subject used by check opposition detection")
 	c.Flags().StringVar(&decideOpts.supersedes, "supersedes", "", "memory ID this decision supersedes")
 	c.Flags().StringVar(&decideOpts.supersededBy, "superseded-by", "", "memory ID that supersedes this decision")
+	c.Flags().BoolVar(&decideOpts.publish, "publish", false, "force automatic channel publish for this decision")
+	c.Flags().BoolVar(&decideOpts.noPublish, "no-publish", false, "skip automatic channel publish for this decision")
 	addPredicateFlags(c.Flags(), &decideOpts.predicate)
 	return c
 }

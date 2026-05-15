@@ -94,6 +94,11 @@ type channelRefreshResult struct {
 	Error            string              `json:"error,omitempty"`
 }
 
+type channelRefreshCommandResult struct {
+	Outbox   channelOutboxFlushResult `json:"outbox"`
+	Channels []channelRefreshResult   `json:"channels"`
+}
+
 func newChannelCommand() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "channel",
@@ -110,6 +115,7 @@ as remote evidence, and each node keeps its own local memory projection.`,
 	c.AddCommand(newChannelPublishCommand())
 	c.AddCommand(newChannelSyncCommand())
 	c.AddCommand(newChannelRefreshCommand())
+	c.AddCommand(newChannelOutboxCommand())
 	return c
 }
 
@@ -294,21 +300,12 @@ func newChannelPublishCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := loadJoinedChannelManifest(ctx, ch); err != nil {
-				return err
-			}
 			if !publishOpts.dryRun {
-				card := channelpkg.BuildRosterCard(ch, identity)
-				if isRelayTarget(ch.Path) {
-					if err := channelpkg.SignRosterCard(&card, identity.PrivateKey); err != nil {
-						return err
-					}
-					if err := relayUpdateRoster(ctx, ch, identity, card); err != nil {
-						return err
-					}
-				} else if err := channelpkg.WriteRosterCard(ch.Path, card, identity.PrivateKey); err != nil {
+				if err := prepareChannelForPublish(ctx, ch, identity); err != nil {
 					return err
 				}
+			} else if _, err := loadJoinedChannelManifest(ctx, ch); err != nil {
+				return err
 			}
 			memories, err := channelPublishCandidates(ctx, st, ch, publishOpts)
 			if err != nil {
@@ -331,18 +328,14 @@ func newChannelPublishCommand() *cobra.Command {
 					result.Skipped++
 					continue
 				}
-				event := channelpkg.NewMemoryArtifactEvent(ch, identity, mem)
-				if err := channelpkg.SignMemoryArtifactEvent(&event, identity.PrivateKey); err != nil {
+				event, duplicate, err := publishMemoryToChannel(ctx, ch, identity, mem, publishOpts.dryRun)
+				if err != nil {
 					return err
 				}
 				if publishOpts.dryRun {
 					result.Planned++
 					result.Events = append(result.Events, event)
 					continue
-				}
-				duplicate, err := appendChannelEvent(ctx, ch, identity, event)
-				if err != nil {
-					return err
 				}
 				if duplicate {
 					result.Skipped++
@@ -443,11 +436,12 @@ func newChannelRefreshCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			outbox := flushChannelOutbox(ctx, st, identity, channels, 100)
 			results := refreshChannels(ctx, st, identity, channels)
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), "channel_refresh_result", results)
+				return writeJSON(cmd.OutOrStdout(), "channel_refresh_result", channelRefreshCommandResult{Outbox: outbox, Channels: results})
 			}
-			return writeChannelRefresh(cmd, results)
+			return writeChannelRefresh(cmd, results, outbox)
 		},
 	}
 	c.Flags().StringVar(&refreshOpts.channel, "channel", "", "channel id, name, or path")
@@ -909,7 +903,7 @@ func writeChannelSync(cmd *cobra.Command, results []channelSyncResult) error {
 	}, b.String())
 }
 
-func writeChannelRefresh(cmd *cobra.Command, results []channelRefreshResult) error {
+func writeChannelRefresh(cmd *cobra.Command, results []channelRefreshResult, outbox channelOutboxFlushResult) error {
 	var b strings.Builder
 	imported := 0
 	newPeers := 0
@@ -954,13 +948,15 @@ func writeChannelRefresh(cmd *cobra.Command, results []channelRefreshResult) err
 			b.WriteByte('\n')
 		}
 	}
-	return frontmatter(cmd.OutOrStdout(), []kv{
+	meta := []kv{
 		{k: "channel_count", v: fmt.Sprintf("%d", len(results))},
 		{k: "imported", v: fmt.Sprintf("%d", imported)},
 		{k: "new_peers", v: fmt.Sprintf("%d", newPeers)},
 		{k: "missing_peers", v: fmt.Sprintf("%d", missingPeers)},
 		{k: "errors", v: fmt.Sprintf("%d", errors)},
-	}, b.String())
+	}
+	meta = append(meta, channelOutboxFrontmatter("", outbox)...)
+	return frontmatter(cmd.OutOrStdout(), meta, b.String())
 }
 
 func rosterScopes(scopes []channelpkg.ScopeRef) string {

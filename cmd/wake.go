@@ -6,7 +6,6 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sourcequality"
@@ -24,15 +23,16 @@ type wakeOptions struct {
 }
 
 type wakeResult struct {
-	Query          string                 `json:"query,omitempty"`
-	Scope          string                 `json:"scope"`
-	ScopeID        string                 `json:"scope_id"`
-	SelectedCount  int                    `json:"selected_count"`
-	Refresh        sourceRefreshSummary   `json:"refresh"`
-	ChannelRefresh []channelRefreshResult `json:"channel_refresh,omitempty"`
-	Layers         []wakeLayerResult      `json:"layers"`
-	Results        []store.Memory         `json:"results"`
-	DecisionTrail  []decisionTrailItem    `json:"decision_trail,omitempty"`
+	Query            string                 `json:"query,omitempty"`
+	Scope            string                 `json:"scope"`
+	ScopeID          string                 `json:"scope_id"`
+	SelectedCount    int                    `json:"selected_count"`
+	Refresh          sourceRefreshSummary   `json:"refresh"`
+	ChannelRefresh   []channelRefreshResult `json:"channel_refresh,omitempty"`
+	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
+	Layers           []wakeLayerResult      `json:"layers"`
+	Results          []store.Memory         `json:"results"`
+	DecisionTrail    []decisionTrailItem    `json:"decision_trail,omitempty"`
 }
 
 type wakeLayerResult struct {
@@ -81,7 +81,8 @@ func newWakeCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			channelRefresh := wakeChannelRefresh(ctx, st)
+			channelFreshness := ensureFreshContext(ctx, st, "wake")
+			channelRefresh := channelFreshness.Refresh
 			fetchLimit := wakeFetchLimit(wakeOpts.limit)
 			var queryResults []store.Memory
 			if query != "" {
@@ -119,15 +120,16 @@ func newWakeCommand() *cobra.Command {
 				}
 			}
 			result := wakeResult{
-				Query:          query,
-				Scope:          sc.Kind,
-				ScopeID:        sc.ID,
-				SelectedCount:  len(results),
-				Refresh:        refresh,
-				ChannelRefresh: channelRefresh,
-				Layers:         wakeLayerResults(layers),
-				Results:        results,
-				DecisionTrail:  trail,
+				Query:            query,
+				Scope:            sc.Kind,
+				ScopeID:          sc.ID,
+				SelectedCount:    len(results),
+				Refresh:          refresh,
+				ChannelRefresh:   channelRefresh,
+				ChannelFreshness: channelFreshness,
+				Layers:           wakeLayerResults(layers),
+				Results:          results,
+				DecisionTrail:    trail,
 			}
 			if opts.json {
 				return writeJSON(w, "wake_result", result)
@@ -143,7 +145,7 @@ func newWakeCommand() *cobra.Command {
 			if wakeOpts.decisions {
 				body = combineWakeDecisionTrail(renderDecisionTrail(trail), body)
 			}
-			return frontmatter(w, []kv{
+			meta := []kv{
 				{k: "query", v: query},
 				{k: "scope", v: sc.Kind},
 				{k: "scope_id", v: sc.ID},
@@ -152,11 +154,13 @@ func newWakeCommand() *cobra.Command {
 				{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
 				{k: "refreshed_sources", v: fmt.Sprintf("%d", refresh.RefreshedSources)},
 				{k: "staled_memories", v: fmt.Sprintf("%d", refresh.StaledMemories)},
-				{k: "channel_imported", v: fmt.Sprintf("%d", channelRefreshImported(channelRefresh))},
-				{k: "channel_errors", v: fmt.Sprintf("%d", channelRefreshErrors(channelRefresh))},
+				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(channelFreshness))},
+				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(channelFreshness))},
 				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
-			}, body)
+			}
+			meta = append(meta, channelOutboxFrontmatter("channel_", channelFreshness.Outbox)...)
+			return frontmatter(w, meta, body)
 		},
 	}
 	addScopeFlags(c, &wakeOpts.scope)
@@ -263,20 +267,6 @@ func wakeFetchLimit(limit int) int {
 		return 1000
 	}
 	return fetchLimit
-}
-
-func wakeChannelRefresh(ctx context.Context, st *store.Store) []channelRefreshResult {
-	channels, err := st.ChannelSubscriptions(ctx)
-	if err != nil || len(channels) == 0 {
-		return nil
-	}
-	refreshCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	identity, err := st.GetOrCreateChannelIdentity(refreshCtx)
-	if err != nil {
-		return []channelRefreshResult{{Error: err.Error()}}
-	}
-	return refreshChannels(refreshCtx, st, identity, channels)
 }
 
 func channelRefreshImported(results []channelRefreshResult) int {

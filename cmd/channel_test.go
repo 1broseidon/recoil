@@ -13,6 +13,7 @@ import (
 	"time"
 
 	channelpkg "github.com/1broseidon/recoil/internal/channel"
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 )
 
@@ -305,6 +306,102 @@ func TestChannelPublishPrecisionDryRunAndClaimKey(t *testing.T) {
 	}
 }
 
+func TestAutoPublishGuidanceAndSearchJITRefresh(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	runConfigCommand(t, "set", "channel.auto_publish", "guidance")
+
+	relayData := t.TempDir()
+	server := httptest.NewServer(newRelayHandler(relayData))
+	defer server.Close()
+
+	scopeID := "auto-publish"
+	dbA := filepath.Join(t.TempDir(), "a.db")
+	dbB := filepath.Join(t.TempDir(), "b.db")
+	inviteA, _, err := createRelayInvite(relayData, "agents", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runChannelCommandWithDB(t, dbA, "join", "--session", scopeID, "--agent", "alpha", server.URL+"/v1/invites/"+inviteA.Token)
+
+	decide := runDecideCommandWithDB(t, dbA,
+		"--session", scopeID,
+		"--claim-key", "auto.publish.guidance",
+		"Auto publish should share claim-keyed guidance over the relay.")
+	for _, want := range []string{"publish_mode: guidance", "publish_published: 1", "publish_queued: 1"} {
+		if !strings.Contains(decide, want) {
+			t.Fatalf("expected %q in decide output:\n%s", want, decide)
+		}
+	}
+
+	inviteB, _, err := createRelayInvite(relayData, "agents", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runChannelCommandWithDB(t, dbB, "join", "--session", scopeID, "--agent", "beta", server.URL+"/v1/invites/"+inviteB.Token)
+	search := runSearchCommandWithDB(t, dbB, "claim-keyed guidance relay", "--session", scopeID, "--limit", "5")
+	for _, want := range []string{"channel_imported: 1", "source_kind: remote_artifact", "source_agent: alpha"} {
+		if !strings.Contains(search, want) {
+			t.Fatalf("expected %q in search output:\n%s", want, search)
+		}
+	}
+}
+
+func TestAutoPublishQueuesOutboxWhenRelayUnavailable(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	runConfigCommand(t, "set", "channel.auto_publish", "guidance")
+	runConfigCommand(t, "set", "channel.outbox_flush_timeout", "50ms")
+
+	scopeID := "offline-outbox"
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	ctx := context.Background()
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := st.GetOrCreateChannelIdentity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpsertChannelSubscription(ctx, store.UpsertChannelSubscriptionParams{
+		ChannelID: "ch_offline",
+		Name:      "offline",
+		Path:      "http://127.0.0.1:1",
+		NodeID:    identity.NodeID,
+		Agent:     "alpha",
+		ScopeKind: "session",
+		ScopeID:   scopeID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	decide := runDecideCommandWithDB(t, dbPath,
+		"--session", scopeID,
+		"--claim-key", "auto.publish.offline",
+		"Auto publish should queue locally when the relay is unavailable.")
+	for _, want := range []string{"publish_mode: guidance", "publish_queued: 1", "publish_failed: 1"} {
+		if !strings.Contains(decide, want) {
+			t.Fatalf("expected %q in decide output:\n%s", want, decide)
+		}
+	}
+	outbox := runChannelCommandWithDB(t, dbPath, "outbox")
+	for _, want := range []string{"pending: 1", "ch_offline", "attempts=1"} {
+		if !strings.Contains(outbox, want) {
+			t.Fatalf("expected %q in outbox output:\n%s", want, outbox)
+		}
+	}
+}
+
 func TestRelayRequiresSignedRequests(t *testing.T) {
 	relayData := t.TempDir()
 	server := httptest.NewServer(newRelayHandler(relayData))
@@ -460,6 +557,40 @@ func runChannelCommandWithDB(t *testing.T, dbPath string, args ...string) string
 	defer func() { opts = oldOpts }()
 
 	c := newChannelCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs(args)
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
+}
+
+func runDecideCommandWithDB(t *testing.T, dbPath string, args ...string) string {
+	t.Helper()
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	c := newDecideCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs(args)
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
+}
+
+func runSearchCommandWithDB(t *testing.T, dbPath string, args ...string) string {
+	t.Helper()
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	c := newSearchCommand()
 	var out bytes.Buffer
 	c.SetOut(&out)
 	c.SetErr(&bytes.Buffer{})

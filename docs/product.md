@@ -180,12 +180,17 @@ The current experimental path is:
   a channel.
 - `recoil channel join <invite-url>` registers the local node key with the
   relay and stores the channel subscription locally.
-- `recoil wake` refreshes joined channels with a short fail-soft timeout before
-  composing context.
+- `recoil wake`, `search`, `check`, and `handoff` refresh joined channels with
+  a short fail-soft timeout before returning context or closing out work.
 - `recoil channel refresh` explicitly refreshes roster state and imports new
   artifact events since the local cursor.
 - `recoil channel publish --claim-key/--id/--since --dry-run` writes precise
   signed artifact events instead of broad accidental batches.
+- `channel.auto_publish=off|guidance|all-local` can publish eligible artifacts
+  from write verbs automatically. Guidance mode shares claim-keyed durable
+  guidance; failed publishes remain in the local channel outbox.
+- `recoil channel outbox` and `recoil channel outbox flush` expose the durable
+  local publish queue.
 - `recoil channel roster` shows the channel's verified peer roster and artifact
   index.
 - `recoil channel sync` imports remote artifacts into the local scope with
