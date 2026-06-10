@@ -1,8 +1,6 @@
 ---
 id: task-17
 title: "FTSQuery: strip stopwords, AND-first with OR fallback; evaluate porter tokenizer"
-column: todo
-position: 6
 priority: medium
 tags:
   - audit
@@ -13,6 +11,8 @@ relatedFiles:
   - internal/retrieval/signals.go
 parentId: epic-1
 createdAt: "2026-06-10T04:40:43.856Z"
+completedAt: "2026-06-10T06:05:44.753Z"
+updatedAt: "2026-06-10T06:05:44.753Z"
 ---
 
 ## Description
