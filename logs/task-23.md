@@ -1,8 +1,6 @@
 ---
 id: task-23
 title: Mild recency prior for direct and session_evidence memories in default ranking
-column: todo
-position: 12
 priority: medium
 tags:
   - audit
@@ -12,6 +10,8 @@ relatedFiles:
   - internal/store/store.go
 parentId: epic-1
 createdAt: "2026-06-10T04:41:12.266Z"
+completedAt: "2026-06-10T10:10:24.872Z"
+updatedAt: "2026-06-10T10:10:24.872Z"
 ---
 
 ## Description
