@@ -13,6 +13,48 @@ import (
 	"github.com/1broseidon/recoil/internal/store"
 )
 
+func TestWakeCommandExplainIncludesScoreComponents(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	ctx := context.Background()
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = st.AddMemory(ctx, store.AddMemoryParams{
+		Role:       "decision",
+		Content:    "Wake explain target keeps current context visible.",
+		SourceKind: "direct",
+		ScopeKind:  "session",
+		ScopeID:    "explain-wake",
+		Validity:   "active",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newWakeCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"--session", "explain-wake", "--explain", "--limit", "4"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"explain:", "final_score", "retrieval_mode", "guidance_role_prior"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in wake explain output:\n%s", want, got)
+		}
+	}
+}
+
 func TestBuildWakeLayersPrioritizesContextAndDecisions(t *testing.T) {
 	recent := []store.Memory{
 		{

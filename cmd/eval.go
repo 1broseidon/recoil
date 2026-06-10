@@ -642,7 +642,7 @@ func runEvalSearch(ctx context.Context, st *store.Store, provider embedding.Prov
 	return runRetriever(ctx, st, params, retrieverOptions{
 		mode:       retrieval,
 		provider:   provider,
-		hybridPool: maxInt(params.Limit*4, 20),
+		hybridPool: max(params.Limit*4, 20),
 		fusionK:    60,
 		limit:      params.Limit,
 	})

@@ -25,6 +25,7 @@ type searchOptions struct {
 	limit          int
 	minimal        bool
 	maxChars       int
+	explain        bool
 	hybrid         bool
 	hybridProvider string
 	hybridModel    string
@@ -87,6 +88,7 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().IntVar(&searchOpts.limit, "limit", 5, "maximum number of memories to return")
 	c.Flags().BoolVar(&searchOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().IntVar(&searchOpts.maxChars, "max-chars", 4000, "maximum characters of memory content to print")
+	c.Flags().BoolVar(&searchOpts.explain, "explain", false, "include per-result score component diagnostics")
 	c.Flags().BoolVar(&searchOpts.hybrid, "hybrid", false, "fuse FTS5 and embedding similarity via RRF (requires indexed embeddings)")
 	c.Flags().StringVar(&searchOpts.hybridProvider, "hybrid-provider", embedding.OpenRouterProvider, "embedding provider for --hybrid")
 	c.Flags().StringVar(&searchOpts.hybridModel, "hybrid-model", embedding.DefaultOpenRouterModel, "embedding model for --hybrid")
@@ -156,6 +158,9 @@ func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query strin
 		}
 	}
 	lanes := structuredRetrievalLanes(query, current, historical)
+	if opts.explain {
+		lanes = explainRetrievalLanes(lanes, query, params.SourceQuality, params.AgingWindow, retrievalMode)
+	}
 	currentWithWhy := make([]store.Memory, 0, len(current))
 	for _, lane := range lanes {
 		if lane.Key == "historical" {
@@ -332,16 +337,9 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 	}
 	// Pool must be wide enough that operational docs (root README, CONTRIBUTING,
 	// SECURITY) survive into the candidate set on large repos where short-form
-	// docs lose FTS to deeper, denser docs. We tripped over this on transformers
-	// where root README's FTS rank for broad queries was beyond top-50 in the
-	// >2k-chunk corpus, so the +3 root_readme prior never fired.
-	pool := limit * 20
-	if pool < 100 {
-		pool = 100
-	}
-	if pool > 100 {
-		pool = 100
-	}
+	// docs lose FTS to deeper, denser docs. Scale with limit, but cap the fanout
+	// so broad variant searches stay bounded.
+	pool := min(max(limit*20, 100), 200)
 	byID := map[string]*searchScoredMemory{}
 	k := 60.0
 	for vi, variant := range variants {

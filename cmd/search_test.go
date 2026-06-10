@@ -105,6 +105,48 @@ func frontmatterContains(meta []kv, key, value string) bool {
 	return false
 }
 
+func TestSearchCommandExplainIncludesScoreComponents(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "recoil.db")
+	oldOpts := opts
+	opts = globalOptions{dbPath: dbPath}
+	defer func() { opts = oldOpts }()
+
+	ctx := context.Background()
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = st.AddMemory(ctx, store.AddMemoryParams{
+		Role:       "decision",
+		Content:    "Explain target keeps sqlite FTS scoring visible.",
+		SourceKind: "direct",
+		ScopeKind:  "session",
+		ScopeID:    "explain-search",
+		Validity:   "active",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newSearchCommand()
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetErr(&bytes.Buffer{})
+	c.SetArgs([]string{"--session", "explain-search", "--explain", "explain target sqlite"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"explain:", "final_score", "retrieval_mode", "token_coverage"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in explain output:\n%s", want, got)
+		}
+	}
+}
+
 func TestSearchCommandSeparatesCurrentAndHistoricalResults(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "recoil.db")
 	oldOpts := opts

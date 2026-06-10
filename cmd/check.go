@@ -133,7 +133,7 @@ func runDecisionCheck(ctx context.Context, st *store.Store, sc scope.Scope, quer
 			Reason:          "no_claim_key_match",
 		}, nil
 	}
-	family, err := decisionFamily(ctx, st, sc, claimKey, maxInt(limit*4, 20))
+	family, err := decisionFamily(ctx, st, sc, claimKey, max(limit*4, 20))
 	if err != nil {
 		return checkResult{}, err
 	}
@@ -150,7 +150,7 @@ func searchDecisionCandidates(ctx context.Context, st *store.Store, sc scope.Sco
 		Query:         query,
 		ScopeKind:     sc.Kind,
 		ScopeID:       sc.ID,
-		Limit:         maxInt(limit, 8),
+		Limit:         max(limit, 8),
 		Lifecycle:     store.LifecycleAny,
 		SignalRerank:  true,
 		SourceQuality: effectiveSourceQualityOptions(settings),
@@ -485,7 +485,7 @@ func decisionTrail(ctx context.Context, st *store.Store, sc scope.Scope, limit i
 	memories, err := st.List(ctx, store.ListParams{
 		ScopeKind: sc.Kind,
 		ScopeID:   sc.ID,
-		Limit:     maxInt(limit*8, 40),
+		Limit:     max(limit*8, 40),
 		Lifecycle: store.LifecycleAny,
 	})
 	if err != nil {

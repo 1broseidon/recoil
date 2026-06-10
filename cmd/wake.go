@@ -21,6 +21,7 @@ type wakeOptions struct {
 	maxChars  int
 	minimal   bool
 	decisions bool
+	explain   bool
 }
 
 type wakeResult struct {
@@ -101,6 +102,7 @@ func newWakeCommand() *cobra.Command {
 	c.Flags().IntVar(&wakeOpts.maxChars, "max-chars", 1600, "maximum characters of memory content to print")
 	c.Flags().BoolVar(&wakeOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().BoolVar(&wakeOpts.decisions, "include-decisions", false, "include a claim-keyed decision trail")
+	c.Flags().BoolVar(&wakeOpts.explain, "explain", false, "include per-result score component diagnostics")
 	return c
 }
 
@@ -144,6 +146,9 @@ func runWake(ctx context.Context, st *store.Store, sc scope.Scope, query string,
 		return wakeExecution{}, err
 	}
 	layers := buildWakeLayers(query, queryResults, recent, opts.limit, qualityOpts, ageWindow)
+	if opts.explain {
+		layers = explainWakeLayers(layers, query, qualityOpts, ageWindow)
+	}
 	results := flattenWakeLayers(layers)
 	var trail []decisionTrailItem
 	if opts.decisions {
@@ -350,7 +355,7 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	sessionEvidenceByLayer := map[int]int{}
 	total := 0
 	newestDirectHandoff := newestDirectHandoffID(append(append([]store.Memory(nil), queryResults...), recent...))
-	layerCaps := []int{maxInt(2, limit/3), limit, (limit + 1) / 2, 2}
+	layerCaps := []int{max(2, limit/3), limit, (limit + 1) / 2, 2}
 	type wakeCandidate struct {
 		memory    store.Memory
 		fromQuery bool
@@ -471,7 +476,7 @@ func newestDirectHandoffID(memories []store.Memory) string {
 	return newestID
 }
 
-func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
+func classifyWakeMemory(mem store.Memory, _ string, _ bool) int {
 	role := strings.ToLower(mem.Role)
 	sourcePath := strings.ToLower(mem.SourcePath)
 	content := strings.ToLower(mem.Content)
@@ -497,9 +502,6 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 		strings.Contains(content, "non-goal") ||
 		strings.Contains(content, "settled decision") {
 		return 0
-	}
-	if fromQuery && strings.TrimSpace(query) != "" {
-		return 3
 	}
 	return 3
 }
@@ -537,7 +539,7 @@ func layeredMemoryBlocks(layers []wakeLayer, maxChars int, includeScore bool) wa
 	selectedCount := len(flattenWakeLayers(layers))
 	perMemCap := 0
 	if maxChars > 0 {
-		perMemCap = maxInt(280, maxChars/maxInt(1, selectedCount))
+		perMemCap = max(280, maxChars/max(1, selectedCount))
 	}
 	render := wakeRender{}
 	for _, layer := range layers {
@@ -609,6 +611,7 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	if mem.Why != "" {
 		fmt.Fprintf(&meta, "why: %s\n", mem.Why)
 	}
+	renderExplainComponents(&meta, mem.Explain)
 	meta.WriteString("\n")
 
 	if maxChars <= 0 {

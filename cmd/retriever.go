@@ -118,10 +118,3 @@ func runHybridRetriever(ctx context.Context, st *store.Store, p store.SearchPara
 	out := diversifySignalResults(fused, limit, p.Query)
 	return expandDerivedSourceEvidence(ctx, st, p, out, limit)
 }
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

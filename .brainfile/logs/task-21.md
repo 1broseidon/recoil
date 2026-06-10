@@ -1,8 +1,6 @@
 ---
 id: task-21
 title: "search --explain: per-result score component breakdown"
-column: todo
-position: 10
 priority: low
 tags:
   - audit
@@ -14,6 +12,8 @@ relatedFiles:
   - internal/store/store.go
 parentId: epic-1
 createdAt: "2026-06-10T04:41:02.694Z"
+completedAt: "2026-06-10T09:58:01.207Z"
+updatedAt: "2026-06-10T09:58:01.207Z"
 ---
 
 ## Description

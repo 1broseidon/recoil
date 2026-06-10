@@ -33,30 +33,37 @@ type Store struct {
 	path string
 }
 
+type ScoreComponent struct {
+	Name   string  `json:"name"`
+	Value  float64 `json:"value"`
+	Detail string  `json:"detail,omitempty"`
+}
+
 type Memory struct {
-	ID           string  `json:"id"`
-	Hash         string  `json:"hash,omitempty"`
-	Role         string  `json:"role,omitempty"`
-	Content      string  `json:"content"`
-	SourceKind   string  `json:"source_kind,omitempty"`
-	SourceAgent  string  `json:"source_agent,omitempty"`
-	SourcePath   string  `json:"source_path,omitempty"`
-	SourceRef    string  `json:"source_ref,omitempty"`
-	ScopeKind    string  `json:"scope_kind"`
-	ScopeID      string  `json:"scope_id"`
-	ProjectID    string  `json:"project_id,omitempty"`
-	SessionID    string  `json:"session_id,omitempty"`
-	Room         string  `json:"room,omitempty"`
-	MetadataJSON string  `json:"metadata_json,omitempty"`
-	Validity     string  `json:"validity"`
-	ClaimKey     string  `json:"claim_key,omitempty"`
-	Supersedes   string  `json:"supersedes,omitempty"`
-	SupersededBy string  `json:"superseded_by,omitempty"`
-	CreatedAt    string  `json:"created_at"`
-	TombstonedAt string  `json:"tombstoned_at,omitempty"`
-	Score        float64 `json:"score,omitempty"`
-	Excerpt      string  `json:"excerpt,omitempty"`
-	Why          string  `json:"why,omitempty"`
+	ID           string           `json:"id"`
+	Hash         string           `json:"hash,omitempty"`
+	Role         string           `json:"role,omitempty"`
+	Content      string           `json:"content"`
+	SourceKind   string           `json:"source_kind,omitempty"`
+	SourceAgent  string           `json:"source_agent,omitempty"`
+	SourcePath   string           `json:"source_path,omitempty"`
+	SourceRef    string           `json:"source_ref,omitempty"`
+	ScopeKind    string           `json:"scope_kind"`
+	ScopeID      string           `json:"scope_id"`
+	ProjectID    string           `json:"project_id,omitempty"`
+	SessionID    string           `json:"session_id,omitempty"`
+	Room         string           `json:"room,omitempty"`
+	MetadataJSON string           `json:"metadata_json,omitempty"`
+	Validity     string           `json:"validity"`
+	ClaimKey     string           `json:"claim_key,omitempty"`
+	Supersedes   string           `json:"supersedes,omitempty"`
+	SupersededBy string           `json:"superseded_by,omitempty"`
+	CreatedAt    string           `json:"created_at"`
+	TombstonedAt string           `json:"tombstoned_at,omitempty"`
+	Score        float64          `json:"score,omitempty"`
+	Excerpt      string           `json:"excerpt,omitempty"`
+	Why          string           `json:"why,omitempty"`
+	Explain      []ScoreComponent `json:"explain,omitempty"`
 }
 
 type AddMemoryParams struct {
@@ -372,13 +379,13 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		// Always widen the candidate pool when reranking; otherwise FTS's `LIMIT
 		// <limit>` clamp can drop high-prior docs (e.g. root README earning a
 		// +3 wantsOverview boost) before the prior even runs.
-		sqlLimit = maxInt(sqlLimit, maxInt(limit*10, 50))
+		sqlLimit = max(sqlLimit, max(limit*10, 50))
 	}
 	if temporalCue {
 		// Temporal cues benefit from a wider date-aware re-rank pool. Use the
 		// max of the existing SignalRerank widening and the temporal-specific
 		// width so we never *shrink* the pool when both apply.
-		sqlLimit = maxInt(sqlLimit, maxInt(limit*4, 20))
+		sqlLimit = max(sqlLimit, max(limit*4, 20))
 	}
 	if sqlLimit > 100 {
 		sqlLimit = 100
@@ -571,13 +578,6 @@ func parseFlexibleTime(value string) time.Time {
 		}
 	}
 	return time.Time{}
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func EmbeddingText(mem Memory) string {

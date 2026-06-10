@@ -64,6 +64,7 @@ func memoryBlocks(memories []store.Memory, maxChars int, includeScore bool) stri
 		if mem.Why != "" {
 			fmt.Fprintf(&b, "why: %s\n", mem.Why)
 		}
+		renderExplainComponents(&b, mem.Explain)
 		body := mem.Content
 		if remaining > 0 {
 			body = truncateText(body, remaining)

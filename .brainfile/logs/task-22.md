@@ -1,8 +1,6 @@
 ---
 id: task-22
 title: "Cleanup: dead pool clamp, dead wake branch, duplicate maxInt"
-column: todo
-position: 11
 priority: low
 tags:
   - audit
@@ -14,6 +12,8 @@ relatedFiles:
   - cmd/retriever.go
 parentId: epic-1
 createdAt: "2026-06-10T04:41:03.138Z"
+completedAt: "2026-06-10T09:58:01.643Z"
+updatedAt: "2026-06-10T09:58:01.643Z"
 ---
 
 ## Description
