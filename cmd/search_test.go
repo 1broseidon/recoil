@@ -341,6 +341,108 @@ func TestSearchRoutesExpiredValidUntilToHistoricalLane(t *testing.T) {
 	}
 }
 
+func TestRunSignalSearchFiltersAbsentFactLeakage(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	// Weak chunk: shares only incidental tokens ("clients") with the query.
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:       "source",
+		SourceKind: "file",
+		SourcePath: "docs/roadmap.md",
+		Content:    "clients read the deployment roadmap and documented milestones",
+		ScopeKind:  "session",
+		ScopeID:    "absent-leak",
+		Validity:   "active",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Negated mention: says there is no redis — evidence of absence, not an answer.
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:       "source",
+		SourceKind: "file",
+		SourcePath: "docs/storage.md",
+		Content:    "There is no redis in the stack; storage uses sqlite only.",
+		ScopeKind:  "session",
+		ScopeID:    "absent-leak",
+		Validity:   "active",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := runSignalSearch(ctx, st, store.SearchParams{
+		Query:        "what graphql schema do we expose to clients",
+		ScopeKind:    "session",
+		ScopeID:      "absent-leak",
+		Limit:        5,
+		Lifecycle:    store.LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected absent-fact query to return empty, got %+v", results)
+	}
+
+	results, err = runSignalSearch(ctx, st, store.SearchParams{
+		Query:        "what redis configuration do we use",
+		ScopeKind:    "session",
+		ScopeID:      "absent-leak",
+		Limit:        5,
+		Lifecycle:    store.LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mem := range results {
+		if strings.Contains(mem.Content, "no redis") {
+			t.Fatalf("negated mention surfaced as answer: %+v", mem)
+		}
+	}
+}
+
+func TestRunSignalSearchKeepsGuidanceForNegatedSubjectQueries(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	// A rejection decision must keep surfacing for queries about its subject.
+	decision, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:      "decision",
+		Content:   "Decided against redis for the cache; do not use redis while ops cost is unjustified.",
+		ScopeKind: "session",
+		ScopeID:   "guidance-negation",
+		Validity:  "active",
+		ClaimKey:  "dependency.cache.redis",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := runSignalSearch(ctx, st, store.SearchParams{
+		Query:        "should we use redis for caching",
+		ScopeKind:    "session",
+		ScopeID:      "guidance-negation",
+		Limit:        5,
+		Lifecycle:    store.LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].ID != decision.ID {
+		t.Fatalf("expected rejection decision to surface for subject query, got %+v", results)
+	}
+}
+
 func TestRunSignalSearchFusesQueryVariants(t *testing.T) {
 	ctx := context.Background()
 	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))

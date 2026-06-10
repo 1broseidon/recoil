@@ -62,6 +62,7 @@ type minedMetadata struct {
 	RootDoc        bool   `json:"is_root_doc,omitempty"`
 	OperationalDoc bool   `json:"is_operational_doc,omitempty"`
 	NoiseProne     bool   `json:"is_noise_prone,omitempty"`
+	Validity       string `json:"validity,omitempty"`
 }
 
 func newMineCommand() *cobra.Command {
@@ -277,13 +278,13 @@ func runMineFiles(ctx context.Context, st *store.Store, sc scope.Scope, path str
 	return result, nil
 }
 
-func mineMetadataJSON(chunk mine.Chunk, qualityOpts ...sourcequality.Options) (string, error) {
+func mineMetadataMap(chunk mine.Chunk, qualityOpts ...sourcequality.Options) (map[string]any, error) {
 	var opts sourcequality.Options
 	if len(qualityOpts) > 0 {
 		opts = qualityOpts[0]
 	}
 	info := sourcequality.ClassifyWithOptions(chunk.SourcePath, opts)
-	data, err := json.Marshal(minedMetadata{
+	metadata := minedMetadata{
 		Kind:           "file_chunk",
 		ChunkIndex:     chunk.Index,
 		StartLine:      chunk.StartLine,
@@ -296,11 +297,43 @@ func mineMetadataJSON(chunk mine.Chunk, qualityOpts ...sourcequality.Options) (s
 		RootDoc:        info.IsRootDoc,
 		OperationalDoc: info.IsOperationalDoc,
 		NoiseProne:     info.IsNoiseProne,
-	})
+		Validity:       minedChunkValidity(chunk),
+	}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func mineMetadataJSON(chunk mine.Chunk, qualityOpts ...sourcequality.Options) (string, error) {
+	metadata, err := mineMetadataMap(chunk, qualityOpts...)
+	if err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(metadata)
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
+}
+
+func minedChunkValidity(chunk mine.Chunk) string {
+	if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(chunk.SourcePath)), "adr/") {
+		return ""
+	}
+	lower := strings.ToLower(chunk.Content)
+	if strings.Contains(lower, "## status") && strings.Contains(lower, "superseded") {
+		return "superseded"
+	}
+	if strings.Contains(lower, "## status") && strings.Contains(lower, "rejected") {
+		return "rejected"
+	}
+	return ""
 }
 
 func mineResultLines(result mineResult) string {

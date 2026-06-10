@@ -368,6 +368,9 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 	fused := make([]searchScoredMemory, 0, len(byID))
 	for _, item := range byID {
 		coverage := signalTokenCoverage(p.Query, item.mem)
+		if weakSignalSearchResult(p.Query, item.mem) {
+			continue
+		}
 		item.score += 0.08 * coverage
 		item.score += sourcequality.ScorePriorWithOptions(p.Query, item.mem.SourcePath, item.mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
 		now := time.Now().UTC()
@@ -386,8 +389,145 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 		return fused[i].score > fused[j].score
 	})
 	fused = filterStrictEntityResults(p.Query, fused)
+	fused = filterAbsentSubjectResults(p.Query, fused)
 	out := diversifySignalResults(fused, limit, p.Query)
 	return expandDerivedSourceEvidence(ctx, st, p, out, limit)
+}
+
+// weakSignalSearchResult filters absent-fact leakage from the fused candidate
+// set: mined file chunks that match too few of the query's significant tokens,
+// or whose only matches are negated mentions ("no redis", "without X"). The
+// gate is general — no query-specific triggers — but deliberately narrow in
+// what it may filter:
+//   - only mined file chunks (source_kind=file) are eligible; direct and
+//     session memories are conversational and legitimately match on partial
+//     overlap (multi-entity questions, person queries).
+//   - guidance-role memories (decisions, ADRs, constraints, ...) are exempt;
+//     surfacing "do not use X" decisions for X queries is core behavior.
+//   - operational docs (README, CONTRIBUTING, SECURITY, AGENTS) are exempt;
+//     paraphrase queries legitimately reach them through intent expansion
+//     even when raw token overlap is low.
+func weakSignalSearchResult(query string, mem store.Memory) bool {
+	if !strings.EqualFold(strings.TrimSpace(mem.SourceKind), "file") {
+		return false
+	}
+	if isGuidanceRole(mem.Role) {
+		return false
+	}
+	if sourcequality.Classify(mem.SourcePath).IsOperationalDoc {
+		return false
+	}
+	tokens := retrieval.SignificantTokens(query)
+	if len(tokens) <= 1 {
+		return false
+	}
+	text := strings.ToLower(strings.Join([]string{
+		mem.Content,
+		mem.Role,
+		mem.ClaimKey,
+		mem.SourceKind,
+		mem.SourceAgent,
+		mem.SourcePath,
+		mem.SourceRef,
+	}, " "))
+	presupposes := queryPresupposesSubject(query)
+	for _, token := range tokens {
+		if !strings.Contains(text, token) {
+			continue
+		}
+		if presupposes && negatesSignalToken(text, token) {
+			// For presupposition-form queries ("what X do we use"), a negated
+			// mention ("There is no Redis") is evidence of absence, not an
+			// answer. For existence questions ("is there a cache"), the
+			// negated doc IS the answer, so the hit counts.
+			continue
+		}
+		return false
+	}
+	// Zero qualifying significant-token hits: the chunk matched only
+	// stopwords or expansion noise.
+	return true
+}
+
+// queryPresupposesSubject detects question forms that presuppose their
+// subject exists: "what X do we use", "which X do we expose". When the
+// subject is absent or only mentioned as negated, the correct answer is
+// empty. Existence/overview/how questions do not presuppose, so negative
+// evidence and paraphrase matches remain valid answers for them.
+func queryPresupposesSubject(query string) bool {
+	lower := " " + strings.ToLower(strings.TrimSpace(query)) + " "
+	if !strings.HasPrefix(lower, " what ") && !strings.HasPrefix(lower, " which ") {
+		return false
+	}
+	for _, cue := range []string{" do we ", " are we ", " did we ", " does the ", " do i "} {
+		if strings.Contains(lower, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+// filterAbsentSubjectResults empties the candidate set when the query's
+// subject is absent from the whole corpus slice under consideration. The
+// subject is taken from the leading significant tokens ("what GRAPHQL schema
+// do we expose", "what REDIS configuration do we use"). If no candidate
+// mentions a subject token non-negated, then no candidate can answer the
+// question — trailing-context matches (schema, clients, configuration) are
+// absent-fact leakage and an empty result is correct. Paraphrase queries are
+// unaffected: their subject terms exist in the corpus, so the filter never
+// fires.
+func filterAbsentSubjectResults(query string, fused []searchScoredMemory) []searchScoredMemory {
+	if !queryPresupposesSubject(query) {
+		return fused
+	}
+	tokens := retrieval.SignificantTokens(query)
+	if len(tokens) < 3 || len(fused) == 0 {
+		return fused
+	}
+	// Only the leading significant token is the subject ("what SQLITE library
+	// do we use", "what GRAPHQL schema do we expose"). Later tokens are
+	// context nouns (library, schema, configuration) that legitimately may be
+	// missing from the answering document.
+	subjects := tokens[:1]
+	for _, subject := range subjects {
+		present := false
+		for _, item := range fused {
+			text := strings.ToLower(strings.Join([]string{
+				item.mem.Content, item.mem.Role, item.mem.ClaimKey,
+				item.mem.SourcePath, item.mem.SourceRef,
+			}, " "))
+			if strings.Contains(text, subject) && !negatesSignalToken(text, subject) {
+				present = true
+				break
+			}
+		}
+		if !present {
+			var kept []searchScoredMemory
+			for _, item := range fused {
+				text := strings.ToLower(strings.Join([]string{
+					item.mem.Content, item.mem.Role, item.mem.ClaimKey,
+					item.mem.SourcePath, item.mem.SourceRef,
+				}, " "))
+				if strings.Contains(text, subject) && !negatesSignalToken(text, subject) {
+					kept = append(kept, item)
+				}
+			}
+			fused = kept
+			if len(fused) == 0 {
+				return nil
+			}
+		}
+	}
+	return fused
+}
+
+func negatesSignalToken(text, token string) bool {
+	for _, pattern := range []string{"no " + token, "not " + token, "not use " + token, "does not use " + token, "do not use " + token, "without " + token} {
+		if strings.Contains(text, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 func signalTokenCoverage(query string, mem store.Memory) float64 {
@@ -591,6 +731,8 @@ func diversifySignalResults(fused []searchScoredMemory, limit int, query string)
 	for _, item := range fused {
 		appendItem(item)
 	}
+	// The desperate fallback re-adds from fused, which has already been
+	// weak-filtered upstream, so it cannot resurrect absent-fact leakage.
 	if len(out) == 0 && !allowNegative {
 		for _, item := range fused {
 			if len(out) >= limit || seenID[item.mem.ID] {

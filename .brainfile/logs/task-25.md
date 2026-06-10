@@ -1,8 +1,6 @@
 ---
 id: task-25
 title: Fix 3 pre-existing docs-heavy corpus failures (absent-graphql, absent-redis, contradiction-auth-current)
-column: todo
-position: 6
 priority: medium
 tags:
   - audit
@@ -13,6 +11,8 @@ relatedFiles:
   - internal/store/store.go
 parentId: epic-1
 createdAt: "2026-06-10T06:05:54.031Z"
+completedAt: "2026-06-10T10:54:51.492Z"
+updatedAt: "2026-06-10T10:54:51.492Z"
 ---
 
 ## Description

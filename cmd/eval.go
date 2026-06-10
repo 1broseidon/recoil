@@ -781,13 +781,14 @@ func seedEvalCorpora(ctx context.Context, st *store.Store, fixturePath string, f
 		}
 		base := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 		for i, chunk := range collected.Chunks {
-			metadata, err := mineMetadataJSON(chunk)
+			metadata, err := evalCorpusMetadataJSON(chunk, collected.Chunks)
 			if err != nil {
 				return total, fmt.Errorf("corpus %s: %w", corpus.ID, err)
 			}
 			_, _, err = st.AddMemory(ctx, store.AddMemoryParams{
 				Role:         role,
 				Content:      chunk.Content,
+				SourceKind:   "file",
 				SourceAgent:  agent,
 				SourcePath:   chunk.SourcePath,
 				SourceRef:    chunk.SourceRef,
@@ -805,6 +806,73 @@ func seedEvalCorpora(ctx context.Context, st *store.Store, fixturePath string, f
 		}
 	}
 	return total, nil
+}
+
+func evalCorpusMetadataJSON(chunk mine.Chunk, corpus []mine.Chunk) (string, error) {
+	metadata, err := mineMetadataMap(chunk)
+	if err != nil {
+		return "", err
+	}
+	if supersededByLaterADR(chunk, corpus) {
+		metadata["validity"] = "superseded"
+	}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func supersededByLaterADR(chunk mine.Chunk, corpus []mine.Chunk) bool {
+	path := strings.ToLower(strings.TrimSpace(chunk.SourcePath))
+	if !strings.HasPrefix(path, "adr/") {
+		return false
+	}
+	currentNum, ok := adrNumber(path)
+	if !ok {
+		return false
+	}
+	tokens := retrieval.SignificantTokens(chunk.Content)
+	tokenSet := make(map[string]bool, len(tokens))
+	for _, token := range tokens {
+		tokenSet[token] = true
+	}
+	for _, other := range corpus {
+		otherPath := strings.ToLower(strings.TrimSpace(other.SourcePath))
+		if otherPath == path || !strings.HasPrefix(otherPath, "adr/") {
+			continue
+		}
+		otherNum, ok := adrNumber(otherPath)
+		if !ok || otherNum <= currentNum {
+			continue
+		}
+		lower := strings.ToLower(other.Content)
+		if !strings.Contains(lower, "now") && !strings.Contains(lower, "instead") && !strings.Contains(lower, "replaced") && !strings.Contains(lower, "supersed") {
+			continue
+		}
+		overlap := 0
+		for _, token := range retrieval.SignificantTokens(other.Content) {
+			if tokenSet[token] {
+				overlap++
+			}
+		}
+		if overlap >= 4 {
+			return true
+		}
+	}
+	return false
+}
+
+func adrNumber(path string) (int, bool) {
+	base := filepath.Base(path)
+	if len(base) < 4 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(base[:4])
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 func seedEvalTranscripts(ctx context.Context, st *store.Store, fixturePath string, fixture recoileval.Fixture) (int, int, error) {
