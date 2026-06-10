@@ -12,6 +12,79 @@ import (
 	"github.com/1broseidon/recoil/internal/retrieval"
 )
 
+func TestFTSQueryStripsStopwords(t *testing.T) {
+	query := FTSQuery("what is the current auth approach")
+	terms := strings.Split(query, " OR ")
+	seen := map[string]bool{}
+	for _, term := range terms {
+		seen[term] = true
+	}
+	if !seen["auth"] || !seen["approach"] {
+		t.Fatalf("expected auth and approach in query %q", query)
+	}
+	for _, stop := range []string{"what", "the", "is"} {
+		if seen[stop] {
+			t.Fatalf("did not expect stopword %q as term in query %q", stop, query)
+		}
+	}
+}
+
+func TestFTSQueryAllStopwordsFallsBack(t *testing.T) {
+	if query := FTSQuery("what is this"); query == "" {
+		t.Fatal("expected all-stopwords query to fall back to non-empty match expression")
+	}
+}
+
+func TestSearchANDFirstPrecision(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	a, _, err := st.AddMemory(ctx, AddMemoryParams{Content: "redis cache eviction policy", ScopeKind: "project", ScopeID: "project-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.AddMemory(ctx, AddMemoryParams{Content: "redis", ScopeKind: "project", ScopeID: "project-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.AddMemory(ctx, AddMemoryParams{Content: "cache", ScopeKind: "project", ScopeID: "project-1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := st.Search(ctx, SearchParams{Query: "redis cache eviction", ScopeKind: "project", ScopeID: "project-1", Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].ID != a.ID {
+		t.Fatalf("expected AND hit first, got %+v", results)
+	}
+}
+
+func TestSearchORFallbackRecall(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	eviction, _, err := st.AddMemory(ctx, AddMemoryParams{Content: "eviction", ScopeKind: "project", ScopeID: "project-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := st.Search(ctx, SearchParams{Query: "redis eviction nonexistentterm", ScopeKind: "project", ScopeID: "project-1", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].ID != eviction.ID {
+		t.Fatalf("expected OR fallback hit, got %+v", results)
+	}
+}
+
 func TestAddSearchAndGetMemory(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))

@@ -354,10 +354,11 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	if p.SignalRerank {
 		ftsText = retrieval.ExpandedQueryText(p.Query)
 	}
-	query := FTSQuery(ftsText)
-	if query == "" {
+	looseQuery := FTSQuery(ftsText)
+	if looseQuery == "" {
 		return nil, nil
 	}
+	strictQuery := FTSQueryWithOperator(ftsText, " AND ")
 	if p.Limit <= 0 {
 		p.Limit = 5
 	}
@@ -398,9 +399,9 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	if err != nil {
 		return nil, err
 	}
-	args = append([]any{query}, args...)
+	baseArgs := append([]any{}, args...)
 	queryLower := strings.ToLower(strings.TrimSpace(p.Query))
-	args = append(args,
+	baseArgs = append(baseArgs,
 		queryLower,
 		queryLower,
 		queryLower,
@@ -434,32 +435,61 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'direct' THEN 0.5 ELSE 0 END
 			+ CASE WHEN COALESCE(m.source_kind, 'direct') = 'file' THEN 0.25 ELSE 0 END
 		LIMIT ?`
-	rows, err := s.db.QueryContext(ctx, sqlText, args...)
+	runQuery := func(match string, strict bool) ([]Memory, error) {
+		queryArgs := append([]any{match}, baseArgs...)
+		rows, err := s.db.QueryContext(ctx, sqlText, queryArgs...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var results []Memory
+		for rows.Next() {
+			var mem Memory
+			var rank float64
+			if err := rows.Scan(
+				&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
+				&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
+				&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
+				&mem.CreatedAt, &mem.TombstonedAt, &rank, &mem.Excerpt,
+			); err != nil {
+				return nil, err
+			}
+			mem.Score = retrievalScore(rank)
+			if p.SignalRerank && strict {
+				mem.Score += 1.0
+			}
+			if p.SignalRerank {
+				mem.Score += sourcequality.ScorePriorWithOptions(p.Query, mem.SourcePath, mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+			}
+			results = append(results, mem)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return results, nil
+	}
+
+	results, err := runQuery(strictQuery, true)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var results []Memory
-	for rows.Next() {
-		var mem Memory
-		var rank float64
-		if err := rows.Scan(
-			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
-			&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
-			&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
-			&mem.CreatedAt, &mem.TombstonedAt, &rank, &mem.Excerpt,
-		); err != nil {
+	if len(results) < limit {
+		looseResults, err := runQuery(looseQuery, false)
+		if err != nil {
 			return nil, err
 		}
-		mem.Score = retrievalScore(rank)
-		if p.SignalRerank {
-			mem.Score += sourcequality.ScorePriorWithOptions(p.Query, mem.SourcePath, mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+		seen := make(map[string]bool, len(results)+len(looseResults))
+		for _, mem := range results {
+			seen[mem.ID] = true
 		}
-		results = append(results, mem)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+		for _, mem := range looseResults {
+			if seen[mem.ID] {
+				continue
+			}
+			seen[mem.ID] = true
+			results = append(results, mem)
+		}
 	}
 	if temporalCue && len(results) > 1 {
 		queryDate := parseFlexibleTime(p.QueryDate)
@@ -479,11 +509,14 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		}
 	}
 	if p.SignalRerank && !temporalCue && len(results) > 1 {
+		strictTokens := ftsTokens(ftsText)
 		sort.SliceStable(results, func(i, j int) bool {
-			if math.Abs(results[i].Score-results[j].Score) < 1e-9 {
+			left := results[i].Score + strictTokenCoverageScore(strictTokens, results[i])
+			right := results[j].Score + strictTokenCoverageScore(strictTokens, results[j])
+			if math.Abs(left-right) < 1e-9 {
 				return results[i].CreatedAt > results[j].CreatedAt
 			}
-			return results[i].Score > results[j].Score
+			return left > right
 		})
 	}
 	return results, nil
@@ -2001,19 +2034,63 @@ func publicID(hash string) string {
 var ftsTermRE = regexp.MustCompile(`[A-Za-z0-9_]+`)
 
 func FTSQuery(query string) string {
+	return FTSQueryWithOperator(query, " OR ")
+}
+
+func FTSQueryWithOperator(query, op string) string {
+	out := ftsTokens(query)
+	if len(out) == 0 {
+		return ""
+	}
+	// Future structural fix: migrate the FTS index to porter tokenization (requires rebuild migration).
+	return strings.Join(out, op)
+}
+
+func ftsTokens(query string) []string {
 	terms := ftsTermRE.FindAllString(query, -1)
 	if len(terms) == 0 {
-		return ""
+		return nil
 	}
 	seen := make(map[string]bool, len(terms))
 	out := make([]string, 0, len(terms))
 	for _, term := range terms {
 		term = strings.ToLower(term)
-		if seen[term] {
+		if seen[term] || retrieval.Stopword(term) {
 			continue
 		}
 		seen[term] = true
 		out = append(out, term)
+		if len(out) == 32 {
+			break
+		}
 	}
-	return strings.Join(out, " OR ")
+	if len(out) == 0 {
+		seen = make(map[string]bool, len(terms))
+		for _, term := range terms {
+			term = strings.ToLower(term)
+			if seen[term] {
+				continue
+			}
+			seen[term] = true
+			out = append(out, term)
+			if len(out) == 32 {
+				break
+			}
+		}
+	}
+	return out
+}
+
+func strictTokenCoverageScore(tokens []string, mem Memory) float64 {
+	if len(tokens) == 0 {
+		return 0
+	}
+	text := strings.ToLower(strings.Join([]string{mem.Content, mem.SourcePath, mem.SourceRef, mem.Role, mem.ClaimKey}, " "))
+	hits := 0
+	for _, token := range tokens {
+		if strings.Contains(text, token) {
+			hits++
+		}
+	}
+	return float64(hits) / float64(len(tokens))
 }

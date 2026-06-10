@@ -322,7 +322,7 @@ func SignificantTokens(s string) []string {
 	raw := tokenRE.FindAllString(strings.ToLower(s), -1)
 	out := make([]string, 0, len(raw))
 	for _, tok := range raw {
-		if len(tok) < 3 || stopword(tok) {
+		if len(tok) < 3 || Stopword(tok) {
 			continue
 		}
 		out = append(out, stemLight(tok))
@@ -330,9 +330,9 @@ func SignificantTokens(s string) []string {
 	return uniqueStrings(out)
 }
 
-func stopword(s string) bool {
+func Stopword(s string) bool {
 	switch s {
-	case "the", "and", "for", "with", "that", "this", "what", "when", "where", "which", "who", "why", "how", "did", "does", "was", "were", "are", "you", "your", "have", "has", "had", "from", "about", "into", "onto", "then", "than", "them", "they", "their", "our", "out", "can", "could", "would", "should":
+	case "a", "an", "the", "and", "or", "for", "with", "that", "this", "what", "when", "where", "which", "who", "why", "how", "do", "did", "does", "was", "were", "are", "is", "in", "on", "of", "to", "we", "i", "you", "your", "have", "has", "had", "from", "about", "into", "onto", "then", "than", "them", "they", "their", "our", "out", "can", "could", "would", "should":
 		return true
 	default:
 		return false
