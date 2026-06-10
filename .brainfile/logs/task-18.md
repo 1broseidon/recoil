@@ -1,8 +1,6 @@
 ---
 id: task-18
 title: Hybrid retrieval auto-on when a fresh local embedding index exists
-column: todo
-position: 7
 priority: medium
 tags:
   - audit
@@ -15,6 +13,8 @@ relatedFiles:
   - internal/embedding/ollama.go
 parentId: epic-1
 createdAt: "2026-06-10T04:40:44.301Z"
+completedAt: "2026-06-10T06:15:20.536Z"
+updatedAt: "2026-06-10T06:15:20.536Z"
 ---
 
 ## Description
