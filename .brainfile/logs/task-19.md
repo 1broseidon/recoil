@@ -1,8 +1,6 @@
 ---
 id: task-19
 title: "Strict entity filter: demote instead of hard-drop non-matching results"
-column: todo
-position: 8
 priority: medium
 tags:
   - audit
@@ -12,6 +10,8 @@ relatedFiles:
   - cmd/search.go
 parentId: epic-1
 createdAt: "2026-06-10T04:41:01.733Z"
+completedAt: "2026-06-10T05:56:19.058Z"
+updatedAt: "2026-06-10T05:56:19.058Z"
 ---
 
 ## Description

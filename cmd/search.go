@@ -384,6 +384,19 @@ func filterStrictEntityResults(query string, fused []searchScoredMemory) []searc
 		}
 		return false
 	}
+	// When no result mentions the cued person at all, answering with someone
+	// else's facts is a wrong-memory hazard — hard-filter to empty just like
+	// the doctor path. Demotion only applies when the person is present and
+	// weaker context results would otherwise outrank them.
+	anyPersonMatch := false
+	if len(personNames) > 0 {
+		for _, item := range fused {
+			if containsAnyName(item, personNames) {
+				anyPersonMatch = true
+				break
+			}
+		}
+	}
 	var out []searchScoredMemory
 	demoted := false
 	for _, item := range fused {
@@ -397,8 +410,9 @@ func filterStrictEntityResults(query string, fused []searchScoredMemory) []searc
 			}
 		}
 		if len(personNames) > 0 && !containsAnyName(item, personNames) {
-			if len(doctorNames) > 0 {
-				// Doctor query without the doctor name: still hard-filter.
+			if len(doctorNames) > 0 || !anyPersonMatch {
+				// Doctor query, or a person query where nobody in the
+				// candidate set mentions that person: hard-filter.
 				continue
 			}
 			item.score -= entityDemotionPenalty
@@ -450,6 +464,8 @@ func queryHasPersonContext(query string) bool {
 		" dr ", " dr. ", " doctor ", " my ", " with ", " named ", " called ",
 		" friend ", " brother ", " sister ", " cousin ", " coworker ",
 		" colleague ", " who ", " whom ", " person ", " people ", " met ",
+		" ask ", " asked ", " said ", " say ", " told ", " tell ",
+		" recommend ", " recommended ", " mentioned ",
 	} {
 		if strings.Contains(lower, cue) {
 			return true
