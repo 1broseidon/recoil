@@ -484,6 +484,10 @@ func queryAsksForNegativeEvidence(query string) bool {
 }
 
 func isNegativeEvidence(mem store.Memory) bool {
+	metadata := strings.ToLower(strings.Join(strings.Fields(mem.MetadataJSON), ""))
+	if strings.Contains(metadata, `"noise":true`) {
+		return true
+	}
 	text := strings.ToLower(mem.Content)
 	normalized := strings.Join(strings.Fields(text), " ")
 	for _, marker := range []string{
@@ -494,12 +498,8 @@ func isNegativeEvidence(mem store.Memory) bool {
 		"not the user's facts",
 		"not my own",
 		"not what i am",
-		"not the current product direction",
 		"not the answer",
 		"only background discussion",
-		"hosted sync service",
-		"hosted sync",
-		"should prefer the",
 		"do not treat",
 		"should not be used",
 		"should not override",

@@ -38,14 +38,12 @@ func ProfileText(userText string) string {
 		"works_in", "current_setup", "recommendations", "resources", "publications",
 		"conferences", "suggestions",
 	}
-	if strings.Contains(userLower, "basil") || strings.Contains(userLower, "mint") || strings.Contains(userLower, "herb") || strings.Contains(userLower, "recipe") {
-		tags = append(tags, "homegrown", "garden", "ingredients", "dinner", "cooking", "recipes", "herbs", "fresh")
-	}
-	if strings.Contains(userLower, "power bank") || strings.Contains(userLower, "charging") || strings.Contains(userLower, "battery") || strings.Contains(userLower, "tech accessories") {
-		tags = append(tags, "phone", "battery", "power", "charging", "portable", "travel", "accessories")
-	}
-	if strings.Contains(userLower, "still remember") || strings.Contains(userLower, "high school") || strings.Contains(userLower, "debate team") || strings.Contains(userLower, "advanced placement") {
-		tags = append(tags, "nostalgic", "nostalgia", "memories", "reunion", "high_school", "school", "friends")
+	if PersonalExpansionsEnabled {
+		for _, expansion := range personalProfileTags {
+			if expansionMatches(userLower, expansion.markers) {
+				tags = append(tags, expansion.terms...)
+			}
+		}
 	}
 	return strings.Join(tags, " ") + " " + strings.Join(terms, " ") + " excerpt " + signalExcerpt(userText)
 }
@@ -99,32 +97,12 @@ func ExpandedQueryText(query string) string {
 	add := func(words ...string) {
 		terms = append(terms, words...)
 	}
-	if strings.Contains(queryLower, "doctor") || strings.Contains(queryLower, "physician") {
-		add("dr", "physician", "doctor", "dermatologist", "ent", "specialist", "primary", "care", "provider")
-	}
-	if strings.Contains(queryLower, "sibling") || strings.Contains(queryLower, "brother") || strings.Contains(queryLower, "sister") {
-		add("sibling", "siblings", "brother", "brothers", "sister", "sisters", "family")
-	}
-	if strings.Contains(queryLower, "kitchen appliance") || strings.Contains(queryLower, "appliance") {
-		add("kitchen", "appliance", "blender", "toaster", "microwave", "oven", "mixer", "air", "fryer", "coffee", "maker", "smoker")
-	}
-	if strings.Contains(queryLower, "buy") || strings.Contains(queryLower, "bought") || strings.Contains(queryLower, "purchase") {
-		add("buy", "bought", "purchase", "purchased", "got", "new")
-	}
-	if strings.Contains(queryLower, "bake") || strings.Contains(queryLower, "baked") || strings.Contains(queryLower, "baking") {
-		add("bake", "baked", "baking", "cake", "cookies", "bread", "pie", "pastry", "oven", "recipe")
-	}
-	if strings.Contains(queryLower, "hike") || strings.Contains(queryLower, "hikes") || strings.Contains(queryLower, "distance") {
-		add("hike", "hiked", "hiking", "trail", "distance", "mile", "miles", "kilometer", "kilometers", "km")
-	}
-	if strings.Contains(queryLower, "sports event") || strings.Contains(queryLower, "sporting event") {
-		add("sports", "event", "events", "race", "tournament", "marathon", "game", "match", "competition")
-	}
-	if strings.Contains(queryLower, "graduated") || strings.Contains(queryLower, "graduation") || strings.Contains(queryLower, "college") {
-		add("graduated", "graduation", "college", "university", "bachelor", "bachelors", "degree", "completed", "age", "old")
-	}
-	if strings.Contains(queryLower, "how old") || strings.Contains(queryLower, " age ") || strings.HasPrefix(queryLower, "age ") || strings.HasSuffix(queryLower, " age") {
-		add("age", "old", "current", "currently")
+	if PersonalExpansionsEnabled {
+		for _, expansion := range personalQueryExpansions {
+			if expansionMatches(queryLower, expansion.markers) {
+				add(expansion.terms...)
+			}
+		}
 	}
 	if strings.Contains(queryLower, "session evidence") || strings.Contains(queryLower, "session-evidence") || strings.Contains(queryLower, "min chars") || strings.Contains(queryLower, "min-chars") {
 		add("session", "evidence", "session-evidence", "min", "chars", "minimum", "character", "characters", "default", "threshold")

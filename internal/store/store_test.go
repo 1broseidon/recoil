@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/1broseidon/recoil/internal/retrieval"
 )
 
 func TestAddSearchAndGetMemory(t *testing.T) {
@@ -113,7 +115,7 @@ func TestSearchReranksRelativeTemporalCue(t *testing.T) {
 	}
 }
 
-func TestSearchSignalRerankExpandsEntityAliases(t *testing.T) {
+func TestSearchSignalRerankPersonalEntityAliasesRequireFlag(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
 	if err != nil {
@@ -129,6 +131,9 @@ func TestSearchSignalRerankExpandsEntityAliases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	retrieval.SetPersonalExpansions(true)
+	defer retrieval.SetPersonalExpansions(false)
 
 	results, err := st.Search(ctx, SearchParams{
 		Query:        "doctors visited",

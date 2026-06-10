@@ -21,7 +21,14 @@ func TestProfileTextStaysQuietForGenericPrompt(t *testing.T) {
 	}
 }
 
-func TestProfileTextAddsDomainTags(t *testing.T) {
+func TestProfileTextAddsPersonalDomainTagsOnlyWhenEnabled(t *testing.T) {
+	SetPersonalExpansions(false)
+	if got := ProfileText("Can you suggest recipes with fresh basil and mint?"); strings.Contains(got, "homegrown") {
+		t.Fatalf("personal profile tags should be disabled by default, got %q", got)
+	}
+
+	SetPersonalExpansions(true)
+	defer SetPersonalExpansions(false)
 	cases := []struct {
 		text string
 		want string
@@ -52,7 +59,15 @@ func TestUpdateTextStaysQuietForGenericPrompt(t *testing.T) {
 	}
 }
 
-func TestExpandedQueryTextAddsEntityAliases(t *testing.T) {
+func TestExpandedQueryTextAddsPersonalEntityAliasesOnlyWhenEnabled(t *testing.T) {
+	SetPersonalExpansions(false)
+	query := "which doctor did I see"
+	if got := ExpandedQueryText(query); got != query {
+		t.Fatalf("personal query expansion should be disabled by default: %q", got)
+	}
+
+	SetPersonalExpansions(true)
+	defer SetPersonalExpansions(false)
 	text := ExpandedQueryText("How many different doctors did I visit?")
 	for _, want := range []string{"physician", "dermatologist", "primary", "provider"} {
 		if !strings.Contains(text, want) {
@@ -66,6 +81,8 @@ func TestExpandedQueryTextAddsEntityAliases(t *testing.T) {
 }
 
 func TestExpandedQueryTextAddsCountingAliases(t *testing.T) {
+	SetPersonalExpansions(true)
+	defer SetPersonalExpansions(false)
 	cases := []struct {
 		query string
 		want  string
@@ -86,7 +103,25 @@ func TestExpandedQueryTextAddsCountingAliases(t *testing.T) {
 	}
 }
 
+func TestExpandedQueryTextAddsGenericAliasesRegardlessOfPersonalFlag(t *testing.T) {
+	SetPersonalExpansions(false)
+	for _, tc := range []struct {
+		query string
+		want  string
+	}{
+		{"What is the current session evidence min chars default?", "minimum"},
+		{"How do I report a security vulnerability?", "disclosure"},
+		{"How can contributors send a patch?", "contributing"},
+	} {
+		if got := ExpandedQueryText(tc.query); !strings.Contains(got, tc.want) {
+			t.Fatalf("ExpandedQueryText(%q) = %q, want generic expansion %q", tc.query, got, tc.want)
+		}
+	}
+}
+
 func TestQueryVariantsIncludesOriginalFragmentsAndExpansion(t *testing.T) {
+	SetPersonalExpansions(true)
+	defer SetPersonalExpansions(false)
 	variants := QueryVariants("Which doctor discussed biopsy and which doctor handled the UTI?")
 	joined := strings.Join(variants, "\n")
 	for _, want := range []string{
@@ -103,6 +138,8 @@ func TestQueryVariantsIncludesOriginalFragmentsAndExpansion(t *testing.T) {
 }
 
 func TestQueryVariantsSplitsComparedQuestions(t *testing.T) {
+	SetPersonalExpansions(true)
+	defer SetPersonalExpansions(false)
 	variants := QueryVariants("how old am I compared to graduation from college")
 	joined := strings.Join(variants, "\n")
 	for _, want := range []string{"how old am I", "graduation from college", "currently"} {

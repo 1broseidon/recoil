@@ -542,6 +542,23 @@ func TestRunSignalSearchExpandsSourceEvidenceToDerivedChildren(t *testing.T) {
 	}
 }
 
+func TestIsNegativeEvidenceUsesNoiseMetadataNotHostedSyncText(t *testing.T) {
+	metadataNoise := store.Memory{
+		Content:      "Current architecture decision about local-first daemon behavior.",
+		MetadataJSON: `{"noise":true}`,
+	}
+	if !isNegativeEvidence(metadataNoise) {
+		t.Fatalf("expected noise metadata to mark negative evidence")
+	}
+
+	hostedSync := store.Memory{
+		Content: "our hosted sync service launches Tuesday",
+	}
+	if isNegativeEvidence(hostedSync) {
+		t.Fatalf("hosted sync phrasing alone should not mark negative evidence")
+	}
+}
+
 func containsMemoryID(memories []store.Memory, id string) bool {
 	for _, mem := range memories {
 		if mem.ID == id {

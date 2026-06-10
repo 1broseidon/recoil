@@ -16,6 +16,7 @@ import (
 	"github.com/1broseidon/recoil/internal/embedding"
 	recoileval "github.com/1broseidon/recoil/internal/eval"
 	"github.com/1broseidon/recoil/internal/mine"
+	"github.com/1broseidon/recoil/internal/retrieval"
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sessionevidence"
 	"github.com/1broseidon/recoil/internal/store"
@@ -147,7 +148,11 @@ func newEvalCommand() *cobra.Command {
 	return c
 }
 
-func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) (evalRunResult, error) {
+func runEvalFixture(fixturePath string, evalOpts evalOptions, retrievalMode string) (evalRunResult, error) {
+	oldPersonalExpansions := retrieval.PersonalExpansionsEnabled
+	retrieval.SetPersonalExpansions(true)
+	defer retrieval.SetPersonalExpansions(oldPersonalExpansions)
+
 	fixture, err := recoileval.Load(fixturePath)
 	if err != nil {
 		return evalRunResult{}, err
@@ -184,7 +189,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) 
 
 	var provider embedding.Provider
 	indexed := 0
-	if retrieval != retrievalFTS {
+	if retrievalMode != retrievalFTS {
 		provider, err = newEmbeddingProvider(evalOpts.provider, evalOpts.model)
 		if err != nil {
 			return evalRunResult{}, err
@@ -202,7 +207,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) 
 	caseResults := make([]recoileval.CaseResult, 0, len(fixture.Cases))
 	for _, tc := range fixture.Cases {
 		start := time.Now()
-		output, err := runEvalCase(ctx, st, seed, tc, retrieval, provider)
+		output, err := runEvalCase(ctx, st, seed, tc, retrievalMode, provider)
 		elapsed := time.Since(start)
 		if err != nil {
 			return evalRunResult{}, fmt.Errorf("%s: %w", tc.ID, err)
@@ -214,7 +219,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) 
 		FixturePath:          fixturePath,
 		DBPath:               dbPath,
 		TemporaryDB:          !evalOpts.keepDB,
-		Retrieval:            retrieval,
+		Retrieval:            retrievalMode,
 		Indexed:              indexed,
 		SeededMemories:       len(seed.fixtureToMemory),
 		MinedChunks:          mined,
