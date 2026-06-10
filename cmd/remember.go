@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -35,10 +36,11 @@ type rememberInference struct {
 }
 
 type rememberResult struct {
-	Memory    *store.Memory            `json:"memory"`
-	Duplicate bool                     `json:"duplicate"`
-	Inference rememberInference        `json:"inference"`
-	Publish   channelAutoPublishResult `json:"publish"`
+	Memory        *store.Memory            `json:"memory"`
+	Duplicate     bool                     `json:"duplicate"`
+	Inference     rememberInference        `json:"inference"`
+	Publish       channelAutoPublishResult `json:"publish"`
+	RelatedClaims []relatedClaim           `json:"related_claims,omitempty"`
 }
 
 func newRememberCommand() *cobra.Command {
@@ -58,22 +60,6 @@ func newRememberCommand() *cobra.Command {
 			if rememberOpts.publish && rememberOpts.noPublish {
 				return fmt.Errorf("--publish and --no-publish cannot both be set")
 			}
-			inference := inferRemember(content, rememberOpts.role, rememberOpts.claimKey)
-			metadata := rememberOpts.metadata
-			if metadata == "" {
-				data, err := json.Marshal(map[string]any{
-					"remember": map[string]any{
-						"inferred_role":        inference.Role,
-						"inferred_claim_key":   inference.ClaimKey,
-						"inference_confidence": inference.Confidence,
-						"inference_reason":     inference.Reason,
-					},
-				})
-				if err != nil {
-					return err
-				}
-				metadata = string(data)
-			}
 			sc, err := resolveScope(cmd, rememberOpts.scope)
 			if err != nil {
 				return err
@@ -83,47 +69,26 @@ func newRememberCommand() *cobra.Command {
 				return err
 			}
 			defer st.Close()
-			mem, duplicate, err := st.AddMemory(context.Background(), store.AddMemoryParams{
-				Role:         inference.Role,
-				Content:      content,
-				SourceKind:   "direct",
-				SourceAgent:  rememberOpts.agent,
-				SourcePath:   rememberOpts.sourcePath,
-				SourceRef:    rememberOpts.sourceRef,
-				ScopeKind:    sc.Kind,
-				ScopeID:      sc.ID,
-				ProjectID:    sc.ProjectID,
-				SessionID:    sc.SessionID,
-				MetadataJSON: metadata,
-				Validity:     firstNonEmpty(rememberOpts.validity, "active"),
-				ClaimKey:     inference.ClaimKey,
-				Supersedes:   rememberOpts.supersedes,
-				SupersededBy: rememberOpts.supersededBy,
-			})
+			result, err := runRemember(context.Background(), st, sc, content, rememberOpts)
 			if err != nil {
 				return err
 			}
-			publish := autoPublishMemory(context.Background(), st, mem, channelAutoPublishOptions{
-				Command:   "remember",
-				Force:     rememberOpts.publish,
-				Disabled:  rememberOpts.noPublish,
-				Duplicate: duplicate,
-			})
-			result := rememberResult{Memory: mem, Duplicate: duplicate, Inference: inference, Publish: publish}
 			if opts.json {
 				return writeJSON(cmd.OutOrStdout(), "remember_result", result)
 			}
+			mem := result.Memory
 			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
 				{k: "role", v: mem.Role},
 				{k: "claim_key", v: mem.ClaimKey},
-				{k: "inference_confidence", v: inference.Confidence},
-				{k: "inference_reason", v: inference.Reason},
-				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
+				{k: "inference_confidence", v: result.Inference.Confidence},
+				{k: "inference_reason", v: result.Inference.Reason},
+				{k: "duplicate", v: fmt.Sprintf("%t", result.Duplicate)},
 			}
-			meta = append(meta, autoPublishFrontmatter(publish)...)
+			meta = appendRelatedClaimFrontmatter(meta, "related", result.RelatedClaims)
+			meta = append(meta, autoPublishFrontmatter(result.Publish)...)
 			return frontmatter(cmd.OutOrStdout(), meta, mem.Content)
 		},
 	}
@@ -141,6 +106,60 @@ func newRememberCommand() *cobra.Command {
 	c.Flags().BoolVar(&rememberOpts.publish, "publish", false, "force automatic channel publish for this memory")
 	c.Flags().BoolVar(&rememberOpts.noPublish, "no-publish", false, "skip automatic channel publish for this memory")
 	return c
+}
+
+func runRemember(ctx context.Context, st *store.Store, sc scope.Scope, content string, opts rememberOptions) (rememberResult, error) {
+	inference := inferRemember(content, opts.role, opts.claimKey)
+	metadata := opts.metadata
+	if metadata == "" {
+		data, err := json.Marshal(map[string]any{
+			"remember": map[string]any{
+				"inferred_role":        inference.Role,
+				"inferred_claim_key":   inference.ClaimKey,
+				"inference_confidence": inference.Confidence,
+				"inference_reason":     inference.Reason,
+			},
+		})
+		if err != nil {
+			return rememberResult{}, err
+		}
+		metadata = string(data)
+	}
+	mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:         inference.Role,
+		Content:      content,
+		SourceKind:   "direct",
+		SourceAgent:  opts.agent,
+		SourcePath:   opts.sourcePath,
+		SourceRef:    opts.sourceRef,
+		ScopeKind:    sc.Kind,
+		ScopeID:      sc.ID,
+		ProjectID:    sc.ProjectID,
+		SessionID:    sc.SessionID,
+		MetadataJSON: metadata,
+		Validity:     firstNonEmpty(opts.validity, "active"),
+		ClaimKey:     inference.ClaimKey,
+		Supersedes:   opts.supersedes,
+		SupersededBy: opts.supersededBy,
+	})
+	if err != nil {
+		return rememberResult{}, err
+	}
+	var related []relatedClaim
+	if !duplicate {
+		memories, err := findRelatedGuidance(ctx, st, sc, mem.Content, mem.ID)
+		if err != nil {
+			return rememberResult{}, err
+		}
+		related = relatedClaimsFromMemories(memories)
+	}
+	publish := autoPublishMemory(ctx, st, mem, channelAutoPublishOptions{
+		Command:   "remember",
+		Force:     opts.publish,
+		Disabled:  opts.noPublish,
+		Duplicate: duplicate,
+	})
+	return rememberResult{Memory: mem, Duplicate: duplicate, Inference: inference, Publish: publish, RelatedClaims: related}, nil
 }
 
 func inferRemember(content, roleOverride, claimOverride string) rememberInference {

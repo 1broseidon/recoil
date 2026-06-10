@@ -54,6 +54,12 @@ var settingDefinitions = []Definition{
 		Description: "Comma-separated path globs to exclude from mining even when they otherwise look important.",
 	},
 	{
+		Key:         "aging.window-days",
+		Type:        TypeFloat,
+		Default:     "30",
+		Description: "Freshness window in days before note and handoff memories receive read-side aging demotion.",
+	},
+	{
 		Key:         "backup.dir",
 		Type:        TypeString,
 		Description: "Default destination directory for recoil backup snapshots.",

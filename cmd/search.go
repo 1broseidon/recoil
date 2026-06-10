@@ -7,9 +7,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/1broseidon/recoil/internal/embedding"
 	"github.com/1broseidon/recoil/internal/retrieval"
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
@@ -55,98 +57,22 @@ func newSearchCommand() *cobra.Command {
 			}
 			defer st.Close()
 			ctx := context.Background()
-			freshness := ensureFreshContext(ctx, st, "search")
-
-			params, err := searchParams(query, sc, searchOpts.filters, searchOpts.limit)
+			result, err := runSearch(ctx, st, sc, query, searchOpts)
 			if err != nil {
 				return err
-			}
-			_, settings, err := loadProjectSettings()
-			if err != nil {
-				return err
-			}
-			params.SourceQuality = effectiveSourceQualityOptions(settings)
-			explicitLifecycle := params.Lifecycle != store.LifecycleAny || params.Validity != ""
-			if !explicitLifecycle {
-				params.Lifecycle = store.LifecycleCurrent
-			}
-			mode := retrievalFTS
-			if searchOpts.hybrid {
-				mode = retrievalHybrid
-			}
-			current, err := runRetriever(ctx, st, params, retrieverOptions{
-				mode:           mode,
-				hybridProvider: searchOpts.hybridProvider,
-				hybridModel:    searchOpts.hybridModel,
-				hybridPool:     searchOpts.hybridPool,
-				fusionK:        searchOpts.fusionK,
-				limit:          searchOpts.limit,
-			})
-			if err != nil {
-				return err
-			}
-			current, err = augmentProfileSearch(ctx, st, params, current, searchOpts.profiles)
-			if err != nil {
-				return err
-			}
-
-			var historical []store.Memory
-			if !explicitLifecycle {
-				historicalParams := params
-				historicalParams.Lifecycle = store.LifecycleHistorical
-				historical, err = runRetriever(ctx, st, historicalParams, retrieverOptions{
-					mode:           mode,
-					hybridProvider: searchOpts.hybridProvider,
-					hybridModel:    searchOpts.hybridModel,
-					hybridPool:     searchOpts.hybridPool,
-					fusionK:        searchOpts.fusionK,
-					limit:          searchOpts.limit,
-				})
-				if err != nil {
-					return err
-				}
-			}
-			lanes := structuredRetrievalLanes(query, current, historical)
-			currentWithWhy := make([]store.Memory, 0, len(current))
-			for _, lane := range lanes {
-				if lane.Key == "historical" {
-					continue
-				}
-				currentWithWhy = append(currentWithWhy, lane.Results...)
 			}
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, "search_result", searchResult{
-					Query:            query,
-					Scope:            sc.Kind,
-					ScopeID:          sc.ID,
-					ResultCount:      len(current),
-					HistoryCount:     len(historical),
-					ChannelFreshness: freshness,
-					Lanes:            lanes,
-					Results:          currentWithWhy,
-				})
+				return writeJSON(w, "search_result", result)
 			}
 			if searchOpts.minimal {
-				for _, r := range currentWithWhy {
+				for _, r := range result.Results {
 					writeMinimalMemory(w, r, true)
 				}
 				return nil
 			}
-
-			meta := []kv{
-				{k: "query", v: query},
-				{k: "scope", v: sc.Kind},
-				{k: "scope_id", v: sc.ID},
-				{k: "result_count", v: fmt.Sprintf("%d", len(current))},
-				{k: "history_count", v: fmt.Sprintf("%d", len(historical))},
-				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
-				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(freshness))},
-			}
-			meta = append(meta, channelFriendlyFrontmatter(freshness)...)
-			meta = append(meta, channelOutboxFrontmatter("channel_", freshness.Outbox)...)
-			return frontmatter(w, meta, retrievalLaneBlocks(lanes, searchOpts.maxChars))
+			return frontmatter(w, searchFrontmatter(result), renderSearchResult(result, searchOpts.maxChars))
 		},
 	}
 	addScopeFlags(c, &searchOpts.scope)
@@ -161,6 +87,97 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().IntVar(&searchOpts.fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
 	c.Flags().StringVar(&searchOpts.profiles, "profiles", "auto", "profile retrieval mode: auto, on, or off")
 	return c
+}
+
+func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query string, opts searchOptions) (searchResult, error) {
+	freshness := ensureFreshContext(ctx, st, "search")
+	params, err := searchParams(query, sc, opts.filters, opts.limit)
+	if err != nil {
+		return searchResult{}, err
+	}
+	_, settings, err := loadProjectSettings()
+	if err != nil {
+		return searchResult{}, err
+	}
+	params.SourceQuality = effectiveSourceQualityOptions(settings)
+	params.AgingWindow = effectiveAgingWindowDays(settings)
+	explicitLifecycle := params.Lifecycle != store.LifecycleAny || params.Validity != ""
+	if !explicitLifecycle {
+		params.Lifecycle = store.LifecycleCurrent
+	}
+	mode := retrievalFTS
+	if opts.hybrid {
+		mode = retrievalHybrid
+	}
+	current, err := runRetriever(ctx, st, params, retrieverOptions{
+		mode:           mode,
+		hybridProvider: opts.hybridProvider,
+		hybridModel:    opts.hybridModel,
+		hybridPool:     opts.hybridPool,
+		fusionK:        opts.fusionK,
+		limit:          opts.limit,
+	})
+	if err != nil {
+		return searchResult{}, err
+	}
+	current, err = augmentProfileSearch(ctx, st, params, current, opts.profiles)
+	if err != nil {
+		return searchResult{}, err
+	}
+
+	var historical []store.Memory
+	if !explicitLifecycle {
+		historicalParams := params
+		historicalParams.Lifecycle = store.LifecycleHistorical
+		historical, err = runRetriever(ctx, st, historicalParams, retrieverOptions{
+			mode:           mode,
+			hybridProvider: opts.hybridProvider,
+			hybridModel:    opts.hybridModel,
+			hybridPool:     opts.hybridPool,
+			fusionK:        opts.fusionK,
+			limit:          opts.limit,
+		})
+		if err != nil {
+			return searchResult{}, err
+		}
+	}
+	lanes := structuredRetrievalLanes(query, current, historical)
+	currentWithWhy := make([]store.Memory, 0, len(current))
+	for _, lane := range lanes {
+		if lane.Key == "historical" {
+			continue
+		}
+		currentWithWhy = append(currentWithWhy, lane.Results...)
+	}
+	return searchResult{
+		Query:            query,
+		Scope:            sc.Kind,
+		ScopeID:          sc.ID,
+		ResultCount:      len(current),
+		HistoryCount:     len(historical),
+		ChannelFreshness: freshness,
+		Lanes:            lanes,
+		Results:          currentWithWhy,
+	}, nil
+}
+
+func searchFrontmatter(result searchResult) []kv {
+	meta := []kv{
+		{k: "query", v: result.Query},
+		{k: "scope", v: result.Scope},
+		{k: "scope_id", v: result.ScopeID},
+		{k: "result_count", v: fmt.Sprintf("%d", result.ResultCount)},
+		{k: "history_count", v: fmt.Sprintf("%d", result.HistoryCount)},
+		{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
+		{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
+	}
+	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
+	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
+	return meta
+}
+
+func renderSearchResult(result searchResult, maxChars int) string {
+	return retrievalLaneBlocks(result.Lanes, maxChars)
 }
 
 func augmentProfileSearch(ctx context.Context, st *store.Store, p store.SearchParams, rows []store.Memory, mode string) ([]store.Memory, error) {
@@ -290,11 +307,16 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 			byID[mem.ID].score += weight / (k + float64(ri+1))
 		}
 	}
+	ageWindow := p.AgingWindow
+	if ageWindow <= 0 {
+		ageWindow = defaultAgingWindowDays
+	}
 	fused := make([]searchScoredMemory, 0, len(byID))
 	for _, item := range byID {
 		coverage := signalTokenCoverage(p.Query, item.mem)
 		item.score += 0.08 * coverage
 		item.score += sourcequality.ScorePriorWithOptions(p.Query, item.mem.SourcePath, item.mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+		item.score -= agingPenalty(item.mem, time.Now().UTC(), ageWindow)
 		if coverage >= 0.5 && (item.mem.SourceKind == "direct" || item.mem.SourceKind == "remote_artifact") && isGuidanceRole(item.mem.Role) {
 			item.score += 0.75
 		}

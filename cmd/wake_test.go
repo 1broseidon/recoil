@@ -51,6 +51,60 @@ func TestBuildWakeLayersPrioritizesContextAndDecisions(t *testing.T) {
 	}
 }
 
+func TestBuildWakeLayersQuotasPreventDocCrowding(t *testing.T) {
+	var recent []store.Memory
+	for i := range 10 {
+		recent = append(recent, store.Memory{
+			ID:         fmt.Sprintf("doc_%02d", i),
+			Role:       "source",
+			SourceKind: "file",
+			SourcePath: fmt.Sprintf("docs/%02d.md", i),
+			Content:    "project doc chunk",
+			CreatedAt:  fmt.Sprintf("2026-03-01T00:%02d:00Z", i),
+			Score:      5,
+		})
+	}
+	recent = append(recent,
+		store.Memory{ID: "direct_handoff", Role: "handoff", SourceKind: "direct", Content: "new handoff", CreatedAt: "2026-03-02T00:00:00Z"},
+		store.Memory{ID: "decision_1", Role: "decision", Content: "first decision", CreatedAt: "2026-03-02T00:01:00Z"},
+		store.Memory{ID: "decision_2", Role: "decision", Content: "second decision", CreatedAt: "2026-03-02T00:02:00Z"},
+	)
+
+	layers := buildWakeLayers("", nil, recent, 8)
+	flatIDs := ids(flattenWakeLayers(layers))
+	for _, want := range []string{"direct_handoff", "decision_1", "decision_2"} {
+		if !strings.Contains(flatIDs, want) {
+			t.Fatalf("expected %s to survive doc crowding, got %s", want, flatIDs)
+		}
+	}
+	if got := len(layers[2].Memories); got > 4 {
+		t.Fatalf("expected project_docs count <= 4, got %d (%s)", got, ids(layers[2].Memories))
+	}
+}
+
+func TestBuildWakeLayersKeepsOnlyNewestDirectHandoff(t *testing.T) {
+	recent := []store.Memory{
+		{ID: "old_handoff", Role: "handoff", SourceKind: "direct", ClaimKey: "a", Content: "old handoff", CreatedAt: "2026-01-01T00:00:00Z"},
+		{ID: "new_handoff", Role: "handoff", SourceKind: "direct", ClaimKey: "b", Content: "new handoff", CreatedAt: "2026-02-01T00:00:00Z"},
+		{ID: "file_handoff", Role: "handoff", SourceKind: "file", Content: "file handoff chunk", CreatedAt: "2026-01-15T00:00:00Z"},
+	}
+	got := ids(flattenWakeLayers(buildWakeLayers("", nil, recent, 5)))
+	if strings.Contains(got, "old_handoff") || !strings.Contains(got, "new_handoff") || !strings.Contains(got, "file_handoff") {
+		t.Fatalf("expected only newest direct handoff plus file chunk, got %s", got)
+	}
+}
+
+func TestBuildWakeLayersSkipsExpiredValidUntil(t *testing.T) {
+	recent := []store.Memory{
+		{ID: "expired", Role: "decision", Validity: "active", Content: "expired decision", MetadataJSON: `{"predicate":{"kind":"valid_until","valid_until":"2020-01-01","recheck_prompt":"Ask again"}}`},
+		{ID: "future", Role: "decision", Validity: "active", Content: "future decision", MetadataJSON: `{"predicate":{"kind":"valid_until","valid_until":"2999-01-01"}}`},
+	}
+	got := ids(flattenWakeLayers(buildWakeLayers("", nil, recent, 5)))
+	if strings.Contains(got, "expired") || !strings.Contains(got, "future") {
+		t.Fatalf("expected expired predicate excluded and future included, got %s", got)
+	}
+}
+
 func TestWakeCommandCurrentResultsSurviveStaleRecencyCrowding(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "recoil.db")
 	oldOpts := opts
@@ -256,6 +310,31 @@ func TestLayeredMemoryBlocksHonorsHardBudget(t *testing.T) {
 	}
 	if !strings.Contains(body, "source_path: HANDOFF.md") {
 		t.Fatalf("expected source metadata, got:\n%s", body)
+	}
+}
+
+func TestLayeredMemoryBlocksPerMemoryCap(t *testing.T) {
+	layers := []wakeLayer{
+		{
+			Key:   "recent_evidence",
+			Title: "Recent Evidence",
+			Memories: []store.Memory{
+				{ID: "mem_1", CreatedAt: "2026-05-11T03:00:00Z", Content: strings.Repeat("a", 2000)},
+				{ID: "mem_2", CreatedAt: "2026-05-11T03:01:00Z", Content: strings.Repeat("b", 2000)},
+				{ID: "mem_3", CreatedAt: "2026-05-11T03:02:00Z", Content: strings.Repeat("c", 2000)},
+				{ID: "mem_4", CreatedAt: "2026-05-11T03:03:00Z", Content: strings.Repeat("d", 2000)},
+			},
+		},
+	}
+	rendered := layeredMemoryBlocks(layers, 1600, true)
+	if rendered.ShownCount < 3 {
+		t.Fatalf("expected at least 3 memories rendered, got %d:\n%s", rendered.ShownCount, rendered.Body)
+	}
+	if len(rendered.Body) > 1600 {
+		t.Fatalf("wake body exceeded hard budget: %d", len(rendered.Body))
+	}
+	if !rendered.Truncated {
+		t.Fatal("expected per-memory truncation")
 	}
 }
 

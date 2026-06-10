@@ -26,6 +26,7 @@ type decideOptions struct {
 	subject      string
 	publish      bool
 	noPublish    bool
+	noSupersede  bool
 }
 
 func newDecideCommand() *cobra.Command {
@@ -112,6 +113,50 @@ decision should participate in contradiction detection.`,
 				return err
 			}
 
+			var claimFamilyWasEmpty bool
+			if !duplicate {
+				family, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: decideOpts.claimKey, Lifecycle: store.LifecycleCurrent, Limit: 2})
+				if err != nil {
+					return err
+				}
+				claimFamilyWasEmpty = true
+				for _, existing := range family {
+					if existing.ID != mem.ID {
+						claimFamilyWasEmpty = false
+						break
+					}
+				}
+			}
+
+			var autoSuperseded []string
+			if !duplicate && !decideOpts.noSupersede && strings.TrimSpace(decideOpts.supersedes) == "" && strings.TrimSpace(decideOpts.supersededBy) == "" {
+				autoSuperseded, err = autoSupersedeClaimFamily(context.Background(), st, sc, decideOpts.claimKey, mem.ID)
+				if err != nil {
+					return err
+				}
+				if len(autoSuperseded) == 1 {
+					params := lifecycleParamsFromMemory(*mem)
+					params.Supersedes = autoSuperseded[0]
+					mem, err = st.UpdateLifecycle(context.Background(), params)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			var possibleConflicts []relatedClaim
+			if !duplicate && claimFamilyWasEmpty && len(autoSuperseded) == 0 {
+				related, err := findRelatedGuidance(context.Background(), st, sc, mem.Content, mem.ID)
+				if err != nil {
+					return err
+				}
+				for _, candidate := range relatedClaimsFromMemories(related) {
+					if candidate.ClaimKey != mem.ClaimKey {
+						possibleConflicts = append(possibleConflicts, candidate)
+					}
+				}
+			}
+
 			w := cmd.OutOrStdout()
 			publish := autoPublishMemory(context.Background(), st, mem, channelAutoPublishOptions{
 				Command:   "decide",
@@ -120,7 +165,7 @@ decision should participate in contradiction detection.`,
 				Duplicate: duplicate,
 			})
 			if opts.json {
-				return writeJSON(w, "decide_result", addResult{Memory: mem, Duplicate: duplicate, Publish: publish})
+				return writeJSON(w, "decide_result", addResult{Memory: mem, Duplicate: duplicate, Publish: publish, AutoSuperseded: autoSuperseded, PossibleConflicts: possibleConflicts})
 			}
 			meta := []kv{
 				{k: "id", v: mem.ID},
@@ -135,8 +180,10 @@ decision should participate in contradiction detection.`,
 				{k: "predicate_status", v: predicateStatusForFrontmatter(hasPredicate, predicate)},
 				{k: "supersedes", v: mem.Supersedes},
 				{k: "superseded_by", v: mem.SupersededBy},
+				{k: "auto_superseded", v: strings.Join(autoSuperseded, ",")},
 				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
 			}
+			meta = appendRelatedClaimFrontmatter(meta, "possible_conflict", possibleConflicts)
 			meta = append(meta, autoPublishFrontmatter(publish)...)
 			return frontmatter(w, meta, mem.Content)
 		},
@@ -156,6 +203,7 @@ decision should participate in contradiction detection.`,
 	c.Flags().StringVar(&decideOpts.supersededBy, "superseded-by", "", "memory ID that supersedes this decision")
 	c.Flags().BoolVar(&decideOpts.publish, "publish", false, "force automatic channel publish for this decision")
 	c.Flags().BoolVar(&decideOpts.noPublish, "no-publish", false, "skip automatic channel publish for this decision")
+	c.Flags().BoolVar(&decideOpts.noSupersede, "no-supersede", false, "skip automatic supersession of prior active decisions in the claim family")
 	addPredicateFlags(c.Flags(), &decideOpts.predicate)
 	return c
 }

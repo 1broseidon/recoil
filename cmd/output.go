@@ -22,11 +22,15 @@ type kv struct {
 func writeJSON(w io.Writer, kind string, data any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(envelope{
+	return enc.Encode(newEnvelope(kind, data))
+}
+
+func newEnvelope(kind string, data any) envelope {
+	return envelope{
 		Version: "0.1",
 		Kind:    kind,
 		Data:    data,
-	})
+	}
 }
 
 func frontmatter(w io.Writer, meta []kv, content string) error {

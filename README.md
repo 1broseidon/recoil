@@ -260,8 +260,9 @@ recoil eval --suite workflows --out eval/results
 recoil repair
 ```
 
-All commands support `--json` for programmatic use; scan commands also support
-`--minimal` for tab-separated rows.
+Result-producing commands support `--json` for programmatic use; long-running
+server/tray commands keep their runtime logs on stderr/stdout as plain text.
+Scan commands also support `--minimal` for tab-separated rows.
 
 ## How It Works
 
@@ -308,7 +309,16 @@ to cite) followed by content. `--json` returns a stable envelope:
 { "version": "0.1", "kind": "search_result", "data": { ... } }
 ```
 
+When `--json` is active, command errors are emitted on stderr as:
+
+```json
+{ "version": "0.1", "kind": "error", "error": { "code": "VALIDATION", "message": "..." } }
+```
+
 `--minimal` returns TSV rows for shell pipelines.
+
+**Exit codes.** `0` success, `1` generic error, `2` validation, `3` not found,
+`4` upstream/database/provider failure, `5` failed precondition, `6` cancelled.
 
 ## Lifecycle Model
 
@@ -507,8 +517,10 @@ such as commands, quotes, stack traces, or line numbers. Use
 
 `recoil mcp` runs a stdio Model Context Protocol server using the official
 `github.com/modelcontextprotocol/go-sdk/mcp` Go SDK. It exposes
-`recoil_search` and `recoil_wake` tools read-only by default; start with
-`recoil mcp --allow-write` to expose `recoil_add`.
+`recoil_search`, `recoil_wake`, and `recoil_check` tools read-only by default.
+Those tools return text content plus structured `{version, kind, data}` MCP
+content matching the CLI JSON envelope. Start with `recoil mcp --allow-write`
+to expose `recoil_add`, `recoil_remember`, and `recoil_handoff`.
 
 ## Memory Sharing
 

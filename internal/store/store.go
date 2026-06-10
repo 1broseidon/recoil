@@ -96,6 +96,7 @@ type SearchParams struct {
 	QueryDate     string
 	SignalRerank  bool
 	SourceQuality sourcequality.Options
+	AgingWindow   float64
 }
 
 type ListParams struct {
@@ -211,6 +212,13 @@ type FileSource struct {
 	ChunkCount  int    `json:"chunk_count,omitempty"`
 	LastMinedAt string `json:"last_mined_at,omitempty"`
 	DeletedAt   string `json:"deleted_at,omitempty"`
+}
+
+type ClaimSummary struct {
+	ClaimKey        string `json:"claim_key"`
+	Count           int    `json:"count"`
+	CurrentValidity string `json:"current_validity"`
+	CurrentID       string `json:"current_id,omitempty"`
 }
 
 type Counts struct {
@@ -977,6 +985,55 @@ func (s *Store) GetMemory(ctx context.Context, idOrPrefix string) (*Memory, erro
 		return nil, err
 	}
 	return s.GetMemoryByID(ctx, id, false)
+}
+
+func (s *Store) ClaimSummaries(ctx context.Context, scopeKind, scopeID string) ([]ClaimSummary, error) {
+	where, args, err := scopedFilter("", memoryQueryFilter{ScopeKind: scopeKind, ScopeID: scopeID, IncludeDeleted: false})
+	if err != nil {
+		return nil, err
+	}
+	lifecycleCurrent, err := lifecycleFilter("validity", LifecycleCurrent)
+	if err != nil {
+		return nil, err
+	}
+	currentExpr := "CASE WHEN tombstoned_at IS NULL" + lifecycleCurrent + " THEN 1 ELSE 0 END"
+	query := `
+		SELECT
+			claim_key,
+			COUNT(*) AS family_count,
+			SUM(` + currentExpr + `) AS current_count,
+			COALESCE(MAX(CASE WHEN ` + currentExpr + ` = 1 THEN validity END), '') AS current_validity,
+			COALESCE(MAX(CASE WHEN ` + currentExpr + ` = 1 THEN id END), '') AS current_id
+		FROM memories
+		WHERE COALESCE(claim_key, '') != ''` + where + `
+		GROUP BY claim_key
+		ORDER BY claim_key`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ClaimSummary
+	for rows.Next() {
+		var summary ClaimSummary
+		var currentCount int
+		if err := rows.Scan(&summary.ClaimKey, &summary.Count, &currentCount, &summary.CurrentValidity, &summary.CurrentID); err != nil {
+			return nil, err
+		}
+		switch {
+		case currentCount == 0:
+			summary.CurrentValidity = "none"
+			summary.CurrentID = ""
+		case currentCount > 1:
+			summary.CurrentValidity = "multiple"
+			summary.CurrentID = ""
+		}
+		out = append(out, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s *Store) Counts(ctx context.Context) (Counts, error) {

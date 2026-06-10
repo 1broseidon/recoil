@@ -213,6 +213,16 @@ type hookAdapter struct {
 	uninstall func(scope string, dryRun bool) (target, summary string, err error)
 }
 
+type hookInstallResult struct {
+	Agent   string `json:"agent"`
+	Scope   string `json:"scope"`
+	Action  string `json:"action"`
+	DryRun  bool   `json:"dry_run"`
+	Target  string `json:"target"`
+	Summary string `json:"summary,omitempty"`
+	Status  string `json:"status"`
+}
+
 func runHookInstall(cmd *cobra.Command, agent, scope string, dryRun, uninstall bool) error {
 	if scope != "user" && scope != "project" {
 		return fmt.Errorf("--scope must be 'user' or 'project'")
@@ -230,6 +240,25 @@ func runHookInstall(cmd *cobra.Command, agent, scope string, dryRun, uninstall b
 	target, summary, err := action(scope, dryRun)
 	if err != nil {
 		return err
+	}
+	actionName := "install"
+	if uninstall {
+		actionName = "uninstall"
+	}
+	if opts.json {
+		status := verb
+		if dryRun {
+			status = "would_update"
+		}
+		return writeJSON(cmd.OutOrStdout(), "hook_install_result", hookInstallResult{
+			Agent:   agent,
+			Scope:   scope,
+			Action:  actionName,
+			DryRun:  dryRun,
+			Target:  target,
+			Summary: summary,
+			Status:  status,
+		})
 	}
 	if dryRun {
 		fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] would update %s\n---\n%s\n", target, summary)

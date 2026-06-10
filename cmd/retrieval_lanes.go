@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/1broseidon/recoil/internal/store"
 )
@@ -33,6 +34,11 @@ func structuredRetrievalLanes(query string, current, historical []store.Memory) 
 		{Key: "historical", Title: "Historical"},
 	}
 	add := func(mem store.Memory, historical bool) {
+		if broken, reason := deterministicPredicateBroken(mem); broken {
+			mem.Why = reason
+			laneDefs[4].Results = append(laneDefs[4].Results, mem)
+			return
+		}
 		mem.Why = whyMemorySurfaced(mem, query, strings.TrimSpace(query) != "", historical)
 		index := retrievalLaneIndex(mem, historical)
 		laneDefs[index].Results = append(laneDefs[index].Results, mem)
@@ -103,28 +109,30 @@ func retrievalLaneBlocks(lanes []retrievalLaneResult, maxChars int) string {
 }
 
 func whyMemorySurfaced(mem store.Memory, query string, fromQuery, historical bool) string {
+	if broken, reason := deterministicPredicateBroken(mem); broken {
+		return reason
+	}
+	base := ""
 	if historical || isHistoricalMemory(mem) {
-		return "matched query but lifecycle marks it historical, stale, rejected, or superseded"
-	}
-	if strings.EqualFold(mem.SourceKind, "remote_artifact") {
-		return "shared by " + firstNonEmpty(mem.SourceAgent, "another agent")
-	}
-	if strings.EqualFold(mem.SourceKind, "file") {
-		return "project document chunk from " + firstNonEmpty(mem.SourcePath, "a mined source")
-	}
-	if isDecisionLaneRole(mem.Role) {
+		base = "matched query but lifecycle marks it historical, stale, rejected, or superseded"
+	} else if strings.EqualFold(mem.SourceKind, "remote_artifact") {
+		base = "shared by " + firstNonEmpty(mem.SourceAgent, "another agent")
+	} else if strings.EqualFold(mem.SourceKind, "file") {
+		base = "project document chunk from " + firstNonEmpty(mem.SourcePath, "a mined source")
+	} else if isDecisionLaneRole(mem.Role) {
 		if mem.ClaimKey != "" {
-			return "current " + firstNonEmpty(mem.Role, "guidance") + " with claim_key " + mem.ClaimKey
+			base = "current " + firstNonEmpty(mem.Role, "guidance") + " with claim_key " + mem.ClaimKey
+		} else {
+			base = "current " + firstNonEmpty(mem.Role, "guidance") + " memory"
 		}
-		return "current " + firstNonEmpty(mem.Role, "guidance") + " memory"
+	} else if fromQuery && strings.TrimSpace(query) != "" {
+		base = "matched query terms"
+	} else if mem.SourceKind == "session_evidence" {
+		base = "recent selected session evidence"
+	} else {
+		base = "recent current memory in this scope"
 	}
-	if fromQuery && strings.TrimSpace(query) != "" {
-		return "matched query terms"
-	}
-	if mem.SourceKind == "session_evidence" {
-		return "recent selected session evidence"
-	}
-	return "recent current memory in this scope"
+	return base + agingWhySuffix(mem, time.Now().UTC(), defaultAgingWindowDays)
 }
 
 func isDecisionLaneRole(role string) bool {

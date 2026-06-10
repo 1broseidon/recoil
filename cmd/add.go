@@ -29,9 +29,11 @@ type addOptions struct {
 }
 
 type addResult struct {
-	Memory    *store.Memory            `json:"memory"`
-	Duplicate bool                     `json:"duplicate"`
-	Publish   channelAutoPublishResult `json:"publish"`
+	Memory            *store.Memory            `json:"memory"`
+	Duplicate         bool                     `json:"duplicate"`
+	Publish           channelAutoPublishResult `json:"publish"`
+	AutoSuperseded    []string                 `json:"auto_superseded,omitempty"`
+	PossibleConflicts []relatedClaim           `json:"possible_conflicts,omitempty"`
 }
 
 func newAddCommand() *cobra.Command {

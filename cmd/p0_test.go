@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/1broseidon/recoil/internal/scope"
+	"github.com/1broseidon/recoil/internal/store"
 )
 
 func TestSetupBootstrapsInitMineAndNextCommand(t *testing.T) {
@@ -149,6 +151,63 @@ func TestHandoffWritesStructuredCloseout(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in handoff output:\n%s", want, got)
 		}
+	}
+}
+
+func TestHandoffAutoSupersedesPreviousHandoff(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	for _, text := range []string{"First handoff.", "Second handoff."} {
+		c := newHandoffCommand()
+		c.SetOut(&bytes.Buffer{})
+		c.SetErr(&bytes.Buffer{})
+		c.SetArgs([]string{text})
+		if err := c.Execute(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	family, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "handoff.latest", Limit: 10, Lifecycle: store.LifecycleAny})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(family) != 2 {
+		t.Fatalf("expected two handoffs, got %+v", family)
+	}
+	var current, old store.Memory
+	for _, mem := range family {
+		if mem.Validity == "active" {
+			current = mem
+		} else if mem.Validity == "superseded" {
+			old = mem
+		}
+	}
+	if current.ID == "" || old.ID == "" || old.SupersededBy != current.ID || current.Supersedes != old.ID {
+		t.Fatalf("unexpected handoff supersession links: current=%+v old=%+v family=%+v", current, old, family)
+	}
+	currentList, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "handoff.latest", Limit: 10, Lifecycle: store.LifecycleCurrent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(currentList) != 1 || currentList[0].ID != current.ID {
+		t.Fatalf("expected only second handoff current, got %+v", currentList)
 	}
 }
 

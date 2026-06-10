@@ -70,12 +70,10 @@ func newCheckCommand() *cobra.Command {
 			}
 			defer st.Close()
 			ctx := context.Background()
-			freshness := ensureFreshContext(ctx, st, "check")
-			result, err := runDecisionCheck(ctx, st, sc, query, checkOpts.claimKey, checkOpts.limit)
+			result, err := runCheck(ctx, st, sc, query, checkOpts.claimKey, checkOpts.limit)
 			if err != nil {
 				return err
 			}
-			result.ChannelFreshness = freshness
 			w := cmd.OutOrStdout()
 			if opts.json {
 				return writeJSON(w, "check_result", result)
@@ -87,6 +85,16 @@ func newCheckCommand() *cobra.Command {
 	c.Flags().StringVar(&checkOpts.claimKey, "claim-key", "", "audit an exact claim family")
 	c.Flags().IntVar(&checkOpts.limit, "limit", 8, "maximum memories to inspect")
 	return c
+}
+
+func runCheck(ctx context.Context, st *store.Store, sc scope.Scope, query, claimKey string, limit int) (checkResult, error) {
+	freshness := ensureFreshContext(ctx, st, "check")
+	result, err := runDecisionCheck(ctx, st, sc, query, claimKey, limit)
+	if err != nil {
+		return checkResult{}, err
+	}
+	result.ChannelFreshness = freshness
+	return result, nil
 }
 
 func runDecisionCheck(ctx context.Context, st *store.Store, sc scope.Scope, query, claimKey string, limit int) (checkResult, error) {

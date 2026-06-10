@@ -60,3 +60,9 @@ func TestOpenStoreDoesNotFallbackWhenDBPathExplicit(t *testing.T) {
 		t.Fatalf("did not expect explicit DB path to use project fallback")
 	}
 }
+
+func TestRootCommandHasVersionFlag(t *testing.T) {
+	if rootCmd.Version == "" {
+		t.Fatal("expected root command Version for --version support")
+	}
+}

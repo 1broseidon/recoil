@@ -158,7 +158,7 @@ func TestSwarmRefreshImportsPeerMemory(t *testing.T) {
 	}
 }
 
-func TestInstructCommandsUseShortThreeVerbContract(t *testing.T) {
+func TestInstructCommandsUseLifecycleContract(t *testing.T) {
 	for _, agent := range []string{"codex", "claude-code", "opencode"} {
 		c := newInstructCommand()
 		var out bytes.Buffer
@@ -169,12 +169,23 @@ func TestInstructCommandsUseShortThreeVerbContract(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := out.String()
-		for _, want := range []string{"memory tree", "recoil wake --max-chars 1600", "recoil remember --agent " + agent, "recoil handoff --agent " + agent, "shares eligible memory automatically"} {
+		for _, want := range []string{
+			"memory tree",
+			"recoil wake --max-chars 1600",
+			"recoil search \"<topic>\"",
+			"recoil check \"<proposed action>\"",
+			"recoil remember --agent " + agent,
+			"recoil decide --claim-key <family>",
+			"recoil supersede <old-id>",
+			"recoil handoff --agent " + agent + " --next-step",
+			"shares eligible memory automatically",
+			"IDs and provenance",
+		} {
 			if !strings.Contains(got, want) {
 				t.Fatalf("expected %q in instruct output for %s:\n%s", want, agent, got)
 			}
 		}
-		for _, forbidden := range []string{"channel publish", "recoil decide", "recoil add"} {
+		for _, forbidden := range []string{"channel publish", "recoil add"} {
 			if strings.Contains(got, forbidden) {
 				t.Fatalf("instruction text leaked old guidance %q:\n%s", forbidden, got)
 			}

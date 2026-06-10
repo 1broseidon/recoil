@@ -19,8 +19,9 @@ type globalOptions struct {
 var opts globalOptions
 
 var rootCmd = &cobra.Command{
-	Use:   "recoil",
-	Short: "Fast local memory recall for agents and humans",
+	Use:     "recoil",
+	Short:   "Fast local memory recall for agents and humans",
+	Version: versionSummary(),
 	Long: `Recoil is a local-first CLI memory tool.
 It stores verbatim memories in SQLite and recalls them through fast FTS search.`,
 	SilenceUsage:  true,
@@ -40,6 +41,7 @@ func init() {
 	rootCmd.AddCommand(newAddCommand())
 	rootCmd.AddCommand(newDecideCommand())
 	rootCmd.AddCommand(newRememberCommand())
+	rootCmd.AddCommand(newClaimsCommand())
 	rootCmd.AddCommand(newHandoffCommand())
 	rootCmd.AddCommand(newCheckCommand())
 	rootCmd.AddCommand(newSearchCommand())
@@ -57,6 +59,7 @@ func init() {
 	rootCmd.AddCommand(newProfileCommand())
 	rootCmd.AddCommand(newEvalCommand())
 	rootCmd.AddCommand(newStatusCommand())
+	rootCmd.AddCommand(newTrayCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newInstructCommand())
 	rootCmd.AddCommand(newInstructionsCommand())

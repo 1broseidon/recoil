@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/1broseidon/recoil/internal/store"
 )
@@ -128,6 +129,79 @@ func TestSearchCommandCurrentResultsSurviveHistoricalCrowding(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in output:\n%s", want, got)
 		}
+	}
+}
+
+func TestRunSignalSearchAppliesAgingPenaltyOnlyToAgingRoles(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	oldNote, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "note", Content: "aging rank target note old", ScopeKind: "session", ScopeID: "aging-search", Validity: "active", CreatedAt: "2026-01-01T00:00:00Z"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshNote, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "note", Content: "aging rank target note fresh", ScopeKind: "session", ScopeID: "aging-search", Validity: "active", CreatedAt: time.Now().UTC().Format(time.RFC3339)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldDecision, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "aging rank target decision old", ScopeKind: "session", ScopeID: "aging-search", Validity: "active", CreatedAt: "2026-01-01T00:00:00Z"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := runSignalSearch(ctx, st, store.SearchParams{Query: "aging rank target note", ScopeKind: "session", ScopeID: "aging-search", Limit: 3, Lifecycle: store.LifecycleCurrent, SignalRerank: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) < 2 || results[0].ID != freshNote.ID {
+		t.Fatalf("expected fresh aging-role memory first, got %+v", results)
+	}
+	if agingPenalty(*oldNote, time.Now().UTC(), defaultAgingWindowDays) <= 0 {
+		t.Fatalf("expected old note to receive aging penalty")
+	}
+	if agingPenalty(*oldDecision, time.Now().UTC(), defaultAgingWindowDays) != 0 {
+		t.Fatalf("decision should not be penalized by age")
+	}
+}
+
+func TestSearchRoutesExpiredValidUntilToHistoricalLane(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	expired, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "predicate lane expired libz decision", ScopeKind: "session", ScopeID: "predicate-search", Validity: "active", MetadataJSON: `{"predicate":{"kind":"valid_until","valid_until":"2020-01-01","recheck_prompt":"Recheck libz"}}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	future, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "predicate lane future libz decision", ScopeKind: "session", ScopeID: "predicate-search", Validity: "active", MetadataJSON: `{"predicate":{"kind":"valid_until","valid_until":"2999-01-01","recheck_prompt":"Recheck libz"}}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := runSignalSearch(ctx, st, store.SearchParams{Query: "predicate lane libz decision", ScopeKind: "session", ScopeID: "predicate-search", Limit: 5, Lifecycle: store.LifecycleCurrent, SignalRerank: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lanes := structuredRetrievalLanes("predicate lane libz decision", current, nil)
+	var sawExpiredHistorical, sawFutureCurrent bool
+	for _, lane := range lanes {
+		for _, mem := range lane.Results {
+			if mem.ID == expired.ID && lane.Key == "historical" && strings.Contains(mem.Why, "valid_until expired") && strings.Contains(mem.Why, "Recheck libz") {
+				sawExpiredHistorical = true
+			}
+			if mem.ID == future.ID && lane.Key != "historical" {
+				sawFutureCurrent = true
+			}
+		}
+	}
+	if !sawExpiredHistorical || !sawFutureCurrent {
+		t.Fatalf("expected expired historical and future current, lanes=%+v", lanes)
 	}
 }
 
