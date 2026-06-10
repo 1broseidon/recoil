@@ -1,8 +1,6 @@
 ---
 id: task-16
 title: Quarantine benchmark-specific query expansions and content-sniffing noise markers
-column: todo
-position: 5
 priority: medium
 tags:
   - audit
@@ -13,6 +11,8 @@ relatedFiles:
   - cmd/search.go
 parentId: epic-1
 createdAt: "2026-06-10T04:40:32.223Z"
+completedAt: "2026-06-10T05:43:39.421Z"
+updatedAt: "2026-06-10T05:43:39.421Z"
 ---
 
 ## Description
