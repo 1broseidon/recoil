@@ -431,6 +431,93 @@ func TestRunSignalSearchHonorsExplicitDoctorName(t *testing.T) {
 	}
 }
 
+func TestRunSignalSearchProductBigramDoesNotEmptyResults(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Content:   "Editor tasks run through the Makefile; agents adopt the standard build tasks.",
+		Role:      "decision",
+		ScopeKind: "session",
+		ScopeID:   "product-bigram",
+		Validity:  "active",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := runSignalSearch(ctx, st, store.SearchParams{
+		Query:        "should we adopt Visual Studio Code tasks",
+		ScopeKind:    "session",
+		ScopeID:      "product-bigram",
+		Limit:        5,
+		Lifecycle:    store.LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected product-name bigram query to keep matching results, got none")
+	}
+}
+
+func TestRunSignalSearchDemotesButKeepsNonMatchingForPersonQueries(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Content:   "Caroline Mercer recommended the sourdough cookbook for weekend baking.",
+		ScopeKind: "session",
+		ScopeID:   "person-demote",
+		Validity:  "active",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Content:   "A colleague recommended a different cookbook about weeknight cooking.",
+		ScopeKind: "session",
+		ScopeID:   "person-demote",
+		Validity:  "active",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := runSignalSearch(ctx, st, store.SearchParams{
+		Query:        "which cookbook did my friend Caroline Mercer recommend",
+		ScopeKind:    "session",
+		ScopeID:      "person-demote",
+		Limit:        5,
+		Lifecycle:    store.LifecycleCurrent,
+		SignalRerank: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) < 2 {
+		t.Fatalf("expected non-matching memory demoted but kept, got %d results", len(results))
+	}
+	if !strings.Contains(results[0].Content, "Caroline Mercer") {
+		t.Fatalf("expected Caroline Mercer memory ranked first, got %q", results[0].Content)
+	}
+}
+
+func TestExplicitPersonNameTermsRequiresPersonContext(t *testing.T) {
+	if names := explicitPersonNameTerms("migrate the schema to North Star conventions"); len(names) != 0 {
+		t.Fatalf("expected no person names without person context, got %v", names)
+	}
+	if names := explicitPersonNameTerms("what did my friend Caroline Mercer recommend"); len(names) == 0 {
+		t.Fatal("expected person names with person cue present")
+	}
+}
+
 func TestRunSignalSearchExpandsDerivedTraceToSourceEvidence(t *testing.T) {
 	ctx := context.Background()
 	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))

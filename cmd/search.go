@@ -357,35 +357,78 @@ func signalTokenCoverage(query string, mem store.Memory) float64 {
 	return float64(hits) / float64(len(tokens))
 }
 
+// filterStrictEntityResults applies entity gating to fused results.
+//
+// Strong signal (explicit "Dr. X" doctor names): hard filter — a sparse
+// search must not satisfy a named-doctor question with another doctor.
+//
+// Weak signal (capitalized bigrams that look like person names): demotion
+// only. Results that don't mention the name take a flat score penalty and
+// re-sort below matching results, but they survive — capitalized bigrams
+// are too often product names ("Visual Studio", "North Star") for a hard
+// drop to be safe.
+const entityDemotionPenalty = 1.0
+
 func filterStrictEntityResults(query string, fused []searchScoredMemory) []searchScoredMemory {
 	doctorNames := retrieval.DoctorNameTerms(query)
 	personNames := explicitPersonNameTerms(query)
 	if len(doctorNames) == 0 && len(personNames) == 0 {
 		return fused
 	}
-	var out []searchScoredMemory
-	for _, item := range fused {
+	containsAnyName := func(item searchScoredMemory, names []string) bool {
 		text := strings.ToLower(item.mem.Content + " " + item.mem.SourceRef + " " + item.mem.SourcePath)
-		for _, name := range doctorNames {
+		for _, name := range names {
 			if strings.Contains(text, name) {
-				out = append(out, item)
-				goto nextItem
+				return true
 			}
 		}
-		for _, name := range personNames {
-			if strings.Contains(text, name) {
+		return false
+	}
+	var out []searchScoredMemory
+	demoted := false
+	for _, item := range fused {
+		if len(doctorNames) > 0 {
+			if containsAnyName(item, doctorNames) {
 				out = append(out, item)
-				goto nextItem
+				continue
+			}
+			if len(personNames) == 0 {
+				continue
 			}
 		}
-	nextItem:
+		if len(personNames) > 0 && !containsAnyName(item, personNames) {
+			if len(doctorNames) > 0 {
+				// Doctor query without the doctor name: still hard-filter.
+				continue
+			}
+			item.score -= entityDemotionPenalty
+			item.mem.Score = item.score
+			demoted = true
+		}
+		out = append(out, item)
+	}
+	if demoted {
+		sort.SliceStable(out, func(i, j int) bool {
+			if math.Abs(out[i].score-out[j].score) < 1e-9 {
+				return out[i].mem.CreatedAt > out[j].mem.CreatedAt
+			}
+			return out[i].score > out[j].score
+		})
 	}
 	return out
 }
 
 var explicitPersonNameRE = regexp.MustCompile(`\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\b`)
 
+// explicitPersonNameTerms extracts likely person names from a query. A
+// capitalized bigram alone is a weak signal (product names match the same
+// shape), so a bigram only counts when a person-ish cue appears in the query:
+// a personal lead-in word directly before the name, or person-question
+// context anywhere in the query.
 func explicitPersonNameTerms(query string) []string {
+	if !queryHasPersonContext(query) {
+		return nil
+	}
 	var names []string
 	for _, match := range explicitPersonNameRE.FindAllStringSubmatch(query, -1) {
 		if len(match) < 3 {
@@ -399,6 +442,20 @@ func explicitPersonNameTerms(query string) []string {
 		names = append(names, first+" "+last, last, first)
 	}
 	return uniqueSearchStrings(names)
+}
+
+func queryHasPersonContext(query string) bool {
+	lower := " " + strings.ToLower(query) + " "
+	for _, cue := range []string{
+		" dr ", " dr. ", " doctor ", " my ", " with ", " named ", " called ",
+		" friend ", " brother ", " sister ", " cousin ", " coworker ",
+		" colleague ", " who ", " whom ", " person ", " people ", " met ",
+	} {
+		if strings.Contains(lower, cue) {
+			return true
+		}
+	}
+	return false
 }
 
 func commonNonPersonName(first, last string) bool {
