@@ -54,6 +54,12 @@ var settingDefinitions = []Definition{
 		Description: "Comma-separated path globs to exclude from mining even when they otherwise look important.",
 	},
 	{
+		Key:         "retrieval.mode",
+		Type:        TypeString,
+		Default:     "auto",
+		Description: "Search retrieval mode: auto enables hybrid FTS+embeddings when a usable local embedding index exists; fts forces sparse search; hybrid requires a usable embedding index.",
+	},
+	{
 		Key:         "aging.window-days",
 		Type:        TypeFloat,
 		Default:     "30",
@@ -348,6 +354,10 @@ func Validate(key, value string) error {
 	switch def.Type {
 	case TypeString:
 		switch key {
+		case "retrieval.mode":
+			if !oneOf(value, "auto", "fts", "hybrid") {
+				return fmt.Errorf("config key %q expects auto, fts, or hybrid", key)
+			}
 		case "channel.auto_publish":
 			if !oneOf(value, "off", "guidance", "all-local") {
 				return fmt.Errorf("config key %q expects off, guidance, or all-local", key)

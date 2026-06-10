@@ -713,6 +713,31 @@ func (s *Store) UpsertEmbedding(ctx context.Context, mem Memory, provider, model
 	return err
 }
 
+func (s *Store) EmbeddingIndexInfo(ctx context.Context, scopeKind, scopeID string) (count int, provider string, model string, err error) {
+	where := "m.tombstoned_at IS NULL"
+	args := []any{}
+	if strings.TrimSpace(scopeKind) != "" {
+		where += " AND m.scope_kind = ?"
+		args = append(args, strings.TrimSpace(scopeKind))
+	}
+	if strings.TrimSpace(scopeID) != "" {
+		where += " AND m.scope_id = ?"
+		args = append(args, strings.TrimSpace(scopeID))
+	}
+	err = s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) AS n, e.provider, e.model
+		FROM memory_embeddings e
+		JOIN memories m ON m.id = e.memory_id
+		WHERE `+where+`
+		GROUP BY e.provider, e.model
+		ORDER BY n DESC
+		LIMIT 1`, args...).Scan(&count, &provider, &model)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, "", "", nil
+	}
+	return count, provider, model, err
+}
+
 func (s *Store) SemanticSearch(ctx context.Context, p SemanticSearchParams) ([]Memory, error) {
 	if len(p.QueryVector) == 0 {
 		return nil, nil

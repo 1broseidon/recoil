@@ -128,6 +128,7 @@ func runWake(ctx context.Context, st *store.Store, sc scope.Scope, query string,
 			params.Lifecycle = store.LifecycleCurrent
 		}
 		params.SourceQuality = qualityOpts
+		// Wake remains FTS-only: its recency/layering surface gains little from embeddings.
 		found, err := runRetriever(ctx, st, params, retrieverOptions{
 			mode:  retrievalFTS,
 			limit: fetchLimit,

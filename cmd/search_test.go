@@ -9,8 +9,101 @@ import (
 	"testing"
 	"time"
 
+	"github.com/1broseidon/recoil/internal/config"
+	"github.com/1broseidon/recoil/internal/embedding"
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 )
+
+func TestRunSearchAutoModeFallsBackToFTSWithoutEmbeddingIndex(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "auto retrieval sparse fallback target", ScopeKind: "session", ScopeID: "auto-fts", Validity: "active"}); err != nil {
+		t.Fatal(err)
+	}
+	result, err := runSearch(ctx, st, scope.Scope{Kind: "session", ID: "auto-fts"}, "sparse fallback", searchOptions{limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RetrievalMode != retrievalFTS || result.ResultCount == 0 {
+		t.Fatalf("expected fts results, got mode=%q count=%d", result.RetrievalMode, result.ResultCount)
+	}
+	if !frontmatterContains(searchFrontmatter(result), "retrieval_mode", retrievalFTS) {
+		t.Fatalf("missing retrieval_mode frontmatter: %+v", searchFrontmatter(result))
+	}
+}
+
+func TestRunSearchAutoModeUsesUsableEmbeddingIndex(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	provider := embedding.NewLocalProvider("")
+	for i := 0; i < embeddingIndexFloor; i++ {
+		mem, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "note", Content: fmt.Sprintf("hybrid indexed target %02d", i), ScopeKind: "session", ScopeID: "auto-hybrid", Validity: "active"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		vector, _ := provider.Embed(ctx, store.EmbeddingText(*mem))
+		if err := st.UpsertEmbedding(ctx, *mem, provider.Name(), provider.Model(), vector); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := runSearch(ctx, st, scope.Scope{Kind: "session", ID: "auto-hybrid"}, "hybrid indexed target", searchOptions{limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RetrievalMode != retrievalHybrid || result.ResultCount == 0 {
+		t.Fatalf("expected hybrid results, got mode=%q count=%d", result.RetrievalMode, result.ResultCount)
+	}
+}
+
+func TestRunSearchAutoHybridQueryEmbedErrorFallsBackToFTS(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "query embed failure fallback target", ScopeKind: "session", ScopeID: "fallback", Validity: "active"}); err != nil {
+		t.Fatal(err)
+	}
+	oldResolver := activeSearchModeResolver
+	activeSearchModeResolver = func(context.Context, *store.Store, scope.Scope, config.Settings, bool, string, string) (string, embedding.Provider, bool, error) {
+		return retrievalHybrid, failingEmbeddingProvider{}, true, nil
+	}
+	defer func() { activeSearchModeResolver = oldResolver }()
+	result, err := runSearch(ctx, st, scope.Scope{Kind: "session", ID: "fallback"}, "failure fallback", searchOptions{limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RetrievalMode != retrievalHybridFallbackFTS || result.ResultCount == 0 {
+		t.Fatalf("expected hybrid fallback fts results, got mode=%q count=%d", result.RetrievalMode, result.ResultCount)
+	}
+}
+
+type failingEmbeddingProvider struct{}
+
+func (failingEmbeddingProvider) Name() string  { return "local" }
+func (failingEmbeddingProvider) Model() string { return "local-hash-v1" }
+func (failingEmbeddingProvider) Embed(context.Context, string) ([]float64, error) {
+	return nil, fmt.Errorf("boom")
+}
+
+func frontmatterContains(meta []kv, key, value string) bool {
+	for _, item := range meta {
+		if item.k == key && item.v == value {
+			return true
+		}
+	}
+	return false
+}
 
 func TestSearchCommandSeparatesCurrentAndHistoricalResults(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "recoil.db")

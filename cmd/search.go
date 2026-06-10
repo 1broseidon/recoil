@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/1broseidon/recoil/internal/config"
 	"github.com/1broseidon/recoil/internal/embedding"
 	"github.com/1broseidon/recoil/internal/retrieval"
 	"github.com/1broseidon/recoil/internal/scope"
@@ -30,6 +32,11 @@ type searchOptions struct {
 	fusionK        int
 	profiles       string
 }
+
+const (
+	retrievalHybridFallbackFTS = "hybrid_fallback_fts"
+	embeddingIndexFloor        = 10
+)
 
 type searchScoredMemory struct {
 	mem   store.Memory
@@ -105,18 +112,32 @@ func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query strin
 	if !explicitLifecycle {
 		params.Lifecycle = store.LifecycleCurrent
 	}
-	mode := retrievalFTS
-	if opts.hybrid {
-		mode = retrievalHybrid
+	retrievalMode, provider, autoHybrid, err := resolveRetrievalMode(ctx, st, sc, settings, opts.hybrid, opts.hybridProvider, opts.hybridModel)
+	if err != nil {
+		return searchResult{}, err
 	}
-	current, err := runRetriever(ctx, st, params, retrieverOptions{
-		mode:           mode,
-		hybridProvider: opts.hybridProvider,
-		hybridModel:    opts.hybridModel,
-		hybridPool:     opts.hybridPool,
-		fusionK:        opts.fusionK,
-		limit:          opts.limit,
-	})
+	runResolved := func(p store.SearchParams) ([]store.Memory, error) {
+		runMode := retrievalMode
+		if runMode == retrievalHybridFallbackFTS {
+			runMode = retrievalFTS
+		}
+		rows, runErr := runRetriever(ctx, st, p, retrieverOptions{
+			mode:           runMode,
+			provider:       provider,
+			hybridProvider: opts.hybridProvider,
+			hybridModel:    opts.hybridModel,
+			hybridPool:     opts.hybridPool,
+			fusionK:        opts.fusionK,
+			limit:          opts.limit,
+		})
+		if runErr != nil && autoHybrid && isQueryEmbeddingError(runErr) {
+			fmt.Fprintf(os.Stderr, "warning: hybrid retrieval unavailable (%v); falling back to fts\n", runErr)
+			retrievalMode = retrievalHybridFallbackFTS
+			return runRetriever(ctx, st, p, retrieverOptions{mode: retrievalFTS, limit: opts.limit})
+		}
+		return rows, runErr
+	}
+	current, err := runResolved(params)
 	if err != nil {
 		return searchResult{}, err
 	}
@@ -129,14 +150,7 @@ func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query strin
 	if !explicitLifecycle {
 		historicalParams := params
 		historicalParams.Lifecycle = store.LifecycleHistorical
-		historical, err = runRetriever(ctx, st, historicalParams, retrieverOptions{
-			mode:           mode,
-			hybridProvider: opts.hybridProvider,
-			hybridModel:    opts.hybridModel,
-			hybridPool:     opts.hybridPool,
-			fusionK:        opts.fusionK,
-			limit:          opts.limit,
-		})
+		historical, err = runResolved(historicalParams)
 		if err != nil {
 			return searchResult{}, err
 		}
@@ -153,6 +167,7 @@ func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query strin
 		Query:            query,
 		Scope:            sc.Kind,
 		ScopeID:          sc.ID,
+		RetrievalMode:    retrievalMode,
 		ResultCount:      len(current),
 		HistoryCount:     len(historical),
 		ChannelFreshness: freshness,
@@ -161,11 +176,52 @@ func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query strin
 	}, nil
 }
 
+type searchModeResolver func(ctx context.Context, st *store.Store, sc scope.Scope, settings config.Settings, explicitHybridFlag bool, flagProvider, flagModel string) (string, embedding.Provider, bool, error)
+
+var activeSearchModeResolver searchModeResolver = defaultResolveRetrievalMode
+
+func resolveRetrievalMode(ctx context.Context, st *store.Store, sc scope.Scope, settings config.Settings, explicitHybridFlag bool, flagProvider, flagModel string) (string, embedding.Provider, bool, error) {
+	return activeSearchModeResolver(ctx, st, sc, settings, explicitHybridFlag, flagProvider, flagModel)
+}
+
+func defaultResolveRetrievalMode(ctx context.Context, st *store.Store, sc scope.Scope, settings config.Settings, explicitHybridFlag bool, flagProvider, flagModel string) (string, embedding.Provider, bool, error) {
+	if explicitHybridFlag {
+		provider, err := newEmbeddingProvider(flagProvider, flagModel)
+		if err != nil {
+			return "", nil, false, fmt.Errorf("embedding provider: %w", err)
+		}
+		return retrievalHybrid, provider, false, nil
+	}
+	configured := effectiveRetrievalMode(settings)
+	if configured == retrievalFTS {
+		return retrievalFTS, nil, false, nil
+	}
+	count, providerName, model, err := st.EmbeddingIndexInfo(ctx, sc.Kind, sc.ID)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if count >= embeddingIndexFloor {
+		provider, err := newEmbeddingProvider(providerName, model)
+		if err == nil {
+			return retrievalHybrid, provider, true, nil
+		}
+	}
+	if configured == retrievalHybrid {
+		return "", nil, false, fmt.Errorf("no usable embedding index; run recoil embed index")
+	}
+	return retrievalFTS, nil, false, nil
+}
+
+func isQueryEmbeddingError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "embed query:")
+}
+
 func searchFrontmatter(result searchResult) []kv {
 	meta := []kv{
 		{k: "query", v: result.Query},
 		{k: "scope", v: result.Scope},
 		{k: "scope_id", v: result.ScopeID},
+		{k: "retrieval_mode", v: result.RetrievalMode},
 		{k: "result_count", v: fmt.Sprintf("%d", result.ResultCount)},
 		{k: "history_count", v: fmt.Sprintf("%d", result.HistoryCount)},
 		{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},

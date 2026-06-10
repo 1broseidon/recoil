@@ -18,6 +18,7 @@ type searchResult struct {
 	Query            string                 `json:"query"`
 	Scope            string                 `json:"scope"`
 	ScopeID          string                 `json:"scope_id"`
+	RetrievalMode    string                 `json:"retrieval_mode"`
 	ResultCount      int                    `json:"result_count"`
 	HistoryCount     int                    `json:"history_count"`
 	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -70,5 +71,55 @@ func TestSemanticSearchUsesEmbeddingSidecar(t *testing.T) {
 	}
 	if results[0].ID != nonGoal.ID {
 		t.Fatalf("expected non-goal memory first, got %s", results[0].ID)
+	}
+}
+
+func TestEmbeddingIndexInfoDominantProviderModel(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	provider := embedding.NewLocalProvider("")
+	otherProvider := embedding.NewLocalProvider("alternate-local")
+	otherVector := []float64{0.1, 0.2, 0.3}
+	for i := 0; i < 12; i++ {
+		mem, _, err := st.AddMemory(ctx, AddMemoryParams{Role: "note", Content: fmt.Sprintf("indexed local memory %02d", i), ScopeKind: "project", ScopeID: "project-1", Validity: "active"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		vector, _ := provider.Embed(ctx, EmbeddingText(*mem))
+		if err := st.UpsertEmbedding(ctx, *mem, provider.Name(), provider.Model(), vector); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		mem, _, err := st.AddMemory(ctx, AddMemoryParams{Role: "note", Content: fmt.Sprintf("minority %02d", i), ScopeKind: "project", ScopeID: "project-1", Validity: "active"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.UpsertEmbedding(ctx, *mem, otherProvider.Name(), otherProvider.Model(), otherVector); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deleted, _, err := st.AddMemory(ctx, AddMemoryParams{Role: "note", Content: "deleted", ScopeKind: "project", ScopeID: "project-1", Validity: "active"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpsertEmbedding(ctx, *deleted, otherProvider.Name(), otherProvider.Model(), otherVector); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.ForgetMemory(ctx, ForgetParams{IDOrPrefix: deleted.ID, Reason: "test"}); err != nil {
+		t.Fatal(err)
+	}
+
+	count, gotProvider, gotModel, err := st.EmbeddingIndexInfo(ctx, "project", "project-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 12 || gotProvider != provider.Name() || gotModel != provider.Model() {
+		t.Fatalf("EmbeddingIndexInfo = (%d,%q,%q), want (12,%q,%q)", count, gotProvider, gotModel, provider.Name(), provider.Model())
 	}
 }
