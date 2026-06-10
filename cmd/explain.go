@@ -57,6 +57,9 @@ func explainMemory(mem store.Memory, query string, quality sourcequality.Options
 	if penalty := agingPenalty(mem, now, ageWindow); penalty != 0 {
 		components = append(components, store.ScoreComponent{Name: "aging_penalty", Value: -penalty, Detail: fmt.Sprintf("role=%s window_days=%.0f", firstNonEmpty(mem.Role, "unknown"), ageWindow)})
 	}
+	if prior := recencyPrior(mem, now); prior != 0 {
+		components = append(components, store.ScoreComponent{Name: "recency_prior", Value: prior, Detail: fmt.Sprintf("source_kind=%s age_days=%.0f", firstNonEmpty(mem.SourceKind, "unknown"), memoryAgeDays(mem, now))})
+	}
 	if isGuidanceRole(mem.Role) {
 		components = append(components, store.ScoreComponent{Name: "guidance_role_prior", Value: 3.0, Detail: mem.Role})
 	}

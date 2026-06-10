@@ -12,6 +12,11 @@ import (
 
 const defaultAgingWindowDays = 30.0
 
+const (
+	recencyPriorMax    = 0.35
+	recencyHorizonDays = 90.0
+)
+
 func memoryAgeDays(mem store.Memory, now time.Time) float64 {
 	created, err := time.Parse(time.RFC3339, strings.TrimSpace(mem.CreatedAt))
 	if err != nil {
@@ -45,6 +50,30 @@ func agingPenalty(mem store.Memory, now time.Time, windowDays float64) float64 {
 		return 0
 	}
 	return math.Min(1.5, 0.5+0.5*math.Log2(age/windowDays))
+}
+
+// recencyPrior is a mild, bounded freshness boost for human/session-ingested
+// memories where recency often correlates with truth. The log-decay curve starts
+// at 0.35 for a memory created now and reaches 0 at 90 days; the 0.35 ceiling is
+// intentionally below the 0.75 guidance coverage bonus and role/source priors so
+// freshness acts as a tiebreaker, not a dominant ranking signal.
+func recencyPrior(mem store.Memory, now time.Time) float64 {
+	switch strings.ToLower(strings.TrimSpace(mem.SourceKind)) {
+	case "direct", "session_evidence":
+	default:
+		return 0
+	}
+	age := memoryAgeDays(mem, now)
+	if age < 0 {
+		return 0
+	}
+	decay := math.Log2(1+age) / math.Log2(1+recencyHorizonDays)
+	decay = math.Min(1, decay)
+	prior := recencyPriorMax * (1 - decay)
+	if prior < 0 {
+		return 0
+	}
+	return prior
 }
 
 func effectiveAgingWindowDays(settings config.Settings) float64 {

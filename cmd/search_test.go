@@ -12,6 +12,7 @@ import (
 	"github.com/1broseidon/recoil/internal/config"
 	"github.com/1broseidon/recoil/internal/embedding"
 	"github.com/1broseidon/recoil/internal/scope"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 )
 
@@ -778,6 +779,43 @@ func TestIsNegativeEvidenceUsesNoiseMetadataNotHostedSyncText(t *testing.T) {
 	}
 	if isNegativeEvidence(hostedSync) {
 		t.Fatalf("hosted sync phrasing alone should not mark negative evidence")
+	}
+}
+
+func TestRunSignalSearchAppliesRecencyPriorToDirectMemories(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	now := time.Now().UTC()
+	oldDecision, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "recency rank target direct decision equal shape alpha", SourceKind: "direct", ScopeKind: "session", ScopeID: "recency-search", Validity: "active", CreatedAt: now.AddDate(0, 0, -60).Format(time.RFC3339)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshDecision, _, err := st.AddMemory(ctx, store.AddMemoryParams{Role: "decision", Content: "recency rank target direct decision equal shape beta", SourceKind: "direct", ScopeKind: "session", ScopeID: "recency-search", Validity: "active", CreatedAt: now.Format(time.RFC3339)})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := runSignalSearch(ctx, st, store.SearchParams{Query: "recency rank target direct decision equal shape", ScopeKind: "session", ScopeID: "recency-search", Limit: 2, Lifecycle: store.LifecycleCurrent, SignalRerank: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) < 2 || results[0].ID != freshDecision.ID || results[1].ID != oldDecision.ID {
+		t.Fatalf("expected fresh direct decision first, got %+v", results)
+	}
+}
+
+func TestExplainMemoryOmitsRecencyPriorForFileChunks(t *testing.T) {
+	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
+	components := explainMemory(store.Memory{SourceKind: "file", CreatedAt: now.Format(time.RFC3339)}, "", sourcequality.Options{}, sourcequality.ModeSearch, defaultAgingWindowDays, "test", now)
+	for _, component := range components {
+		if component.Name == "recency_prior" {
+			t.Fatalf("file chunk should not receive recency_prior component: %+v", components)
+		}
 	}
 }
 

@@ -436,6 +436,7 @@ func rankWakeCandidates(memories []store.Memory, query string, quality sourcequa
 	now := time.Now().UTC()
 	for i := range ranked {
 		ranked[i].Score += sourcequality.ScorePriorWithOptions(query, ranked[i].SourcePath, ranked[i].MetadataJSON, sourcequality.ModeWake, quality)
+		ranked[i].Score += recencyPrior(ranked[i], now)
 		ranked[i].Score -= agingPenalty(ranked[i], now, defaultAgingWindowDays)
 	}
 	sort.SliceStable(ranked, func(i, j int) bool {
