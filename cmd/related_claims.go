@@ -43,7 +43,7 @@ func findRelatedGuidance(ctx context.Context, st *store.Store, sc scope.Scope, c
 	seen := map[string]bool{}
 	var scoredResults []scored
 	for _, mem := range memories {
-		if mem.ID == excludeID || strings.TrimSpace(mem.ClaimKey) == "" || !isGuidanceRole(mem.Role) || seen[mem.ID] {
+		if mem.ID == excludeID || strings.TrimSpace(mem.ClaimKey) == "" || strings.EqualFold(mem.SourceKind, "session_evidence") || !isGuidanceRole(mem.Role) || seen[mem.ID] {
 			continue
 		}
 		coverage := signalTokenCoverage(content, mem)

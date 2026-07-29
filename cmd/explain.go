@@ -60,7 +60,7 @@ func explainMemory(mem store.Memory, query string, quality sourcequality.Options
 	if prior := recencyPrior(mem, now); prior != 0 {
 		components = append(components, store.ScoreComponent{Name: "recency_prior", Value: prior, Detail: fmt.Sprintf("source_kind=%s age_days=%.0f", firstNonEmpty(mem.SourceKind, "unknown"), memoryAgeDays(mem, now))})
 	}
-	if isGuidanceRole(mem.Role) {
+	if isGuidanceRole(mem.Role) && !strings.EqualFold(mem.SourceKind, "session_evidence") {
 		components = append(components, store.ScoreComponent{Name: "guidance_role_prior", Value: 3.0, Detail: mem.Role})
 	}
 	if strings.EqualFold(mem.SourceKind, "session_evidence") {

@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/1broseidon/recoil/internal/scope"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 )
 
@@ -78,7 +79,7 @@ func TestBuildWakeLayersPrioritizesContextAndDecisions(t *testing.T) {
 		},
 	}
 
-	layers := buildWakeLayers("", nil, recent, 3)
+	layers := testWakeLayers("", nil, recent, 3)
 	flat := flattenWakeLayers(layers)
 	got := ids(flat)
 	want := "mem_decision,mem_recent,mem_handoff"
@@ -112,7 +113,7 @@ func TestBuildWakeLayersQuotasPreventDocCrowding(t *testing.T) {
 		store.Memory{ID: "decision_2", Role: "decision", Content: "second decision", CreatedAt: "2026-03-02T00:02:00Z"},
 	)
 
-	layers := buildWakeLayers("", nil, recent, 8)
+	layers := testWakeLayers("", nil, recent, 8)
 	flatIDs := ids(flattenWakeLayers(layers))
 	for _, want := range []string{"direct_handoff", "decision_1", "decision_2"} {
 		if !strings.Contains(flatIDs, want) {
@@ -130,7 +131,7 @@ func TestBuildWakeLayersKeepsOnlyNewestDirectHandoff(t *testing.T) {
 		{ID: "new_handoff", Role: "handoff", SourceKind: "direct", ClaimKey: "b", Content: "new handoff", CreatedAt: "2026-02-01T00:00:00Z"},
 		{ID: "file_handoff", Role: "handoff", SourceKind: "file", Content: "file handoff chunk", CreatedAt: "2026-01-15T00:00:00Z"},
 	}
-	got := ids(flattenWakeLayers(buildWakeLayers("", nil, recent, 5)))
+	got := ids(flattenWakeLayers(testWakeLayers("", nil, recent, 5)))
 	if strings.Contains(got, "old_handoff") || !strings.Contains(got, "new_handoff") || !strings.Contains(got, "file_handoff") {
 		t.Fatalf("expected only newest direct handoff plus file chunk, got %s", got)
 	}
@@ -141,7 +142,7 @@ func TestBuildWakeLayersSkipsExpiredValidUntil(t *testing.T) {
 		{ID: "expired", Role: "decision", Validity: "active", Content: "expired decision", MetadataJSON: `{"predicate":{"kind":"valid_until","valid_until":"2020-01-01","recheck_prompt":"Ask again"}}`},
 		{ID: "future", Role: "decision", Validity: "active", Content: "future decision", MetadataJSON: `{"predicate":{"kind":"valid_until","valid_until":"2999-01-01"}}`},
 	}
-	got := ids(flattenWakeLayers(buildWakeLayers("", nil, recent, 5)))
+	got := ids(flattenWakeLayers(testWakeLayers("", nil, recent, 5)))
 	if strings.Contains(got, "expired") || !strings.Contains(got, "future") {
 		t.Fatalf("expected expired predicate excluded and future included, got %s", got)
 	}
@@ -267,7 +268,7 @@ func TestBuildWakeLayersPromotesQueryMatchesAndDedupes(t *testing.T) {
 		match,
 		{ID: "mem_recent", Role: "note", Content: "Recent note."},
 	}
-	layers := buildWakeLayers("sqlite", []store.Memory{match}, recent, 3)
+	layers := testWakeLayers("sqlite", []store.Memory{match}, recent, 3)
 	flat := flattenWakeLayers(layers)
 	got := ids(flat)
 	want := "mem_match,mem_recent"
@@ -286,7 +287,7 @@ func TestBuildWakeLayersSkipsHistoricalMemories(t *testing.T) {
 		{ID: "mem_active", Validity: "active", Role: "decision", Content: "Brainfile is optional."},
 		{ID: "mem_unknown", Content: "Unknown validity remains eligible."},
 	}
-	layers := buildWakeLayers("sqlite", []store.Memory{queryMatch}, recent, 5)
+	layers := testWakeLayers("sqlite", []store.Memory{queryMatch}, recent, 5)
 	got := ids(flattenWakeLayers(layers))
 	want := "mem_active,mem_unknown"
 	if got != want {
@@ -297,12 +298,12 @@ func TestBuildWakeLayersSkipsHistoricalMemories(t *testing.T) {
 func TestBuildWakeLayersCapsSessionEvidence(t *testing.T) {
 	recent := []store.Memory{
 		{ID: "mem_handoff_evidence", SourceKind: "session_evidence", Content: "next step is to finish auth evidence."},
-		{ID: "mem_must_not_l1", SourceKind: "session_evidence", Content: "user: must avoid refresh tokens for v0."},
+		{ID: "mem_must_not_l1", SourceKind: "session_evidence", Role: "decision", Content: "user: must avoid refresh tokens for v0."},
 		{ID: "mem_evidence_2", SourceKind: "session_evidence", Content: "user: go with bearer auth."},
 		{ID: "mem_evidence_3", SourceKind: "session_evidence", Content: "user: prefer no refresh token endpoint."},
 		{ID: "mem_doc", SourceKind: "file", Role: "source", Content: "docs say auth uses bearer tokens."},
 	}
-	layers := buildWakeLayers("", nil, recent, 8)
+	layers := testWakeLayers("", nil, recent, 8)
 	if got := ids(layers[3].Memories); !strings.Contains(got, "mem_handoff_evidence") {
 		t.Fatalf("expected session evidence in Recent Evidence, got %s", got)
 	}
@@ -316,6 +317,42 @@ func TestBuildWakeLayersCapsSessionEvidence(t *testing.T) {
 	docIDs := ids(layers[2].Memories)
 	if !strings.Contains(docIDs, "mem_doc") {
 		t.Fatalf("expected ordinary file evidence to remain eligible, got %s", docIDs)
+	}
+	query := []store.Memory{
+		{ID: "mem_query_session", SourceKind: "session_evidence", Role: "decision", Content: "query matched session says must use bearer auth."},
+		{ID: "mem_query_session_2", SourceKind: "session_evidence", Role: "preference", Content: "query matched session says prefer bearer auth."},
+		{ID: "mem_query_session_3", SourceKind: "session_evidence", Role: "decision", Content: "query matched session says go with bearer auth."},
+	}
+	layers = testWakeLayers("bearer auth", query, recent, 8)
+	if strings.Contains(ids(layers[0].Memories), "mem_query_session") {
+		t.Fatalf("did not expect queried session evidence under Current Decisions, got %+v", layers[0].Memories)
+	}
+	if got := ids(layers[3].Memories); strings.Count(got, "mem_query_session") > 2 || strings.Contains(got, "mem_query_session_3") {
+		t.Fatalf("expected all-layer session evidence cap of two, got %s", got)
+	}
+}
+
+func TestLayeredMemoryBlocksRendersSessionEvidenceProvenance(t *testing.T) {
+	layers := []wakeLayer{{
+		Key:   "recent_evidence",
+		Title: "Recent Evidence",
+		Memories: []store.Memory{{
+			ID:           "mem_session",
+			Role:         "source",
+			Content:      "user: go with bearer auth",
+			SourceKind:   "session_evidence",
+			SourceAgent:  "claude",
+			SourceRef:    "turn 8-9",
+			SessionID:    "sess-abcdef123456789",
+			CreatedAt:    "2026-05-11T12:00:00Z",
+			MetadataJSON: `{"kind":"session_evidence","branch":"feature/auth","turn_start":8,"turn_end":9}`,
+		}},
+	}}
+	got := layeredMemoryBlocks(layers, 0, true).Body
+	for _, want := range []string{"source_kind: session_evidence", "agent: claude", "session_id: sess-abcdef123456789", "branch: feature/auth", "timestamp: 2026-05-11T12:00:00Z", "source_ref: turn 8-9", "turn_range: 8-9"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in wake session evidence provenance:\n%s", want, got)
+		}
 	}
 }
 
@@ -435,6 +472,23 @@ func TestBoundedOutputIsUTF8Safe(t *testing.T) {
 	if !rendered.Truncated {
 		t.Fatal("expected Unicode content to be truncated")
 	}
+}
+
+func TestBuildWakeLayersHonorsGlobalLimit(t *testing.T) {
+	recent := []store.Memory{
+		{ID: "d1", Role: "decision", Content: "first decision", CreatedAt: "2026-05-11T01:00:00Z"},
+		{ID: "d2", Role: "decision", Content: "second decision", CreatedAt: "2026-05-11T02:00:00Z"},
+		{ID: "r1", Role: "note", Content: "first recent note", CreatedAt: "2026-05-11T03:00:00Z"},
+		{ID: "r2", Role: "note", Content: "second recent note", CreatedAt: "2026-05-11T04:00:00Z"},
+	}
+	layers := testWakeLayers("", nil, recent, 3)
+	if got := len(flattenWakeLayers(layers)); got > 3 {
+		t.Fatalf("expected wake layers to honor global limit 3, got %d: %s", got, ids(flattenWakeLayers(layers)))
+	}
+}
+
+func testWakeLayers(query string, queryResults, recent []store.Memory, limit int) []wakeLayer {
+	return buildWakeLayers(query, queryResults, recent, limit, sourcequality.Options{}, defaultAgingWindowDays)
 }
 
 func ids(memories []store.Memory) string {

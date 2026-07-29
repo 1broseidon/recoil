@@ -42,6 +42,8 @@ from agent sessions. It stores compact evidence slices, not raw transcripts.`,
 	}
 	c.AddCommand(newSessionEvidenceIngestCommand())
 	c.AddCommand(newSessionEvidenceHookCommand())
+	c.AddCommand(newSessionEvidenceDiscoverCommand())
+	c.AddCommand(newSessionEvidenceBackfillCommand())
 	c.AddCommand(newSessionEvidenceListCommand())
 	c.AddCommand(newSessionEvidenceShowCommand())
 	c.AddCommand(newSessionEvidenceForgetCommand())
@@ -87,12 +89,14 @@ func newSessionEvidenceHookCommand() *cobra.Command {
 				return err
 			}
 			result, err := sessionevidence.Ingest(payload, sessionevidence.Options{
-				StateDir:    stateDir,
-				ScopeKind:   sc.Kind,
-				ScopeID:     sc.ID,
-				SourceAgent: seOpts.agent,
-				SessionID:   firstNonEmpty(seOpts.session, sessionID),
-				MinChars:    effectiveMinChars(settings, seOpts.minChars),
+				StateDir:        stateDir,
+				ScopeKind:       sc.Kind,
+				ScopeID:         sc.ID,
+				SourceAgent:     seOpts.agent,
+				SessionID:       firstNonEmpty(seOpts.session, sessionID),
+				NativeSessionID: firstNonEmpty(sessionID, seOpts.session),
+				RepoRoot:        sc.Root,
+				MinChars:        effectiveMinChars(settings, seOpts.minChars),
 			})
 			if err != nil {
 				return err
@@ -148,12 +152,14 @@ func newSessionEvidenceIngestCommand() *cobra.Command {
 				return err
 			}
 			result, err := sessionevidence.Ingest(data, sessionevidence.Options{
-				StateDir:    stateDir,
-				ScopeKind:   sc.Kind,
-				ScopeID:     sc.ID,
-				SourceAgent: seOpts.agent,
-				SessionID:   seOpts.session,
-				MinChars:    effectiveMinChars(settings, seOpts.minChars),
+				StateDir:        stateDir,
+				ScopeKind:       sc.Kind,
+				ScopeID:         sc.ID,
+				SourceAgent:     seOpts.agent,
+				SessionID:       seOpts.session,
+				NativeSessionID: seOpts.session,
+				RepoRoot:        sc.Root,
+				MinChars:        effectiveMinChars(settings, seOpts.minChars),
 			})
 			if err != nil {
 				return err
@@ -230,7 +236,19 @@ func newSessionEvidenceListCommand() *cobra.Command {
 			}
 			var lines []string
 			for _, file := range files {
+				branch := ""
+				nativeSessionID := ""
+				for _, record := range file.Records {
+					branch = firstNonEmpty(branch, record.Branch)
+					nativeSessionID = firstNonEmpty(nativeSessionID, record.NativeSessionID)
+				}
 				line := fmt.Sprintf("%s\t%d\t%s", file.SessionID, len(file.Records), file.SourcePath)
+				if nativeSessionID != "" && nativeSessionID != file.SessionID {
+					line += "\tnative=" + nativeSessionID
+				}
+				if branch != "" {
+					line += "\tbranch=" + branch
+				}
 				if seOpts.minimal {
 					fmt.Fprintln(w, line)
 				} else {
@@ -278,6 +296,21 @@ func newSessionEvidenceShowCommand() *cobra.Command {
 			for _, file := range files {
 				for _, record := range file.Records {
 					fmt.Fprintf(&b, "## turn %d-%d\n", record.TurnStart, record.TurnEnd)
+					fmt.Fprintf(&b, "source_kind: %s\n", sessionevidence.SourceKind)
+					if record.SourceAgent != "" {
+						fmt.Fprintf(&b, "agent: %s\n", record.SourceAgent)
+					}
+					fmt.Fprintf(&b, "session_id: %s\n", record.SessionID)
+					if record.NativeSessionID != "" && record.NativeSessionID != record.SessionID {
+						fmt.Fprintf(&b, "native_session_id: %s\n", record.NativeSessionID)
+					}
+					if record.Branch != "" {
+						fmt.Fprintf(&b, "branch: %s\n", record.Branch)
+					}
+					if len(record.TouchedPaths) > 0 {
+						fmt.Fprintf(&b, "touched_paths: %s\n", strings.Join(record.TouchedPaths, ","))
+					}
+					fmt.Fprintf(&b, "source_ref: turn %d-%d\n", record.TurnStart, record.TurnEnd)
 					fmt.Fprintf(&b, "evidence_type: %s\n", record.EvidenceType)
 					if len(record.EvidenceTypes) > 0 {
 						fmt.Fprintf(&b, "evidence_types: %s\n", strings.Join(record.EvidenceTypes, ","))
@@ -417,7 +450,7 @@ func mineSessionEvidence(ctx context.Context, st *store.Store, sc scope.Scope, m
 				}
 				if profile := retrieval.ProfileText(record.Content); profile != "" {
 					profileItem, err := mineDerivedSessionTrace(ctx, st, sc, file, record, sourceAgent, derivedTrace{
-						Role:        "preference",
+						Role:        "trace",
 						Prefix:      "Derived user profile trace: ",
 						Content:     profile,
 						DerivedType: "derived_profile",
@@ -438,7 +471,7 @@ func mineSessionEvidence(ctx context.Context, st *store.Store, sc scope.Scope, m
 				}
 				if update := retrieval.UpdateText(record.Content); update != "" {
 					updateItem, err := mineDerivedSessionTrace(ctx, st, sc, file, record, sourceAgent, derivedTrace{
-						Role:        "decision",
+						Role:        "trace",
 						Prefix:      "Derived update trace: ",
 						Content:     update,
 						DerivedType: "derived_update",
@@ -521,17 +554,20 @@ func mineDerivedSessionTrace(ctx context.Context, st *store.Store, sc scope.Scop
 }
 
 type sessionEvidenceMetadata struct {
-	Kind           string   `json:"kind"`
-	SessionID      string   `json:"session_id"`
-	EvidenceType   string   `json:"evidence_type"`
-	EvidenceTypes  []string `json:"evidence_types,omitempty"`
-	SelectorReason string   `json:"selector_reason"`
-	TurnStart      int      `json:"turn_start"`
-	TurnEnd        int      `json:"turn_end"`
-	FileHash       string   `json:"file_hash,omitempty"`
-	FileMTime      string   `json:"file_mtime,omitempty"`
-	FileSize       int64    `json:"file_size,omitempty"`
-	DerivedType    string   `json:"derived_type,omitempty"`
+	Kind            string   `json:"kind"`
+	SessionID       string   `json:"session_id"`
+	NativeSessionID string   `json:"native_session_id,omitempty"`
+	Branch          string   `json:"branch,omitempty"`
+	EvidenceType    string   `json:"evidence_type"`
+	EvidenceTypes   []string `json:"evidence_types,omitempty"`
+	SelectorReason  string   `json:"selector_reason"`
+	TurnStart       int      `json:"turn_start"`
+	TurnEnd         int      `json:"turn_end"`
+	FileHash        string   `json:"file_hash,omitempty"`
+	FileMTime       string   `json:"file_mtime,omitempty"`
+	FileSize        int64    `json:"file_size,omitempty"`
+	TouchedPaths    []string `json:"touched_paths,omitempty"`
+	DerivedType     string   `json:"derived_type,omitempty"`
 }
 
 func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessionevidence.Record, derivedType ...string) (string, error) {
@@ -540,17 +576,20 @@ func sessionEvidenceMetadataJSON(file sessionevidence.File, record sessioneviden
 		derived = strings.TrimSpace(derivedType[0])
 	}
 	data, err := json.Marshal(sessionEvidenceMetadata{
-		Kind:           sessionevidence.SourceKind,
-		SessionID:      record.SessionID,
-		EvidenceType:   record.EvidenceType,
-		EvidenceTypes:  record.EvidenceTypes,
-		SelectorReason: record.SelectorReason,
-		TurnStart:      record.TurnStart,
-		TurnEnd:        record.TurnEnd,
-		FileHash:       file.Hash,
-		FileMTime:      file.ModTime,
-		FileSize:       file.Size,
-		DerivedType:    derived,
+		Kind:            sessionevidence.SourceKind,
+		SessionID:       record.SessionID,
+		NativeSessionID: record.NativeSessionID,
+		Branch:          record.Branch,
+		EvidenceType:    record.EvidenceType,
+		EvidenceTypes:   record.EvidenceTypes,
+		SelectorReason:  record.SelectorReason,
+		TurnStart:       record.TurnStart,
+		TurnEnd:         record.TurnEnd,
+		TouchedPaths:    record.TouchedPaths,
+		FileHash:        file.Hash,
+		FileMTime:       file.ModTime,
+		FileSize:        file.Size,
+		DerivedType:     derived,
 	})
 	if err != nil {
 		return "", err

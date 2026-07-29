@@ -437,7 +437,7 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 			- CASE WHEN lower(COALESCE(m.source_path, '')) = ? THEN 1.5 ELSE 0 END
 			- CASE WHEN lower(COALESCE(m.source_path, '')) LIKE ? THEN 1.0 ELSE 0 END
 			- CASE WHEN lower(m.content) LIKE ? THEN 1.0 ELSE 0 END
-			- CASE WHEN lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
+			- CASE WHEN COALESCE(m.source_kind, 'direct') != 'session_evidence' AND lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
 			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'session_evidence' THEN 0.75 ELSE 0 END
 			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'direct' THEN 0.5 ELSE 0 END
 			+ CASE WHEN COALESCE(m.source_kind, 'direct') = 'file' THEN 0.25 ELSE 0 END

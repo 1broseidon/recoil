@@ -327,21 +327,12 @@ func channelRefreshErrors(results []channelRefreshResult) int {
 	return total
 }
 
-func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, opts ...any) []wakeLayer {
+func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, quality sourcequality.Options, ageWindow float64) []wakeLayer {
 	if limit <= 0 {
 		limit = 8
 	}
-	var quality sourcequality.Options
-	ageWindow := defaultAgingWindowDays
-	for _, opt := range opts {
-		switch v := opt.(type) {
-		case sourcequality.Options:
-			quality = v
-		case float64:
-			if v > 0 {
-				ageWindow = v
-			}
-		}
+	if ageWindow <= 0 {
+		ageWindow = defaultAgingWindowDays
 	}
 	queryResults = rankWakeCandidates(queryResults, query, quality)
 	recent = rankWakeCandidates(recent, wakePolicyQuery(query), quality)
@@ -371,24 +362,12 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 		if total >= limit || seen[mem.ID] {
 			return false, false
 		}
-		if isHistoricalMemory(mem) {
-			return false, false
-		}
-		if broken, _ := deterministicPredicateBroken(mem); broken {
-			return false, false
-		}
-		if isDirectHandoff(mem) && newestDirectHandoff != "" && mem.ID != newestDirectHandoff {
-			return false, false
-		}
-		if isNegativeEvidence(mem) && !queryAsksForNegativeEvidence(query) {
+		if !wakeEligibleMemory(mem, query, newestDirectHandoff) {
 			return false, false
 		}
 		layerIndex := classifyWakeMemory(mem, query, fromQuery)
-		if isSessionEvidence(mem) && !fromQuery {
-			if layerIndex == 0 {
-				layerIndex = 3
-			}
-			if layerIndex == 3 && sessionEvidenceByLayer[layerIndex] >= 2 {
+		if isSessionEvidence(mem) {
+			if sessionEvidenceByLayer[layerIndex] >= 2 {
 				return false, false
 			}
 		}
@@ -399,7 +378,7 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 		if suffix := agingWhySuffix(mem, time.Now().UTC(), ageWindow); suffix != "" && !strings.Contains(mem.Why, "aging —") {
 			mem.Why += suffix
 		}
-		if isSessionEvidence(mem) && !fromQuery {
+		if isSessionEvidence(mem) {
 			sessionEvidenceByLayer[layerIndex]++
 		}
 		layers[layerIndex].Memories = append(layers[layerIndex].Memories, mem)
@@ -428,9 +407,25 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	return layers
 }
 
+func wakeEligibleMemory(mem store.Memory, query, newestDirectHandoff string) bool {
+	if isHistoricalMemory(mem) {
+		return false
+	}
+	if broken, _ := deterministicPredicateBroken(mem); broken {
+		return false
+	}
+	if isDirectHandoff(mem) && newestDirectHandoff != "" && mem.ID != newestDirectHandoff {
+		return false
+	}
+	if isNegativeEvidence(mem) && !queryAsksForNegativeEvidence(query) {
+		return false
+	}
+	return true
+}
+
 func rankWakeCandidates(memories []store.Memory, query string, quality sourcequality.Options) []store.Memory {
 	if len(memories) <= 1 {
-		return memories
+		return append([]store.Memory(nil), memories...)
 	}
 	ranked := append([]store.Memory(nil), memories...)
 	now := time.Now().UTC()
@@ -486,6 +481,9 @@ func classifyWakeMemory(mem store.Memory, _ string, _ bool) int {
 	}
 	if strings.EqualFold(mem.SourceKind, "file") {
 		return 2
+	}
+	if isSessionEvidence(mem) {
+		return 3
 	}
 	if strings.Contains(sourcePath, "handoff") ||
 		strings.Contains(content, "handoff") ||
@@ -588,6 +586,9 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	if mem.SourceKind != "" {
 		fmt.Fprintf(&meta, "source_kind: %s\n", mem.SourceKind)
 	}
+	for _, line := range sessionEvidenceProvenanceLines(mem) {
+		fmt.Fprintf(&meta, "%s\n", line)
+	}
 	if mem.Validity != "" {
 		fmt.Fprintf(&meta, "validity: %s\n", mem.Validity)
 	}
@@ -606,8 +607,8 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	if mem.SourcePath != "" {
 		fmt.Fprintf(&meta, "source_path: %s\n", mem.SourcePath)
 	}
-	if mem.SourceRef != "" {
-		fmt.Fprintf(&meta, "source_ref: %s\n", mem.SourceRef)
+	if sourceRef := sessionEvidenceSourceRef(mem); sourceRef != "" {
+		fmt.Fprintf(&meta, "source_ref: %s\n", sourceRef)
 	}
 	if mem.Why != "" {
 		fmt.Fprintf(&meta, "why: %s\n", mem.Why)

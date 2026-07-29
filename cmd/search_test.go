@@ -268,6 +268,45 @@ func TestSearchCommandCurrentResultsSurviveHistoricalCrowding(t *testing.T) {
 	}
 }
 
+func TestStructuredRetrievalLanesKeepSessionEvidenceOutOfCurrentDecisions(t *testing.T) {
+	lanes := structuredRetrievalLanes("auth", []store.Memory{
+		{ID: "mem_session_decision", Role: "decision", SourceKind: "session_evidence", Content: "previous session said use bearer auth", MetadataJSON: `{"kind":"session_evidence","branch":"main","turn_start":4,"turn_end":5}`},
+		{ID: "mem_direct_decision", Role: "decision", SourceKind: "direct", Content: "Current decision: use mTLS."},
+	}, nil)
+	byID := map[string]string{}
+	for _, lane := range lanes {
+		for _, mem := range lane.Results {
+			byID[mem.ID] = lane.Key
+		}
+	}
+	if byID["mem_session_decision"] != "recent_evidence" {
+		t.Fatalf("expected session evidence in recent_evidence lane, got lanes %+v", lanes)
+	}
+	if byID["mem_direct_decision"] != "current_decisions" {
+		t.Fatalf("expected direct decision in current_decisions lane, got lanes %+v", lanes)
+	}
+}
+
+func TestRetrievalBlocksRenderSessionEvidenceProvenance(t *testing.T) {
+	lanes := []retrievalLaneResult{{Key: "recent_evidence", Title: "Recent Evidence", Results: []store.Memory{{
+		ID:           "mem_session",
+		Role:         "source",
+		Content:      "user: go with bearer auth",
+		SourceKind:   "session_evidence",
+		SourceAgent:  "codex",
+		SourceRef:    "turn 4-5",
+		SessionID:    "sess-123456789abcdef",
+		CreatedAt:    "2026-05-11T12:00:00Z",
+		MetadataJSON: `{"kind":"session_evidence","native_session_id":"native-abcdef123456789","branch":"main","turn_start":4,"turn_end":5}`,
+	}}}}
+	got := retrievalLaneBlocks(lanes, 0)
+	for _, want := range []string{"source_kind: session_evidence", "agent: codex", "session_id: sess-123456789abcdef", "session_short_id: sess-1234567", "native_session_id: native-abcdef123456789", "branch: main", "source_ref: turn 4-5", "turn_range: 4-5"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in rendered session provenance:\n%s", want, got)
+		}
+	}
+}
+
 func TestRunSignalSearchAppliesAgingPenaltyOnlyToAgingRoles(t *testing.T) {
 	ctx := context.Background()
 	st, err := store.Open(filepath.Join(t.TempDir(), "recoil.db"))
@@ -780,7 +819,7 @@ func TestRunSignalSearchExpandsDerivedTraceToSourceEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	derived, _, err := st.AddMemory(ctx, store.AddMemoryParams{
-		Role:         "preference",
+		Role:         "trace",
 		Content:      "Derived user profile trace: user_interest publications conferences deep medical image analysis",
 		SourceKind:   "session_evidence",
 		SourcePath:   "sessions/profile.jsonl",
@@ -835,7 +874,7 @@ func TestRunSignalSearchExpandsSourceEvidenceToDerivedChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 	child, _, err := st.AddMemory(ctx, store.AddMemoryParams{
-		Role:         "decision",
+		Role:         "trace",
 		Content:      "Derived update trace: current_state latest_update sqlite mattn modernc",
 		SourceKind:   "session_evidence",
 		SourcePath:   "sessions/update.jsonl",

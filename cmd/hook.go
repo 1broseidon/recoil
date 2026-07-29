@@ -163,7 +163,8 @@ func hookWakeContext(limit, maxChars int) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	layers := buildWakeLayers("", nil, recent, limit, quality)
+	ageWindow := effectiveAgingWindowDays(settings)
+	layers := buildWakeLayers("", nil, recent, limit, quality, ageWindow)
 	if len(flattenWakeLayers(layers)) == 0 {
 		return "", false
 	}

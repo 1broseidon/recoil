@@ -19,6 +19,7 @@ import (
 	"github.com/1broseidon/recoil/internal/retrieval"
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sessionevidence"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -602,7 +603,7 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 		if err != nil {
 			return evalCaseOutput{}, err
 		}
-		layers := buildWakeLayers(tc.Query, queryResults, recent, limit)
+		layers := buildWakeLayers(tc.Query, queryResults, recent, limit, sourcequality.Options{}, defaultAgingWindowDays)
 		memories := flattenWakeLayers(layers)
 		texts := evalResultTexts(memories)
 		if tc.IncludeDecisions {
@@ -905,6 +906,7 @@ func seedEvalTranscripts(ctx context.Context, st *store.Store, fixturePath strin
 			ScopeID:     transcript.Scope.ID,
 			SourceAgent: agent,
 			SessionID:   transcript.SessionID,
+			RepoRoot:    runtimeScopeFromEval(transcript.Scope).Root,
 			MinChars:    transcript.MinChars,
 			Now:         base.Add(time.Duration(i) * time.Second),
 		})

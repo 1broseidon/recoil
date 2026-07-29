@@ -438,11 +438,16 @@ recoil hook install codex
 ```
 
 Ingest redacts before writing anything to disk, writes compact JSONL under the
-local recoil state directory, and mines those records with `source_kind` set to
-`session_evidence`, `role: source`, and `validity: unknown`. Evidence keeps
-session and turn provenance, but it has lower authority than explicit decisions
-and fresh project docs. `wake` caps session evidence so recent sessions cannot
-crowd out durable guidance.
+user-local recoil state directory (the OS config dir, not the repo), and mines
+those records with `source_kind` set to `session_evidence`, `role: source`,
+and `validity: unknown`. Derived search helper traces are stored as non-guidance
+`role: trace`. Evidence keeps session, native session id, branch (when known),
+timestamp, and turn provenance, but it is a receipt of what a previous session
+said/did — never current truth or durable guidance. Explicit decisions, docs,
+and current user instructions outrank it. `wake` and structured search route
+session evidence to Recent Evidence and cap it so recent sessions cannot crowd
+out durable guidance. Bulk backfill excludes `personal_fact` evidence unless
+`--include-personal-facts` is passed.
 
 Operators can inspect or purge a session:
 

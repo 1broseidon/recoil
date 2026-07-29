@@ -267,7 +267,7 @@ func assessDecisionFamily(ctx context.Context, st *store.Store, sc scope.Scope, 
 }
 
 func isDecisionLikeMemory(mem store.Memory) bool {
-	if strings.TrimSpace(mem.ClaimKey) == "" {
+	if strings.TrimSpace(mem.ClaimKey) == "" || strings.EqualFold(mem.SourceKind, "session_evidence") {
 		return false
 	}
 	return isGuidanceRole(mem.Role)

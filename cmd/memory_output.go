@@ -18,6 +18,9 @@ func writeMinimalMemory(w io.Writer, mem store.Memory, includeScore bool) {
 	if source == "" {
 		source = mem.SourcePath
 	}
+	if isSessionEvidence(mem) {
+		source = sessionEvidenceDisplaySource(mem)
+	}
 	if includeScore {
 		fmt.Fprintf(w, "%s\t%.4f\t%s\t%s\t%s\n", mem.ID, mem.Score, mem.CreatedAt, source, excerpt)
 		return
@@ -52,14 +55,17 @@ func memoryBlocks(memories []store.Memory, maxChars int, includeScore bool) stri
 		if mem.SourceKind != "" {
 			fmt.Fprintf(&b, "source_kind: %s\n", mem.SourceKind)
 		}
+		for _, line := range sessionEvidenceProvenanceLines(mem) {
+			fmt.Fprintf(&b, "%s\n", line)
+		}
 		if mem.SourceAgent != "" {
 			fmt.Fprintf(&b, "source_agent: %s\n", mem.SourceAgent)
 		}
 		if mem.SourcePath != "" {
 			fmt.Fprintf(&b, "source_path: %s\n", mem.SourcePath)
 		}
-		if mem.SourceRef != "" {
-			fmt.Fprintf(&b, "source_ref: %s\n", mem.SourceRef)
+		if sourceRef := sessionEvidenceSourceRef(mem); sourceRef != "" {
+			fmt.Fprintf(&b, "source_ref: %s\n", sourceRef)
 		}
 		if mem.Why != "" {
 			fmt.Fprintf(&b, "why: %s\n", mem.Why)

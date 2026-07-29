@@ -69,6 +69,9 @@ func retrievalLaneIndex(mem store.Memory, historical bool) int {
 	if strings.EqualFold(mem.SourceKind, "file") {
 		return 2
 	}
+	if strings.EqualFold(mem.SourceKind, "session_evidence") {
+		return 3
+	}
 	if isDecisionLaneRole(mem.Role) {
 		return 0
 	}
@@ -120,6 +123,8 @@ func whyMemorySurfaced(mem store.Memory, query string, fromQuery, historical boo
 		base = "shared by " + firstNonEmpty(mem.SourceAgent, "another agent")
 	} else if strings.EqualFold(mem.SourceKind, "file") {
 		base = "project document chunk from " + firstNonEmpty(mem.SourcePath, "a mined source")
+	} else if strings.EqualFold(mem.SourceKind, "session_evidence") {
+		base = "recent selected session evidence (not current truth)"
 	} else if isDecisionLaneRole(mem.Role) {
 		if mem.ClaimKey != "" {
 			base = "current " + firstNonEmpty(mem.Role, "guidance") + " with claim_key " + mem.ClaimKey
@@ -128,8 +133,6 @@ func whyMemorySurfaced(mem store.Memory, query string, fromQuery, historical boo
 		}
 	} else if fromQuery && strings.TrimSpace(query) != "" {
 		base = "matched query terms"
-	} else if mem.SourceKind == "session_evidence" {
-		base = "recent selected session evidence"
 	} else {
 		base = "recent current memory in this scope"
 	}

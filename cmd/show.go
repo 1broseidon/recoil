@@ -28,7 +28,7 @@ func newShowCommand() *cobra.Command {
 			if opts.json {
 				return writeJSON(w, "show_result", mem)
 			}
-			return frontmatter(w, []kv{
+			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
 				{k: "scope_id", v: mem.ScopeID},
@@ -39,10 +39,17 @@ func newShowCommand() *cobra.Command {
 				{k: "superseded_by", v: mem.SupersededBy},
 				{k: "role", v: mem.Role},
 				{k: "source_kind", v: mem.SourceKind},
-				{k: "source_agent", v: mem.SourceAgent},
-				{k: "source_path", v: mem.SourcePath},
-				{k: "source_ref", v: mem.SourceRef},
-			}, fmt.Sprintf("%s\n", mem.Content))
+			}
+			if isSessionEvidence(*mem) {
+				meta = append(meta, sessionEvidenceProvenanceKVs(*mem)...)
+			} else {
+				meta = append(meta,
+					kv{k: "source_agent", v: mem.SourceAgent},
+					kv{k: "source_path", v: mem.SourcePath},
+					kv{k: "source_ref", v: mem.SourceRef},
+				)
+			}
+			return frontmatter(w, meta, fmt.Sprintf("%s\n", mem.Content))
 		},
 	}
 }
