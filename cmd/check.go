@@ -83,7 +83,9 @@ func newCheckCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			st, _, err := openStore()
+			// check is read-only apart from channel JIT refresh, which
+			// openContextStore reopens writable for only when it can fire.
+			st, _, err := openContextStore("check")
 			if err != nil {
 				return err
 			}

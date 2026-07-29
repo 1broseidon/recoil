@@ -13,7 +13,7 @@ func newShowCommand() *cobra.Command {
 		Short: "Show one memory by ID or unique ID prefix",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			st, _, err := openStore()
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}

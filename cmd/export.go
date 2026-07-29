@@ -55,7 +55,7 @@ claim family, not by relevance. An empty result is a count of 0 and exit 0.`,
 			if err != nil {
 				return err
 			}
-			st, _, err := openStore()
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}

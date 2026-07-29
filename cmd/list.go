@@ -31,7 +31,7 @@ func newListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			st, _, err := openStore()
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}

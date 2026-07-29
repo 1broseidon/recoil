@@ -37,7 +37,7 @@ func newClaimsCommand() *cobra.Command {
 			}
 			claimKey := strings.TrimSpace(claimsOpts.filters.claimKey)
 			claimKeyPrefix := strings.TrimSpace(claimsOpts.filters.claimKeyPrefix)
-			st, _, err := openStore()
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}

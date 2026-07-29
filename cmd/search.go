@@ -59,7 +59,9 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			st, _, err := openStore()
+			// search only writes when channel JIT refresh actually fires, so
+			// openContextStore keeps it read-only whenever it cannot.
+			st, _, err := openContextStore("search")
 			if err != nil {
 				return err
 			}

@@ -28,9 +28,38 @@ var (
 	ErrAmbiguous = errors.New("memory ID prefix is ambiguous")
 )
 
+// SchemaVersion is stamped into PRAGMA user_version once migrate() completes.
+// Before this constant existed every store sat at the implicit 0, so a store
+// reporting 0 is simply one no new binary has opened yet.
+//
+// Bump this whenever migrate() must run again over existing stores. Old binaries
+// never read user_version, so they keep opening a newer store fine as long as
+// the schema stays additive; there is deliberately no downgrade guard.
+const SchemaVersion = 1
+
+// SchemaVersionError reports a store whose user_version does not match what this
+// binary expects. Only OpenReadOnly returns it: Open migrates instead.
+type SchemaVersionError struct {
+	Path string
+	Got  int
+	Want int
+}
+
+func (e *SchemaVersionError) Error() string {
+	return fmt.Sprintf(
+		"recoil database %s is at schema version %d, expected %d; run `recoil migrate` (or any write command) to upgrade it",
+		e.Path, e.Got, e.Want,
+	)
+}
+
 type Store struct {
-	db   *sql.DB
-	path string
+	db       *sql.DB
+	path     string
+	readOnly bool
+	// migrated records whether this open actually ran migrations. A second open
+	// of the same store must leave it false; that is what proves the FTS rebuild
+	// is skipped.
+	migrated bool
 }
 
 type ScoreComponent struct {
@@ -265,9 +294,75 @@ func Open(path string) (*Store, error) {
 	return st, nil
 }
 
+// OpenReadOnly opens an existing store on a read-only connection and does NOT
+// migrate. Read commands use it so a plain `recoil search` cannot rebuild the
+// FTS index, take a write lock, or contend with a concurrent session.
+//
+// The DSN deliberately omits _journal_mode: issuing `PRAGMA journal_mode=WAL` on
+// a read-only connection is itself a write and would fail. The database file
+// keeps whatever journal mode it already has, so WAL stores stay WAL.
+//
+// Returns *SchemaVersionError when the store predates this binary's schema.
+// Callers are expected to fall back to Open, which migrates.
+func OpenReadOnly(path string) (*Store, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("sqlite3", readOnlyDSN(path))
+	if err != nil {
+		return nil, err
+	}
+	st := &Store{db: db, path: path, readOnly: true}
+	version, err := st.schemaVersion()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	if version != SchemaVersion {
+		db.Close()
+		return nil, &SchemaVersionError{Path: path, Got: version, Want: SchemaVersion}
+	}
+	st.tune()
+	return st, nil
+}
+
+// readOnlyDSN builds a file: URI so SQLite itself parses mode=ro. go-sqlite3
+// always passes SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE to sqlite3_open_v2 and
+// only forwards the query string when the DSN starts with "file:", so the URI
+// form is the only way to reach a read-only handle. mode=ro is more restrictive
+// than the flags, which SQLite permits.
+func readOnlyDSN(path string) string {
+	escaped := strings.ReplaceAll(path, "?", "%3f")
+	escaped = strings.ReplaceAll(escaped, "#", "%23")
+	return "file:" + escaped + "?mode=ro&_busy_timeout=5000&_foreign_keys=ON"
+}
+
+func (s *Store) schemaVersion() (int, error) {
+	var version int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		return 0, err
+	}
+	return version, nil
+}
+
+// ReadOnly reports whether this handle was opened without migration rights.
+func (s *Store) ReadOnly() bool {
+	return s != nil && s.readOnly
+}
+
+// Migrated reports whether this open ran migrations. False on a second open of
+// an already-current store, which is the point of the user_version gate.
+func (s *Store) Migrated() bool {
+	return s != nil && s.migrated
+}
+
 func (s *Store) Close() error {
 	if s == nil || s.db == nil {
 		return nil
+	}
+	// wal_checkpoint is a write; a read-only handle must not attempt it.
+	if s.readOnly {
+		return s.db.Close()
 	}
 	_, checkpointErr := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	closeErr := s.db.Close()
@@ -1662,7 +1757,45 @@ func lifecycleFilter(validityColumn, lifecycle string) (string, error) {
 	}
 }
 
+// migrate brings the store up to SchemaVersion, then stamps user_version.
+//
+// The version gate is a large win, not a micro-optimisation: before it, EVERY
+// open re-ran the DDL, the metadata backfills, the trigger recreation, and an
+// unconditional `INSERT INTO memories_fts VALUES('rebuild')`. On a 24MB FTS index
+// that rebuild ran on every single recoil invocation.
+//
+// ForceMigrate resets user_version to 0 to re-run this deliberately.
 func (s *Store) migrate() error {
+	version, err := s.schemaVersion()
+	if err != nil {
+		return err
+	}
+	if version == SchemaVersion {
+		return nil
+	}
+	if err := s.runMigrations(); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
+		return err
+	}
+	s.migrated = true
+	return nil
+}
+
+// ForceMigrate re-runs every migration step regardless of the stamped version,
+// including the full FTS rebuild. This is what `recoil migrate --force` calls.
+func (s *Store) ForceMigrate() error {
+	if s.readOnly {
+		return fmt.Errorf("cannot migrate a read-only store handle")
+	}
+	if _, err := s.db.Exec(`PRAGMA user_version = 0`); err != nil {
+		return err
+	}
+	return s.migrate()
+}
+
+func (s *Store) runMigrations() error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS memories (
 			pk INTEGER PRIMARY KEY AUTOINCREMENT,

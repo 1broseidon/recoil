@@ -27,7 +27,7 @@ func newStatusCommand() *cobra.Command {
 		Short: "Show database status",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			st, _, err := openStore()
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}
