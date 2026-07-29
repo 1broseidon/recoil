@@ -12,16 +12,17 @@ import (
 )
 
 type memoryFilterOptions struct {
-	since      string
-	before     string
-	sourceKind string
-	agent      string
-	source     string
-	role       string
-	claimKey   string
-	validity   string
-	current    bool
-	historical bool
+	since          string
+	before         string
+	sourceKind     string
+	agent          string
+	source         string
+	role           string
+	claimKey       string
+	claimKeyPrefix string
+	validity       string
+	current        bool
+	historical     bool
 }
 
 func addMemoryFilterFlags(c *cobra.Command, opts *memoryFilterOptions) {
@@ -37,7 +38,28 @@ func addMemoryFilterFlags(c *cobra.Command, opts *memoryFilterOptions) {
 	c.Flags().BoolVar(&opts.historical, "historical", false, "filter to historical, rejected, superseded, stale, or tombstoned memories")
 }
 
+// addClaimKeyPrefixFlag opts a command into claim-key family (prefix) filtering.
+// It is deliberately separate from addMemoryFilterFlags: ranked commands
+// (search, wake) keep the exact-key filter only, so a prefix cannot silently
+// widen a ranked pool.
+func addClaimKeyPrefixFlag(c *cobra.Command, opts *memoryFilterOptions) {
+	c.Flags().StringVar(&opts.claimKeyPrefix, "claim-key-prefix", "", "filter by claim key family prefix, e.g. voice. (mutually exclusive with --claim-key)")
+}
+
+// validateClaimKeyFilters rejects the ambiguous combination of an exact key and
+// a family prefix. Callers reach this through searchParams/listParams, so the
+// CLI and the MCP tools share one validation path.
+func validateClaimKeyFilters(filters memoryFilterOptions) error {
+	if strings.TrimSpace(filters.claimKey) != "" && strings.TrimSpace(filters.claimKeyPrefix) != "" {
+		return fmt.Errorf("choose --claim-key or --claim-key-prefix, not both")
+	}
+	return nil
+}
+
 func searchParams(query string, sc scope.Scope, filters memoryFilterOptions, limit int) (store.SearchParams, error) {
+	if err := validateClaimKeyFilters(filters); err != nil {
+		return store.SearchParams{}, err
+	}
 	since, before, err := parseTimeFilters(filters)
 	if err != nil {
 		return store.SearchParams{}, err
@@ -47,24 +69,28 @@ func searchParams(query string, sc scope.Scope, filters memoryFilterOptions, lim
 		return store.SearchParams{}, err
 	}
 	return store.SearchParams{
-		Query:        query,
-		ScopeKind:    sc.Kind,
-		ScopeID:      sc.ID,
-		SourceKind:   strings.TrimSpace(filters.sourceKind),
-		SourceAgent:  filters.agent,
-		SourcePath:   filters.source,
-		Role:         strings.TrimSpace(filters.role),
-		ClaimKey:     strings.TrimSpace(filters.claimKey),
-		Validity:     strings.TrimSpace(filters.validity),
-		Since:        since,
-		Before:       before,
-		Limit:        limit,
-		Lifecycle:    lifecycle,
-		SignalRerank: true,
+		Query:          query,
+		ScopeKind:      sc.Kind,
+		ScopeID:        sc.ID,
+		SourceKind:     strings.TrimSpace(filters.sourceKind),
+		SourceAgent:    filters.agent,
+		SourcePath:     filters.source,
+		Role:           strings.TrimSpace(filters.role),
+		ClaimKey:       strings.TrimSpace(filters.claimKey),
+		ClaimKeyPrefix: strings.TrimSpace(filters.claimKeyPrefix),
+		Validity:       strings.TrimSpace(filters.validity),
+		Since:          since,
+		Before:         before,
+		Limit:          limit,
+		Lifecycle:      lifecycle,
+		SignalRerank:   true,
 	}, nil
 }
 
 func listParams(sc scope.Scope, filters memoryFilterOptions, limit int, includeDeleted bool) (store.ListParams, error) {
+	if err := validateClaimKeyFilters(filters); err != nil {
+		return store.ListParams{}, err
+	}
 	since, before, err := parseTimeFilters(filters)
 	if err != nil {
 		return store.ListParams{}, err
@@ -81,6 +107,7 @@ func listParams(sc scope.Scope, filters memoryFilterOptions, limit int, includeD
 		SourcePath:     filters.source,
 		Role:           strings.TrimSpace(filters.role),
 		ClaimKey:       strings.TrimSpace(filters.claimKey),
+		ClaimKeyPrefix: strings.TrimSpace(filters.claimKeyPrefix),
 		Validity:       strings.TrimSpace(filters.validity),
 		Since:          since,
 		Before:         before,

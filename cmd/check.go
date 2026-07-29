@@ -11,9 +11,10 @@ import (
 )
 
 type checkOptions struct {
-	scope    scopeOptions
-	claimKey string
-	limit    int
+	scope          scopeOptions
+	claimKey       string
+	claimKeyPrefix string
+	limit          int
 }
 
 type checkResult struct {
@@ -37,6 +38,22 @@ type checkResult struct {
 	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
 }
 
+// checkPrefixResult aggregates one per-family verdict for every claim family
+// under a prefix. Verdict logic stays exactly per exact key: each family is
+// audited by the same runDecisionCheck the --claim-key path uses, and the
+// top-level verdict is the worst family verdict (see checkVerdictSeverity), so
+// an agent can gate on one field without losing the per-family detail.
+type checkPrefixResult struct {
+	ClaimKeyPrefix   string                 `json:"claim_key_prefix"`
+	Verdict          string                 `json:"verdict"`
+	Recommendation   string                 `json:"recommendation"`
+	Reason           string                 `json:"reason"`
+	DecidingClaimKey string                 `json:"deciding_claim_key,omitempty"`
+	FamilyCount      int                    `json:"family_count"`
+	Families         []checkResult          `json:"families,omitempty"`
+	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
+}
+
 type decisionTrailItem struct {
 	ClaimKey        string        `json:"claim_key"`
 	Validity        string        `json:"validity"`
@@ -54,8 +71,10 @@ func newCheckCommand() *cobra.Command {
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			query := strings.TrimSpace(strings.Join(args, " "))
-			if query == "" && strings.TrimSpace(checkOpts.claimKey) == "" {
-				return fmt.Errorf("provide a query, memory id, or --claim-key")
+			claimKey := strings.TrimSpace(checkOpts.claimKey)
+			claimKeyPrefix := strings.TrimSpace(checkOpts.claimKeyPrefix)
+			if err := validateCheckTarget(query, claimKey, claimKeyPrefix); err != nil {
+				return err
 			}
 			if checkOpts.limit <= 0 {
 				checkOpts.limit = 8
@@ -70,11 +89,21 @@ func newCheckCommand() *cobra.Command {
 			}
 			defer st.Close()
 			ctx := context.Background()
-			result, err := runCheck(ctx, st, sc, query, checkOpts.claimKey, checkOpts.limit)
+			w := cmd.OutOrStdout()
+			if claimKeyPrefix != "" {
+				prefixResult, err := runCheckPrefix(ctx, st, sc, claimKeyPrefix, checkOpts.limit)
+				if err != nil {
+					return err
+				}
+				if opts.json {
+					return writeJSON(w, "check_prefix_result", prefixResult)
+				}
+				return frontmatter(w, checkPrefixFrontmatter(prefixResult), renderCheckPrefixResult(prefixResult))
+			}
+			result, err := runCheck(ctx, st, sc, query, claimKey, checkOpts.limit)
 			if err != nil {
 				return err
 			}
-			w := cmd.OutOrStdout()
 			if opts.json {
 				return writeJSON(w, "check_result", result)
 			}
@@ -83,8 +112,25 @@ func newCheckCommand() *cobra.Command {
 	}
 	addScopeFlags(c, &checkOpts.scope)
 	c.Flags().StringVar(&checkOpts.claimKey, "claim-key", "", "audit an exact claim family")
+	c.Flags().StringVar(&checkOpts.claimKeyPrefix, "claim-key-prefix", "", "audit every claim family under a prefix, e.g. voice. (mutually exclusive with --claim-key and a query)")
 	c.Flags().IntVar(&checkOpts.limit, "limit", 8, "maximum memories to inspect")
 	return c
+}
+
+// validateCheckTarget enforces exactly one targeting mode. A prefix selects
+// which families to audit, so pairing it with a free-text query (which exists
+// to *find* a family) or with an exact key is contradictory.
+func validateCheckTarget(query, claimKey, claimKeyPrefix string) error {
+	if claimKey != "" && claimKeyPrefix != "" {
+		return fmt.Errorf("choose --claim-key or --claim-key-prefix, not both")
+	}
+	if query != "" && claimKeyPrefix != "" {
+		return fmt.Errorf("choose a query or --claim-key-prefix, not both")
+	}
+	if query == "" && claimKey == "" && claimKeyPrefix == "" {
+		return fmt.Errorf("provide a query, memory id, --claim-key, or --claim-key-prefix")
+	}
+	return nil
 }
 
 func runCheck(ctx context.Context, st *store.Store, sc scope.Scope, query, claimKey string, limit int) (checkResult, error) {
@@ -95,6 +141,110 @@ func runCheck(ctx context.Context, st *store.Store, sc scope.Scope, query, claim
 	}
 	result.ChannelFreshness = freshness
 	return result, nil
+}
+
+// runCheckPrefix audits every claim family whose key starts with prefix. The
+// family list comes from the claim index (ordered claim_key ASC), so output
+// order is stable; channel freshness is resolved once for the whole run rather
+// than once per family.
+func runCheckPrefix(ctx context.Context, st *store.Store, sc scope.Scope, prefix string, limit int) (checkPrefixResult, error) {
+	freshness := ensureFreshContext(ctx, st, "check")
+	summaries, err := st.ClaimSummaries(ctx, store.ClaimSummaryParams{
+		ScopeKind:      sc.Kind,
+		ScopeID:        sc.ID,
+		ClaimKeyPrefix: prefix,
+	})
+	if err != nil {
+		return checkPrefixResult{}, err
+	}
+	result := checkPrefixResult{
+		ClaimKeyPrefix:   prefix,
+		Verdict:          "no_decision",
+		Recommendation:   "proceed_without_memory",
+		Reason:           "no_claim_key_match",
+		FamilyCount:      len(summaries),
+		ChannelFreshness: freshness,
+	}
+	for _, summary := range summaries {
+		family, err := runDecisionCheck(ctx, st, sc, "", summary.ClaimKey, limit)
+		if err != nil {
+			return checkPrefixResult{}, err
+		}
+		result.Families = append(result.Families, family)
+	}
+	if worst, ok := worstCheckResult(result.Families); ok {
+		result.Verdict = worst.Verdict
+		result.Recommendation = worst.Recommendation
+		result.Reason = worst.Reason
+		result.DecidingClaimKey = worst.ClaimKey
+	}
+	return result, nil
+}
+
+// checkVerdictSeverity ranks verdicts worst-first so an aggregate over a family
+// tree cannot under-report a blocking decision.
+func checkVerdictSeverity(verdict string) int {
+	switch verdict {
+	case "review":
+		return 0
+	case "use_replacement":
+		return 1
+	case "ignore":
+		return 2
+	case "use":
+		return 3
+	default:
+		return 4
+	}
+}
+
+func worstCheckResult(results []checkResult) (checkResult, bool) {
+	var worst checkResult
+	found := false
+	for _, result := range results {
+		if !found || checkVerdictSeverity(result.Verdict) < checkVerdictSeverity(worst.Verdict) {
+			worst = result
+			found = true
+		}
+	}
+	return worst, found
+}
+
+func checkPrefixFrontmatter(result checkPrefixResult) []kv {
+	meta := []kv{
+		{k: "claim_key_prefix", v: result.ClaimKeyPrefix},
+		{k: "verdict", v: result.Verdict},
+		{k: "recommendation", v: result.Recommendation},
+		{k: "reason", v: result.Reason},
+		{k: "deciding_claim_key", v: result.DecidingClaimKey},
+		{k: "family_count", v: fmt.Sprintf("%d", result.FamilyCount)},
+	}
+	meta = append(meta,
+		kv{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
+		kv{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
+	)
+	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
+	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
+	return meta
+}
+
+func renderCheckPrefixResult(result checkPrefixResult) string {
+	if len(result.Families) == 0 {
+		return "No decision families found under prefix " + result.ClaimKeyPrefix + ".\n"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "## Decision Check - %s\n\n", result.ClaimKeyPrefix)
+	fmt.Fprintf(&b, "verdict: %s\n", result.Verdict)
+	fmt.Fprintf(&b, "recommendation: %s\n", result.Recommendation)
+	fmt.Fprintf(&b, "reason: %s\n", result.Reason)
+	if result.DecidingClaimKey != "" {
+		fmt.Fprintf(&b, "deciding_claim_key: %s\n", result.DecidingClaimKey)
+	}
+	fmt.Fprintf(&b, "family_count: %d\n", result.FamilyCount)
+	for _, family := range result.Families {
+		fmt.Fprintf(&b, "\n%s", renderCheckResult(family))
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
 func runDecisionCheck(ctx context.Context, st *store.Store, sc scope.Scope, query, claimKey string, limit int) (checkResult, error) {

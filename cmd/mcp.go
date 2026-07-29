@@ -115,12 +115,41 @@ type mcpHandoffInput struct {
 }
 
 type mcpCheckInput struct {
-	Query    string `json:"query,omitempty" jsonschema:"Decision query or memory ID."`
-	ClaimKey string `json:"claim_key,omitempty" jsonschema:"Exact claim family to audit."`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum memories to inspect."`
-	User     bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
-	Project  string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
-	Session  string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
+	Query          string `json:"query,omitempty" jsonschema:"Decision query or memory ID."`
+	ClaimKey       string `json:"claim_key,omitempty" jsonschema:"Exact claim family to audit."`
+	ClaimKeyPrefix string `json:"claim_key_prefix,omitempty" jsonschema:"Audit every claim family under this prefix. Cannot be combined with query or claim_key."`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Maximum memories to inspect."`
+	User           bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
+	Project        string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
+	Session        string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
+}
+
+type mcpListInput struct {
+	Limit          int    `json:"limit,omitempty" jsonschema:"Maximum memories to list."`
+	MaxChars       int    `json:"max_chars,omitempty" jsonschema:"Maximum rendered characters for text content."`
+	User           bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
+	Project        string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
+	Session        string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
+	Since          string `json:"since,omitempty" jsonschema:"Filter memories created since a date or duration like 7d."`
+	Before         string `json:"before,omitempty" jsonschema:"Filter memories created before a date or duration like 7d."`
+	SourceKind     string `json:"source_kind,omitempty" jsonschema:"Filter by source kind."`
+	Agent          string `json:"agent,omitempty" jsonschema:"Filter by source agent."`
+	Source         string `json:"source,omitempty" jsonschema:"Filter by source path substring."`
+	Role           string `json:"role,omitempty" jsonschema:"Filter by exact role."`
+	ClaimKey       string `json:"claim_key,omitempty" jsonschema:"Filter by exact claim key."`
+	ClaimKeyPrefix string `json:"claim_key_prefix,omitempty" jsonschema:"Filter by claim key family prefix. Cannot be combined with claim_key."`
+	Validity       string `json:"validity,omitempty" jsonschema:"Filter by exact validity state."`
+	Current        bool   `json:"current,omitempty" jsonschema:"Filter to current memories."`
+	Historical     bool   `json:"historical,omitempty" jsonschema:"Filter to historical, rejected, superseded, stale, or tombstoned memories."`
+	IncludeDeleted bool   `json:"include_deleted,omitempty" jsonschema:"Include tombstoned memories."`
+}
+
+type mcpClaimsInput struct {
+	User           bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
+	Project        string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
+	Session        string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
+	ClaimKey       string `json:"claim_key,omitempty" jsonschema:"Filter to one exact claim key."`
+	ClaimKeyPrefix string `json:"claim_key_prefix,omitempty" jsonschema:"Filter the family index to this prefix. Cannot be combined with claim_key."`
 }
 
 func newMCPCommand() *cobra.Command {
@@ -168,8 +197,22 @@ func newRecoilMCPServer(opts mcpOptions) *mcp.Server {
 		Name:        "recoil_check",
 		Description: "Audit whether a remembered decision is still safe to act on.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input mcpCheckInput) (*mcp.CallToolResult, envelope, error) {
-		result, text, err := mcpCheck(ctx, input)
-		return mcpToolResult("check_result", result, text, err)
+		result, kind, text, err := mcpCheck(ctx, input)
+		return mcpToolResult(kind, result, text, err)
+	})
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "recoil_list",
+		Description: "List scoped memories in deterministic order with no ranking, no query, and no truncation of the JSON payload.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input mcpListInput) (*mcp.CallToolResult, envelope, error) {
+		result, text, err := mcpList(ctx, input)
+		return mcpToolResult("list_result", result, text, err)
+	})
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "recoil_claims",
+		Description: "List claim-key families in scope, optionally narrowed to one key or one family prefix.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input mcpClaimsInput) (*mcp.CallToolResult, envelope, error) {
+		result, text, err := mcpClaims(ctx, input)
+		return mcpToolResult("claims_result", result, text, err)
 	})
 	if opts.allowWrite {
 		mcp.AddTool(server, &mcp.Tool{
@@ -290,27 +333,111 @@ func mcpWake(ctx context.Context, req mcpWakeInput) (wakeResult, string, error) 
 	return exec.Result, text, nil
 }
 
-func mcpCheck(ctx context.Context, req mcpCheckInput) (checkResult, string, error) {
-	if strings.TrimSpace(req.Query) == "" && strings.TrimSpace(req.ClaimKey) == "" {
-		return checkResult{}, "", fmt.Errorf("provide query, memory id, or claim_key")
+// mcpCheck mirrors the CLI: a claim_key_prefix audits every family under the
+// prefix and returns the check_prefix_result envelope, so the returned kind
+// varies with the input.
+func mcpCheck(ctx context.Context, req mcpCheckInput) (any, string, string, error) {
+	query := strings.TrimSpace(req.Query)
+	claimKey := strings.TrimSpace(req.ClaimKey)
+	claimKeyPrefix := strings.TrimSpace(req.ClaimKeyPrefix)
+	if err := validateCheckTarget(query, claimKey, claimKeyPrefix); err != nil {
+		return nil, "check_result", "", err
 	}
 	if req.Limit <= 0 {
 		req.Limit = 8
 	}
 	sc, err := resolveMCPScope(scopeOptions{user: req.User, project: req.Project, session: req.Session})
 	if err != nil {
-		return checkResult{}, "", err
+		return nil, "check_result", "", err
 	}
 	st, _, err := openStore()
 	if err != nil {
-		return checkResult{}, "", err
+		return nil, "check_result", "", err
 	}
 	defer st.Close()
-	result, err := runCheck(ctx, st, sc, req.Query, req.ClaimKey, req.Limit)
-	if err != nil {
-		return checkResult{}, "", err
+	if claimKeyPrefix != "" {
+		result, err := runCheckPrefix(ctx, st, sc, claimKeyPrefix, req.Limit)
+		if err != nil {
+			return nil, "check_prefix_result", "", err
+		}
+		return result, "check_prefix_result", renderCheckPrefixResult(result), nil
 	}
-	return result, renderCheckResult(result), nil
+	result, err := runCheck(ctx, st, sc, query, claimKey, req.Limit)
+	if err != nil {
+		return nil, "check_result", "", err
+	}
+	return result, "check_result", renderCheckResult(result), nil
+}
+
+func mcpList(ctx context.Context, req mcpListInput) ([]store.Memory, string, error) {
+	if req.Limit <= 0 {
+		req.Limit = 50
+	}
+	if req.MaxChars <= 0 {
+		req.MaxChars = 4000
+	}
+	sc, err := resolveMCPScope(scopeOptions{user: req.User, project: req.Project, session: req.Session})
+	if err != nil {
+		return nil, "", err
+	}
+	params, err := listParams(sc, memoryFilterOptions{
+		since:          req.Since,
+		before:         req.Before,
+		sourceKind:     req.SourceKind,
+		agent:          req.Agent,
+		source:         req.Source,
+		role:           req.Role,
+		claimKey:       req.ClaimKey,
+		claimKeyPrefix: req.ClaimKeyPrefix,
+		validity:       req.Validity,
+		current:        req.Current,
+		historical:     req.Historical,
+	}, req.Limit, req.IncludeDeleted)
+	if err != nil {
+		return nil, "", err
+	}
+	st, _, err := openStore()
+	if err != nil {
+		return nil, "", err
+	}
+	defer st.Close()
+	memories, err := st.List(ctx, params)
+	if err != nil {
+		return nil, "", err
+	}
+	return memories, memoryBlocks(memories, req.MaxChars, false), nil
+}
+
+func mcpClaims(ctx context.Context, req mcpClaimsInput) (claimsResult, string, error) {
+	claimKey := strings.TrimSpace(req.ClaimKey)
+	claimKeyPrefix := strings.TrimSpace(req.ClaimKeyPrefix)
+	if err := validateClaimKeyFilters(memoryFilterOptions{claimKey: claimKey, claimKeyPrefix: claimKeyPrefix}); err != nil {
+		return claimsResult{}, "", err
+	}
+	sc, err := resolveMCPScope(scopeOptions{user: req.User, project: req.Project, session: req.Session})
+	if err != nil {
+		return claimsResult{}, "", err
+	}
+	st, _, err := openStore()
+	if err != nil {
+		return claimsResult{}, "", err
+	}
+	defer st.Close()
+	summaries, err := st.ClaimSummaries(ctx, store.ClaimSummaryParams{
+		ScopeKind:      sc.Kind,
+		ScopeID:        sc.ID,
+		ClaimKey:       claimKey,
+		ClaimKeyPrefix: claimKeyPrefix,
+	})
+	if err != nil {
+		return claimsResult{}, "", err
+	}
+	result := claimsResult{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKeyPrefix: claimKeyPrefix, Claims: summaries}
+	var b strings.Builder
+	for _, summary := range summaries {
+		fmt.Fprintf(&b, "%s\t%d\t%s\t%s\n", summary.ClaimKey, summary.Count, summary.CurrentValidity, summary.CurrentID)
+	}
+	return result, b.String(), nil
 }
 
 func mcpAdd(ctx context.Context, req mcpAddInput) (addResult, string, error) {

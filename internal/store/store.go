@@ -87,23 +87,24 @@ type AddMemoryParams struct {
 }
 
 type SearchParams struct {
-	Query         string
-	ScopeKind     string
-	ScopeID       string
-	SourceKind    string
-	SourceAgent   string
-	SourcePath    string
-	Role          string
-	ClaimKey      string
-	Validity      string
-	Since         string
-	Before        string
-	Limit         int
-	Lifecycle     string
-	QueryDate     string
-	SignalRerank  bool
-	SourceQuality sourcequality.Options
-	AgingWindow   float64
+	Query          string
+	ScopeKind      string
+	ScopeID        string
+	SourceKind     string
+	SourceAgent    string
+	SourcePath     string
+	Role           string
+	ClaimKey       string
+	ClaimKeyPrefix string
+	Validity       string
+	Since          string
+	Before         string
+	Limit          int
+	Lifecycle      string
+	QueryDate      string
+	SignalRerank   bool
+	SourceQuality  sourcequality.Options
+	AgingWindow    float64
 }
 
 type ListParams struct {
@@ -114,6 +115,7 @@ type ListParams struct {
 	SourcePath     string
 	Role           string
 	ClaimKey       string
+	ClaimKeyPrefix string
 	Validity       string
 	Since          string
 	Before         string
@@ -219,6 +221,15 @@ type FileSource struct {
 	ChunkCount  int    `json:"chunk_count,omitempty"`
 	LastMinedAt string `json:"last_mined_at,omitempty"`
 	DeletedAt   string `json:"deleted_at,omitempty"`
+}
+
+// ClaimSummaryParams narrows the claim-key family index. ClaimKey pins one
+// exact family; ClaimKeyPrefix selects a family tree (e.g. "voice.").
+type ClaimSummaryParams struct {
+	ScopeKind      string
+	ScopeID        string
+	ClaimKey       string
+	ClaimKeyPrefix string
 }
 
 type ClaimSummary struct {
@@ -391,17 +402,18 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		sqlLimit = 100
 	}
 	where, args, err := scopedFilter("m", memoryQueryFilter{
-		ScopeKind:   p.ScopeKind,
-		ScopeID:     p.ScopeID,
-		SourceKind:  p.SourceKind,
-		SourceAgent: p.SourceAgent,
-		SourcePath:  p.SourcePath,
-		Role:        p.Role,
-		ClaimKey:    p.ClaimKey,
-		Validity:    p.Validity,
-		Since:       p.Since,
-		Before:      p.Before,
-		Lifecycle:   p.Lifecycle,
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		SourceKind:     p.SourceKind,
+		SourceAgent:    p.SourceAgent,
+		SourcePath:     p.SourcePath,
+		Role:           p.Role,
+		ClaimKey:       p.ClaimKey,
+		ClaimKeyPrefix: p.ClaimKeyPrefix,
+		Validity:       p.Validity,
+		Since:          p.Since,
+		Before:         p.Before,
+		Lifecycle:      p.Lifecycle,
 	})
 	if err != nil {
 		return nil, err
@@ -648,6 +660,7 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 		SourcePath:     p.SourcePath,
 		Role:           p.Role,
 		ClaimKey:       p.ClaimKey,
+		ClaimKeyPrefix: p.ClaimKeyPrefix,
 		Validity:       p.Validity,
 		Since:          p.Since,
 		Before:         p.Before,
@@ -1045,8 +1058,14 @@ func (s *Store) GetMemory(ctx context.Context, idOrPrefix string) (*Memory, erro
 	return s.GetMemoryByID(ctx, id, false)
 }
 
-func (s *Store) ClaimSummaries(ctx context.Context, scopeKind, scopeID string) ([]ClaimSummary, error) {
-	where, args, err := scopedFilter("", memoryQueryFilter{ScopeKind: scopeKind, ScopeID: scopeID, IncludeDeleted: false})
+func (s *Store) ClaimSummaries(ctx context.Context, p ClaimSummaryParams) ([]ClaimSummary, error) {
+	where, args, err := scopedFilter("", memoryQueryFilter{
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		ClaimKey:       strings.TrimSpace(p.ClaimKey),
+		ClaimKeyPrefix: strings.TrimSpace(p.ClaimKeyPrefix),
+		IncludeDeleted: false,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1475,11 +1494,35 @@ type memoryQueryFilter struct {
 	SourcePath     string
 	Role           string
 	ClaimKey       string
+	ClaimKeyPrefix string
 	Validity       string
 	Since          string
 	Before         string
 	IncludeDeleted bool
 	Lifecycle      string
+}
+
+// likeEscapeChar is the ESCAPE character used for every LIKE pattern recoil
+// builds from user input. SQLite string literals do not treat backslash
+// specially, so the emitted ESCAPE clause carries a single backslash through to
+// the SQL parser unchanged.
+const likeEscapeChar = `\`
+
+// EscapeLikePrefix makes a claim-key prefix match literally under a
+// backslash-escaped claim_key LIKE. SQL LIKE treats % and _ as wildcards, so
+// an unescaped prefix of "voice_" would also match "voice.pillars". Escaping
+// the escape character itself keeps a literal backslash in a claim key exact.
+func EscapeLikePrefix(prefix string) string {
+	var b strings.Builder
+	b.Grow(len(prefix))
+	for _, r := range prefix {
+		switch r {
+		case '\\', '%', '_':
+			b.WriteString(likeEscapeChar)
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func scopedFilter(alias string, filter memoryQueryFilter) (string, []any, error) {
@@ -1521,6 +1564,10 @@ func scopedFilter(alias string, filter memoryQueryFilter) (string, []any, error)
 	if filter.ClaimKey != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("claim_key"))
 		args = append(args, filter.ClaimKey)
+	}
+	if filter.ClaimKeyPrefix != "" {
+		fmt.Fprintf(&where, "\n\t\t\tAND %s LIKE ? ESCAPE '%s'", col("claim_key"), likeEscapeChar)
+		args = append(args, EscapeLikePrefix(filter.ClaimKeyPrefix)+"%")
 	}
 	if filter.Validity != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND COALESCE(%s, 'unknown') = ?", col("validity"))
