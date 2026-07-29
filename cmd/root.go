@@ -49,6 +49,7 @@ func init() {
 	rootCmd.AddCommand(newSwarmCommand())
 	rootCmd.AddCommand(newShowCommand())
 	rootCmd.AddCommand(newListCommand())
+	rootCmd.AddCommand(newExportCommand())
 	rootCmd.AddCommand(newForgetCommand())
 	rootCmd.AddCommand(newMarkCommand())
 	rootCmd.AddCommand(newSupersedeCommand())

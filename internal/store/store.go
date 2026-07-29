@@ -698,6 +698,66 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 	return memories, rows.Err()
 }
 
+// ExportParams selects whole claim families for verbatim export. Exactly one of
+// ClaimKey or ClaimKeyPrefix is expected; callers validate that.
+type ExportParams struct {
+	ScopeKind      string
+	ScopeID        string
+	ClaimKey       string
+	ClaimKeyPrefix string
+	Lifecycle      string
+	// Limit of 0 means every matching memory. Export is for doctrine injection,
+	// so a silent cap would quietly drop claims.
+	Limit int
+}
+
+// ExportClaims returns claim-keyed memories in a stable, ranking-free order:
+// claim_key ASC, then created_at DESC, then id DESC. The id tiebreak matters
+// because created_at is second-granularity RFC3339, so two claims written in the
+// same second would otherwise order nondeterministically. Memories with no
+// claim_key are excluded: export is family-addressed by definition.
+func (s *Store) ExportClaims(ctx context.Context, p ExportParams) ([]Memory, error) {
+	where, args, err := scopedFilter("", memoryQueryFilter{
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		ClaimKey:       strings.TrimSpace(p.ClaimKey),
+		ClaimKeyPrefix: strings.TrimSpace(p.ClaimKeyPrefix),
+		Lifecycle:      p.Lifecycle,
+	})
+	if err != nil {
+		return nil, err
+	}
+	query := `
+			SELECT id, hash, COALESCE(role, ''), content,
+				COALESCE(source_kind, 'direct'), COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
+				scope_kind, scope_id, COALESCE(project_id, ''), COALESCE(session_id, ''),
+				COALESCE(room, ''), COALESCE(metadata_json, ''),
+				COALESCE(validity, 'unknown'), COALESCE(claim_key, ''), COALESCE(supersedes, ''), COALESCE(superseded_by, ''),
+				created_at, COALESCE(tombstoned_at, '')
+			FROM memories
+		WHERE COALESCE(claim_key, '') != ''` + where + `
+		ORDER BY claim_key ASC, created_at DESC, id DESC`
+	if p.Limit > 0 {
+		query += "\n\t\tLIMIT ?"
+		args = append(args, p.Limit)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var memories []Memory
+	for rows.Next() {
+		mem, err := scanMemory(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, mem)
+	}
+	return memories, rows.Err()
+}
+
 func (s *Store) UpsertEmbedding(ctx context.Context, mem Memory, provider, model string, vector []float64) error {
 	provider = strings.TrimSpace(provider)
 	model = strings.TrimSpace(model)

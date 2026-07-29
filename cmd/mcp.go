@@ -144,6 +144,17 @@ type mcpListInput struct {
 	IncludeDeleted bool   `json:"include_deleted,omitempty" jsonschema:"Include tombstoned memories."`
 }
 
+type mcpExportInput struct {
+	ClaimKey       string `json:"claim_key,omitempty" jsonschema:"Export one exact claim family."`
+	ClaimKeyPrefix string `json:"claim_key_prefix,omitempty" jsonschema:"Export every claim family under this prefix. One of claim_key or claim_key_prefix is required."`
+	Historical     bool   `json:"historical,omitempty" jsonschema:"Export past memories instead of only current ones."`
+	AllValidity    bool   `json:"all_validity,omitempty" jsonschema:"Export current and past memories together."`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Maximum memories to export. 0 means every match."`
+	User           bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
+	Project        string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
+	Session        string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
+}
+
 type mcpClaimsInput struct {
 	User           bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
 	Project        string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
@@ -213,6 +224,13 @@ func newRecoilMCPServer(opts mcpOptions) *mcp.Server {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input mcpClaimsInput) (*mcp.CallToolResult, envelope, error) {
 		result, text, err := mcpClaims(ctx, input)
 		return mcpToolResult("claims_result", result, text, err)
+	})
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "recoil_export",
+		Description: "Export whole claim families verbatim for doctrine injection: no ranking, no truncation, stable order.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input mcpExportInput) (*mcp.CallToolResult, envelope, error) {
+		result, text, err := mcpExport(ctx, input)
+		return mcpToolResult("export_result", result, text, err)
 	})
 	if opts.allowWrite {
 		mcp.AddTool(server, &mcp.Tool{
@@ -406,6 +424,51 @@ func mcpList(ctx context.Context, req mcpListInput) ([]store.Memory, string, err
 		return nil, "", err
 	}
 	return memories, memoryBlocks(memories, req.MaxChars, false), nil
+}
+
+// mcpExport mirrors the CLI export command. The CLI's --current defaults to
+// true; over MCP that is the unflagged default, with historical/all_validity as
+// the two opt-outs.
+func mcpExport(ctx context.Context, req mcpExportInput) (exportResult, string, error) {
+	claimKey := strings.TrimSpace(req.ClaimKey)
+	claimKeyPrefix := strings.TrimSpace(req.ClaimKeyPrefix)
+	if req.Historical && req.AllValidity {
+		return exportResult{}, "", fmt.Errorf("choose historical or all_validity, not both")
+	}
+	lifecycle, err := exportLifecycle(claimKey, claimKeyPrefix, !req.AllValidity, req.Historical)
+	if err != nil {
+		return exportResult{}, "", err
+	}
+	sc, err := resolveMCPScope(scopeOptions{user: req.User, project: req.Project, session: req.Session})
+	if err != nil {
+		return exportResult{}, "", err
+	}
+	st, _, err := openStore()
+	if err != nil {
+		return exportResult{}, "", err
+	}
+	defer st.Close()
+	memories, err := st.ExportClaims(ctx, store.ExportParams{
+		ScopeKind:      sc.Kind,
+		ScopeID:        sc.ID,
+		ClaimKey:       claimKey,
+		ClaimKeyPrefix: claimKeyPrefix,
+		Lifecycle:      lifecycle,
+		Limit:          req.Limit,
+	})
+	if err != nil {
+		return exportResult{}, "", err
+	}
+	result := exportResult{
+		ScopeKind:      sc.Kind,
+		ScopeID:        sc.ID,
+		ClaimKey:       claimKey,
+		ClaimKeyPrefix: claimKeyPrefix,
+		Lifecycle:      lifecycle,
+		Count:          len(memories),
+		Memories:       memories,
+	}
+	return result, renderExport(memories), nil
 }
 
 func mcpClaims(ctx context.Context, req mcpClaimsInput) (claimsResult, string, error) {
