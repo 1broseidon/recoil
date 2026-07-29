@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/1broseidon/recoil/internal/config"
-	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +45,7 @@ func newStatusCommand() *cobra.Command {
 				TombstoneCount: counts.Tombstoned,
 				FTS5:           true,
 			}
-			if projectScope, err := scope.ProjectScope("."); err == nil {
+			if projectScope, err := envAimedProjectScope(); err == nil {
 				result.ProjectScopeID = projectScope.ID
 				result.ProjectRoot = projectScope.Root
 				result.ProjectMarker = projectScope.MarkerPath

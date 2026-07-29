@@ -136,7 +136,7 @@ func hookWakeContext(limit, maxChars int) (string, bool) {
 	if maxChars <= 0 {
 		maxChars = 1600
 	}
-	sc, err := scope.ProjectScope(".")
+	sc, err := envAimedProjectScope()
 	if err != nil || !sc.Initialized {
 		return "", false
 	}

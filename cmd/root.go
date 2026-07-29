@@ -169,7 +169,7 @@ func dbPathExplicitlySet() bool {
 }
 
 func initializedProjectDBPath() (string, bool, error) {
-	sc, err := scope.ProjectScope(".")
+	sc, err := envAimedProjectScope()
 	if err != nil {
 		return "", false, err
 	}
