@@ -45,6 +45,28 @@ Use it when you need:
 
 ## Install
 
+Prebuilt binaries are attached to every release, with a `checksums.txt` covering each archive. FTS5 is compiled in.
+
+**macOS / Linux** — download the archive for your platform from the [releases page](https://github.com/1broseidon/recoil/releases/latest), verify it, and put `recoil` on your `PATH`:
+
+```sh
+TAG=$(curl -fsSL https://api.github.com/repos/1broseidon/recoil/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH=arm64
+curl -fsSLO "https://github.com/1broseidon/recoil/releases/download/${TAG}/recoil_${TAG}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "https://github.com/1broseidon/recoil/releases/download/${TAG}/checksums.txt"
+grep "recoil_${TAG}_${OS}_${ARCH}.tar.gz" checksums.txt | shasum -a 256 -c -
+tar xzf "recoil_${TAG}_${OS}_${ARCH}.tar.gz" && install -m755 recoil ~/.local/bin/recoil
+```
+
+**Windows**:
+
+```powershell
+irm https://raw.githubusercontent.com/1broseidon/recoil/main/install.ps1 | iex
+```
+
+To uninstall, run `uninstall.ps1` the same way. It keeps your memories by default; pass `-Purge` to also delete the database.
+
 **Go** (requires CGO for SQLite FTS5):
 
 ```sh
@@ -260,8 +282,9 @@ recoil eval --suite workflows --out eval/results
 recoil repair
 ```
 
-All commands support `--json` for programmatic use; scan commands also support
-`--minimal` for tab-separated rows.
+Result-producing commands support `--json` for programmatic use; long-running
+server/tray commands keep their runtime logs on stderr/stdout as plain text.
+Scan commands also support `--minimal` for tab-separated rows.
 
 ## How It Works
 
@@ -308,7 +331,16 @@ to cite) followed by content. `--json` returns a stable envelope:
 { "version": "0.1", "kind": "search_result", "data": { ... } }
 ```
 
+When `--json` is active, command errors are emitted on stderr as:
+
+```json
+{ "version": "0.1", "kind": "error", "error": { "code": "VALIDATION", "message": "..." } }
+```
+
 `--minimal` returns TSV rows for shell pipelines.
+
+**Exit codes.** `0` success, `1` generic error, `2` validation, `3` not found,
+`4` upstream/database/provider failure, `5` failed precondition, `6` cancelled.
 
 ## Lifecycle Model
 
@@ -428,11 +460,16 @@ recoil hook install codex
 ```
 
 Ingest redacts before writing anything to disk, writes compact JSONL under the
-local recoil state directory, and mines those records with `source_kind` set to
-`session_evidence`, `role: source`, and `validity: unknown`. Evidence keeps
-session and turn provenance, but it has lower authority than explicit decisions
-and fresh project docs. `wake` caps session evidence so recent sessions cannot
-crowd out durable guidance.
+user-local recoil state directory (the OS config dir, not the repo), and mines
+those records with `source_kind` set to `session_evidence`, `role: source`,
+and `validity: unknown`. Derived search helper traces are stored as non-guidance
+`role: trace`. Evidence keeps session, native session id, branch (when known),
+timestamp, and turn provenance, but it is a receipt of what a previous session
+said/did — never current truth or durable guidance. Explicit decisions, docs,
+and current user instructions outrank it. `wake` and structured search route
+session evidence to Recent Evidence and cap it so recent sessions cannot crowd
+out durable guidance. Bulk backfill excludes `personal_fact` evidence unless
+`--include-personal-facts` is passed.
 
 Operators can inspect or purge a session:
 
@@ -507,8 +544,10 @@ such as commands, quotes, stack traces, or line numbers. Use
 
 `recoil mcp` runs a stdio Model Context Protocol server using the official
 `github.com/modelcontextprotocol/go-sdk/mcp` Go SDK. It exposes
-`recoil_search` and `recoil_wake` tools read-only by default; start with
-`recoil mcp --allow-write` to expose `recoil_add`.
+`recoil_search`, `recoil_wake`, and `recoil_check` tools read-only by default.
+Those tools return text content plus structured `{version, kind, data}` MCP
+content matching the CLI JSON envelope. Start with `recoil mcp --allow-write`
+to expose `recoil_add`, `recoil_remember`, and `recoil_handoff`.
 
 ## Memory Sharing
 

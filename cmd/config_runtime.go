@@ -25,6 +25,20 @@ func effectiveMinePolicy(settings config.Settings) minePolicy {
 	}
 }
 
+func effectiveRetrievalMode(settings config.Settings) string {
+	mode, _, ok := config.EffectiveValue(settings, "retrieval.mode")
+	if !ok {
+		return "auto"
+	}
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	switch mode {
+	case "fts", "hybrid", "auto":
+		return mode
+	default:
+		return "auto"
+	}
+}
+
 func effectiveSourceQualityOptions(settings config.Settings) sourcequality.Options {
 	opts := sourcequality.Options{
 		SearchBoosts:    map[string]float64{},

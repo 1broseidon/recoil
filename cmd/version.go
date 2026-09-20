@@ -12,6 +12,10 @@ var (
 	date    = "unknown"
 )
 
+func versionSummary() string {
+	return fmt.Sprintf("%s (%s, %s)", version, commit, date)
+}
+
 func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
@@ -26,7 +30,7 @@ func newVersionCommand() *cobra.Command {
 			if opts.json {
 				return writeJSON(cmd.OutOrStdout(), "version_result", result)
 			}
-			_, err := fmt.Fprintf(cmd.OutOrStdout(), "recoil %s (%s, %s)\n", version, commit, date)
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "recoil %s\n", versionSummary())
 			return err
 		},
 	}

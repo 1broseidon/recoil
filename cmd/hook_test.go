@@ -102,6 +102,37 @@ func TestHookRemindGlobalJSONUsesEnvelope(t *testing.T) {
 	}
 }
 
+func TestHookInstallGlobalJSONUsesEnvelope(t *testing.T) {
+	oldOpts := opts
+	opts = globalOptions{json: true}
+	defer func() { opts = oldOpts }()
+	t.Setenv("HOME", t.TempDir())
+
+	c := newHookInstallCommand(false)
+	var out bytes.Buffer
+	c.SetOut(&out)
+	c.SetArgs([]string{"codex", "--dry-run"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	var got struct {
+		Kind string `json:"kind"`
+		Data struct {
+			Agent  string `json:"agent"`
+			Action string `json:"action"`
+			DryRun bool   `json:"dry_run"`
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Kind != "hook_install_result" || got.Data.Agent != "codex" || got.Data.Action != "install" || !got.Data.DryRun || got.Data.Status != "would_update" {
+		t.Fatalf("unexpected hook install JSON:\n%s", out.String())
+	}
+}
+
 func TestHookWakeContextUsesExistingProjectMemory(t *testing.T) {
 	oldOpts := opts
 	defer func() { opts = oldOpts }()

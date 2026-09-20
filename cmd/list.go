@@ -31,7 +31,7 @@ func newListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			st, _, err := openStore()
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}
@@ -60,6 +60,7 @@ func newListCommand() *cobra.Command {
 	}
 	addScopeFlags(c, &listOpts.scope)
 	addMemoryFilterFlags(c, &listOpts.filters)
+	addClaimKeyPrefixFlag(c, &listOpts.filters)
 	c.Flags().IntVar(&listOpts.limit, "limit", 50, "maximum number of memories to list")
 	c.Flags().BoolVar(&listOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().IntVar(&listOpts.maxChars, "max-chars", 4000, "maximum characters of memory content to print")

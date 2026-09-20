@@ -56,7 +56,7 @@ func newConfigCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			projectScope, err := scope.ProjectScope(".")
+			projectScope, err := envAimedProjectScope()
 			if err != nil {
 				return err
 			}
@@ -274,7 +274,7 @@ func newConfigExplainCommand() *cobra.Command {
 }
 
 func loadProjectSettings() (string, config.Settings, error) {
-	sc, err := scope.ProjectScope(".")
+	sc, err := envAimedProjectScope()
 	if err != nil {
 		return "", config.Settings{}, err
 	}

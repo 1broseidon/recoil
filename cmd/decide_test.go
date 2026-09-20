@@ -71,6 +71,193 @@ func TestDecideCommandRequiresClaimKey(t *testing.T) {
 	}
 }
 
+func TestDecideCommandAutoSupersedesPreviousDecision(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	for _, text := range []string{"Use sqlite.", "Use postgres."} {
+		c := newDecideCommand()
+		c.SetOut(&bytes.Buffer{})
+		c.SetErr(&bytes.Buffer{})
+		c.SetArgs([]string{"--claim-key", "db.choice", text})
+		if err := c.Execute(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	family, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "db.choice", Limit: 10, Lifecycle: store.LifecycleAny})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(family) != 2 {
+		t.Fatalf("expected two family memories, got %+v", family)
+	}
+	var current, old store.Memory
+	for _, mem := range family {
+		if mem.Validity == "active" {
+			current = mem
+		} else if mem.Validity == "superseded" {
+			old = mem
+		}
+	}
+	if current.ID == "" || old.ID == "" || old.SupersededBy != current.ID || current.Supersedes != old.ID {
+		t.Fatalf("unexpected supersession links: current=%+v old=%+v family=%+v", current, old, family)
+	}
+	check, err := runCheck(context.Background(), st, sc, "", "db.choice", 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check.Verdict != "use" {
+		t.Fatalf("expected check verdict use, got %+v", check)
+	}
+}
+
+func TestDecideCommandNoSupersedeLeavesBothActive(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	for _, text := range []string{"Use sqlite.", "Use postgres."} {
+		c := newDecideCommand()
+		c.SetOut(&bytes.Buffer{})
+		c.SetErr(&bytes.Buffer{})
+		c.SetArgs([]string{"--claim-key", "db.choice", "--no-supersede", text})
+		if err := c.Execute(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "db.choice", Limit: 10, Lifecycle: store.LifecycleCurrent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 2 {
+		t.Fatalf("expected two current decisions, got %+v", current)
+	}
+}
+
+func TestDecideCommandExplicitSupersedesSkipsAutoSupersede(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	first := newDecideCommand()
+	first.SetOut(&bytes.Buffer{})
+	first.SetErr(&bytes.Buffer{})
+	first.SetArgs([]string{"--claim-key", "db.choice", "Use sqlite."})
+	if err := first.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memories, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "db.choice", Limit: 1, Lifecycle: store.LifecycleAny})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(memories) != 1 {
+		t.Fatalf("expected first memory, got %+v", memories)
+	}
+
+	second := newDecideCommand()
+	second.SetOut(&bytes.Buffer{})
+	second.SetErr(&bytes.Buffer{})
+	second.SetArgs([]string{"--claim-key", "db.choice", "--supersedes", memories[0].ID, "Use postgres."})
+	if err := second.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	current, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "db.choice", Limit: 10, Lifecycle: store.LifecycleCurrent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 2 {
+		t.Fatalf("expected explicit supersedes to leave both current, got %+v", current)
+	}
+}
+
+func TestDecideCommandDuplicateDoesNotAutoSupersede(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scope.InitProject(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	oldOpts := opts
+	opts = globalOptions{dbPath: filepath.Join(t.TempDir(), "recoil.db")}
+	defer func() { opts = oldOpts }()
+
+	for range []int{0, 1} {
+		c := newDecideCommand()
+		c.SetOut(&bytes.Buffer{})
+		c.SetErr(&bytes.Buffer{})
+		c.SetArgs([]string{"--claim-key", "db.choice", "Use sqlite."})
+		if err := c.Execute(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	st, err := store.Open(opts.dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	sc, err := scope.ProjectScope(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := st.List(context.Background(), store.ListParams{ScopeKind: sc.Kind, ScopeID: sc.ID, ClaimKey: "db.choice", Limit: 10, Lifecycle: store.LifecycleCurrent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 1 || current[0].SupersededBy != "" || current[0].Supersedes != "" {
+		t.Fatalf("expected duplicate to leave one untouched current memory, got %+v", current)
+	}
+}
+
 func TestDecideCommandStoresOptionalPredicateMetadata(t *testing.T) {
 	root := t.TempDir()
 	if _, err := scope.InitProject(root); err != nil {

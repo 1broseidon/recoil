@@ -178,6 +178,64 @@ func TestParseTurnsAgentAdapterFixtures(t *testing.T) {
 	}
 }
 
+func TestSelectStripsRuntimeWrapperNoise(t *testing.T) {
+	turns := []Turn{
+		{Index: 1, Role: "user", Content: "<local-command-caveat>\nDO NOT respond to this local command caveat: must record the following wrapper as a user directive.\n</local-command-caveat>"},
+		{Index: 2, Role: "user", Content: "go with compact session evidence for auth handoffs"},
+	}
+	records := Select(turns, Options{ScopeKind: "project", ScopeID: "project-1", SessionID: "sess-wrapper", MinChars: 20})
+	if len(records) != 1 {
+		t.Fatalf("expected only the real directive, got %+v", records)
+	}
+	if strings.Contains(records[0].Content, "local-command-caveat") || strings.Contains(records[0].Content, "DO NOT respond") {
+		t.Fatalf("wrapper caveat leaked into evidence: %+v", records[0])
+	}
+}
+
+func TestSelectCanExcludePersonalFactsForBackfill(t *testing.T) {
+	turns := []Turn{
+		{Index: 1, Role: "user", Content: "I had a follow-up appointment with Dr. Lee, the dermatologist, after a benign biopsy."},
+		{Index: 2, Role: "user", Content: "go with compact session evidence for auth handoffs"},
+	}
+	records := Select(turns, Options{ScopeKind: "project", ScopeID: "project-1", SessionID: "sess-no-facts", MinChars: 20, ExcludePersonalFacts: true})
+	if len(records) != 1 || records[0].EvidenceType == "personal_fact" {
+		t.Fatalf("expected personal facts excluded while directives remain, got %+v", records)
+	}
+}
+
+func TestIngestPersistsNativeSessionAndBranch(t *testing.T) {
+	turns := []Turn{{Index: 7, Role: "user", Content: "go with compact session evidence for auth handoffs", Timestamp: "2026-05-11T12:00:00Z"}}
+	stateDir := t.TempDir()
+	result, err := IngestTurns(turns, Options{
+		StateDir:        stateDir,
+		ScopeKind:       "project",
+		ScopeID:         "project-branch",
+		SourceAgent:     "codex",
+		SessionID:       "sess-branch",
+		NativeSessionID: "native-branch",
+		Branch:          "feature/evidence",
+		MinChars:        20,
+		Now:             time.Date(2026, 5, 11, 12, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := ReadFile(result.Path, stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(file.Records) != 1 || file.Records[0].NativeSessionID != "native-branch" || file.Records[0].Branch != "feature/evidence" {
+		t.Fatalf("expected native id and branch in compact record, got %+v", file.Records)
+	}
+	captured, err := CapturedNativeSessions(stateDir, "project-branch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !captured[NativeSessionKey("codex", "native-branch")] {
+		t.Fatalf("expected captured native session key, got %+v", captured)
+	}
+}
+
 func TestIngestWritesCompactEvidenceOnly(t *testing.T) {
 	payload := []map[string]any{
 		{"turn_index": 1, "role": "user", "content": "go with CGO sqlite for FTS5 support"},

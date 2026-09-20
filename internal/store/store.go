@@ -28,35 +28,71 @@ var (
 	ErrAmbiguous = errors.New("memory ID prefix is ambiguous")
 )
 
+// SchemaVersion is stamped into PRAGMA user_version once migrate() completes.
+// Before this constant existed every store sat at the implicit 0, so a store
+// reporting 0 is simply one no new binary has opened yet.
+//
+// Bump this whenever migrate() must run again over existing stores. Old binaries
+// never read user_version, so they keep opening a newer store fine as long as
+// the schema stays additive; there is deliberately no downgrade guard.
+const SchemaVersion = 1
+
+// SchemaVersionError reports a store whose user_version does not match what this
+// binary expects. Only OpenReadOnly returns it: Open migrates instead.
+type SchemaVersionError struct {
+	Path string
+	Got  int
+	Want int
+}
+
+func (e *SchemaVersionError) Error() string {
+	return fmt.Sprintf(
+		"recoil database %s is at schema version %d, expected %d; run `recoil migrate` (or any write command) to upgrade it",
+		e.Path, e.Got, e.Want,
+	)
+}
+
 type Store struct {
-	db   *sql.DB
-	path string
+	db       *sql.DB
+	path     string
+	readOnly bool
+	// migrated records whether this open actually ran migrations. A second open
+	// of the same store must leave it false; that is what proves the FTS rebuild
+	// is skipped.
+	migrated bool
+}
+
+type ScoreComponent struct {
+	Name   string  `json:"name"`
+	Value  float64 `json:"value"`
+	Detail string  `json:"detail,omitempty"`
 }
 
 type Memory struct {
-	ID           string  `json:"id"`
-	Hash         string  `json:"hash,omitempty"`
-	Role         string  `json:"role,omitempty"`
-	Content      string  `json:"content"`
-	SourceKind   string  `json:"source_kind,omitempty"`
-	SourceAgent  string  `json:"source_agent,omitempty"`
-	SourcePath   string  `json:"source_path,omitempty"`
-	SourceRef    string  `json:"source_ref,omitempty"`
-	ScopeKind    string  `json:"scope_kind"`
-	ScopeID      string  `json:"scope_id"`
-	ProjectID    string  `json:"project_id,omitempty"`
-	SessionID    string  `json:"session_id,omitempty"`
-	Room         string  `json:"room,omitempty"`
-	MetadataJSON string  `json:"metadata_json,omitempty"`
-	Validity     string  `json:"validity"`
-	ClaimKey     string  `json:"claim_key,omitempty"`
-	Supersedes   string  `json:"supersedes,omitempty"`
-	SupersededBy string  `json:"superseded_by,omitempty"`
-	CreatedAt    string  `json:"created_at"`
-	TombstonedAt string  `json:"tombstoned_at,omitempty"`
-	Score        float64 `json:"score,omitempty"`
-	Excerpt      string  `json:"excerpt,omitempty"`
-	Why          string  `json:"why,omitempty"`
+	ID           string           `json:"id"`
+	Hash         string           `json:"hash,omitempty"`
+	Role         string           `json:"role,omitempty"`
+	Content      string           `json:"content"`
+	SourceKind   string           `json:"source_kind,omitempty"`
+	SourceAgent  string           `json:"source_agent,omitempty"`
+	SourcePath   string           `json:"source_path,omitempty"`
+	SourceRef    string           `json:"source_ref,omitempty"`
+	ScopeKind    string           `json:"scope_kind"`
+	ScopeID      string           `json:"scope_id"`
+	ProjectID    string           `json:"project_id,omitempty"`
+	SessionID    string           `json:"session_id,omitempty"`
+	Room         string           `json:"room,omitempty"`
+	MetadataJSON string           `json:"metadata_json,omitempty"`
+	Validity     string           `json:"validity"`
+	ClaimKey     string           `json:"claim_key,omitempty"`
+	Supersedes   string           `json:"supersedes,omitempty"`
+	SupersededBy string           `json:"superseded_by,omitempty"`
+	CreatedAt    string           `json:"created_at"`
+	TombstonedAt string           `json:"tombstoned_at,omitempty"`
+	Score        float64          `json:"score,omitempty"`
+	Excerpt      string           `json:"excerpt,omitempty"`
+	Why          string           `json:"why,omitempty"`
+	Explain      []ScoreComponent `json:"explain,omitempty"`
 }
 
 type AddMemoryParams struct {
@@ -80,22 +116,24 @@ type AddMemoryParams struct {
 }
 
 type SearchParams struct {
-	Query         string
-	ScopeKind     string
-	ScopeID       string
-	SourceKind    string
-	SourceAgent   string
-	SourcePath    string
-	Role          string
-	ClaimKey      string
-	Validity      string
-	Since         string
-	Before        string
-	Limit         int
-	Lifecycle     string
-	QueryDate     string
-	SignalRerank  bool
-	SourceQuality sourcequality.Options
+	Query          string
+	ScopeKind      string
+	ScopeID        string
+	SourceKind     string
+	SourceAgent    string
+	SourcePath     string
+	Role           string
+	ClaimKey       string
+	ClaimKeyPrefix string
+	Validity       string
+	Since          string
+	Before         string
+	Limit          int
+	Lifecycle      string
+	QueryDate      string
+	SignalRerank   bool
+	SourceQuality  sourcequality.Options
+	AgingWindow    float64
 }
 
 type ListParams struct {
@@ -106,6 +144,7 @@ type ListParams struct {
 	SourcePath     string
 	Role           string
 	ClaimKey       string
+	ClaimKeyPrefix string
 	Validity       string
 	Since          string
 	Before         string
@@ -213,6 +252,22 @@ type FileSource struct {
 	DeletedAt   string `json:"deleted_at,omitempty"`
 }
 
+// ClaimSummaryParams narrows the claim-key family index. ClaimKey pins one
+// exact family; ClaimKeyPrefix selects a family tree (e.g. "voice.").
+type ClaimSummaryParams struct {
+	ScopeKind      string
+	ScopeID        string
+	ClaimKey       string
+	ClaimKeyPrefix string
+}
+
+type ClaimSummary struct {
+	ClaimKey        string `json:"claim_key"`
+	Count           int    `json:"count"`
+	CurrentValidity string `json:"current_validity"`
+	CurrentID       string `json:"current_id,omitempty"`
+}
+
 type Counts struct {
 	Total      int
 	Active     int
@@ -239,9 +294,75 @@ func Open(path string) (*Store, error) {
 	return st, nil
 }
 
+// OpenReadOnly opens an existing store on a read-only connection and does NOT
+// migrate. Read commands use it so a plain `recoil search` cannot rebuild the
+// FTS index, take a write lock, or contend with a concurrent session.
+//
+// The DSN deliberately omits _journal_mode: issuing `PRAGMA journal_mode=WAL` on
+// a read-only connection is itself a write and would fail. The database file
+// keeps whatever journal mode it already has, so WAL stores stay WAL.
+//
+// Returns *SchemaVersionError when the store predates this binary's schema.
+// Callers are expected to fall back to Open, which migrates.
+func OpenReadOnly(path string) (*Store, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("sqlite3", readOnlyDSN(path))
+	if err != nil {
+		return nil, err
+	}
+	st := &Store{db: db, path: path, readOnly: true}
+	version, err := st.schemaVersion()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	if version != SchemaVersion {
+		db.Close()
+		return nil, &SchemaVersionError{Path: path, Got: version, Want: SchemaVersion}
+	}
+	st.tune()
+	return st, nil
+}
+
+// readOnlyDSN builds a file: URI so SQLite itself parses mode=ro. go-sqlite3
+// always passes SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE to sqlite3_open_v2 and
+// only forwards the query string when the DSN starts with "file:", so the URI
+// form is the only way to reach a read-only handle. mode=ro is more restrictive
+// than the flags, which SQLite permits.
+func readOnlyDSN(path string) string {
+	escaped := strings.ReplaceAll(path, "?", "%3f")
+	escaped = strings.ReplaceAll(escaped, "#", "%23")
+	return "file:" + escaped + "?mode=ro&_busy_timeout=5000&_foreign_keys=ON"
+}
+
+func (s *Store) schemaVersion() (int, error) {
+	var version int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		return 0, err
+	}
+	return version, nil
+}
+
+// ReadOnly reports whether this handle was opened without migration rights.
+func (s *Store) ReadOnly() bool {
+	return s != nil && s.readOnly
+}
+
+// Migrated reports whether this open ran migrations. False on a second open of
+// an already-current store, which is the point of the user_version gate.
+func (s *Store) Migrated() bool {
+	return s != nil && s.migrated
+}
+
 func (s *Store) Close() error {
 	if s == nil || s.db == nil {
 		return nil
+	}
+	// wal_checkpoint is a write; a read-only handle must not attempt it.
+	if s.readOnly {
+		return s.db.Close()
 	}
 	_, checkpointErr := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	closeErr := s.db.Close()
@@ -346,10 +467,11 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 	if p.SignalRerank {
 		ftsText = retrieval.ExpandedQueryText(p.Query)
 	}
-	query := FTSQuery(ftsText)
-	if query == "" {
+	looseQuery := FTSQuery(ftsText)
+	if looseQuery == "" {
 		return nil, nil
 	}
+	strictQuery := FTSQueryWithOperator(ftsText, " AND ")
 	if p.Limit <= 0 {
 		p.Limit = 5
 	}
@@ -363,36 +485,37 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		// Always widen the candidate pool when reranking; otherwise FTS's `LIMIT
 		// <limit>` clamp can drop high-prior docs (e.g. root README earning a
 		// +3 wantsOverview boost) before the prior even runs.
-		sqlLimit = maxInt(sqlLimit, maxInt(limit*10, 50))
+		sqlLimit = max(sqlLimit, max(limit*10, 50))
 	}
 	if temporalCue {
 		// Temporal cues benefit from a wider date-aware re-rank pool. Use the
 		// max of the existing SignalRerank widening and the temporal-specific
 		// width so we never *shrink* the pool when both apply.
-		sqlLimit = maxInt(sqlLimit, maxInt(limit*4, 20))
+		sqlLimit = max(sqlLimit, max(limit*4, 20))
 	}
 	if sqlLimit > 100 {
 		sqlLimit = 100
 	}
 	where, args, err := scopedFilter("m", memoryQueryFilter{
-		ScopeKind:   p.ScopeKind,
-		ScopeID:     p.ScopeID,
-		SourceKind:  p.SourceKind,
-		SourceAgent: p.SourceAgent,
-		SourcePath:  p.SourcePath,
-		Role:        p.Role,
-		ClaimKey:    p.ClaimKey,
-		Validity:    p.Validity,
-		Since:       p.Since,
-		Before:      p.Before,
-		Lifecycle:   p.Lifecycle,
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		SourceKind:     p.SourceKind,
+		SourceAgent:    p.SourceAgent,
+		SourcePath:     p.SourcePath,
+		Role:           p.Role,
+		ClaimKey:       p.ClaimKey,
+		ClaimKeyPrefix: p.ClaimKeyPrefix,
+		Validity:       p.Validity,
+		Since:          p.Since,
+		Before:         p.Before,
+		Lifecycle:      p.Lifecycle,
 	})
 	if err != nil {
 		return nil, err
 	}
-	args = append([]any{query}, args...)
+	baseArgs := append([]any{}, args...)
 	queryLower := strings.ToLower(strings.TrimSpace(p.Query))
-	args = append(args,
+	baseArgs = append(baseArgs,
 		queryLower,
 		queryLower,
 		queryLower,
@@ -421,37 +544,66 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 			- CASE WHEN lower(COALESCE(m.source_path, '')) = ? THEN 1.5 ELSE 0 END
 			- CASE WHEN lower(COALESCE(m.source_path, '')) LIKE ? THEN 1.0 ELSE 0 END
 			- CASE WHEN lower(m.content) LIKE ? THEN 1.0 ELSE 0 END
-			- CASE WHEN lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
+			- CASE WHEN COALESCE(m.source_kind, 'direct') != 'session_evidence' AND lower(COALESCE(m.role, '')) IN ('adr', 'decision', 'constraint', 'preference', 'rule') THEN 3.0 ELSE 0 END
 			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'session_evidence' THEN 0.75 ELSE 0 END
 			- CASE WHEN COALESCE(m.source_kind, 'direct') = 'direct' THEN 0.5 ELSE 0 END
 			+ CASE WHEN COALESCE(m.source_kind, 'direct') = 'file' THEN 0.25 ELSE 0 END
 		LIMIT ?`
-	rows, err := s.db.QueryContext(ctx, sqlText, args...)
+	runQuery := func(match string, strict bool) ([]Memory, error) {
+		queryArgs := append([]any{match}, baseArgs...)
+		rows, err := s.db.QueryContext(ctx, sqlText, queryArgs...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var results []Memory
+		for rows.Next() {
+			var mem Memory
+			var rank float64
+			if err := rows.Scan(
+				&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
+				&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
+				&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
+				&mem.CreatedAt, &mem.TombstonedAt, &rank, &mem.Excerpt,
+			); err != nil {
+				return nil, err
+			}
+			mem.Score = retrievalScore(rank)
+			if p.SignalRerank && strict {
+				mem.Score += 1.0
+			}
+			if p.SignalRerank {
+				mem.Score += sourcequality.ScorePriorWithOptions(p.Query, mem.SourcePath, mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+			}
+			results = append(results, mem)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return results, nil
+	}
+
+	results, err := runQuery(strictQuery, true)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var results []Memory
-	for rows.Next() {
-		var mem Memory
-		var rank float64
-		if err := rows.Scan(
-			&mem.ID, &mem.Hash, &mem.Role, &mem.Content, &mem.SourceKind, &mem.SourceAgent, &mem.SourcePath, &mem.SourceRef,
-			&mem.ScopeKind, &mem.ScopeID, &mem.ProjectID, &mem.SessionID, &mem.Room, &mem.MetadataJSON,
-			&mem.Validity, &mem.ClaimKey, &mem.Supersedes, &mem.SupersededBy,
-			&mem.CreatedAt, &mem.TombstonedAt, &rank, &mem.Excerpt,
-		); err != nil {
+	if len(results) < limit {
+		looseResults, err := runQuery(looseQuery, false)
+		if err != nil {
 			return nil, err
 		}
-		mem.Score = retrievalScore(rank)
-		if p.SignalRerank {
-			mem.Score += sourcequality.ScorePriorWithOptions(p.Query, mem.SourcePath, mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+		seen := make(map[string]bool, len(results)+len(looseResults))
+		for _, mem := range results {
+			seen[mem.ID] = true
 		}
-		results = append(results, mem)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+		for _, mem := range looseResults {
+			if seen[mem.ID] {
+				continue
+			}
+			seen[mem.ID] = true
+			results = append(results, mem)
+		}
 	}
 	if temporalCue && len(results) > 1 {
 		queryDate := parseFlexibleTime(p.QueryDate)
@@ -471,11 +623,14 @@ func (s *Store) Search(ctx context.Context, p SearchParams) ([]Memory, error) {
 		}
 	}
 	if p.SignalRerank && !temporalCue && len(results) > 1 {
+		strictTokens := ftsTokens(ftsText)
 		sort.SliceStable(results, func(i, j int) bool {
-			if math.Abs(results[i].Score-results[j].Score) < 1e-9 {
+			left := results[i].Score + strictTokenCoverageScore(strictTokens, results[i])
+			right := results[j].Score + strictTokenCoverageScore(strictTokens, results[j])
+			if math.Abs(left-right) < 1e-9 {
 				return results[i].CreatedAt > results[j].CreatedAt
 			}
-			return results[i].Score > results[j].Score
+			return left > right
 		})
 	}
 	return results, nil
@@ -530,13 +685,6 @@ func parseFlexibleTime(value string) time.Time {
 		}
 	}
 	return time.Time{}
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func EmbeddingText(mem Memory) string {
@@ -607,6 +755,7 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 		SourcePath:     p.SourcePath,
 		Role:           p.Role,
 		ClaimKey:       p.ClaimKey,
+		ClaimKeyPrefix: p.ClaimKeyPrefix,
 		Validity:       p.Validity,
 		Since:          p.Since,
 		Before:         p.Before,
@@ -628,6 +777,66 @@ func (s *Store) List(ctx context.Context, p ListParams) ([]Memory, error) {
 		WHERE 1=1`+where+`
 		ORDER BY created_at DESC, id DESC
 		LIMIT ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var memories []Memory
+	for rows.Next() {
+		mem, err := scanMemory(rows)
+		if err != nil {
+			return nil, err
+		}
+		memories = append(memories, mem)
+	}
+	return memories, rows.Err()
+}
+
+// ExportParams selects whole claim families for verbatim export. Exactly one of
+// ClaimKey or ClaimKeyPrefix is expected; callers validate that.
+type ExportParams struct {
+	ScopeKind      string
+	ScopeID        string
+	ClaimKey       string
+	ClaimKeyPrefix string
+	Lifecycle      string
+	// Limit of 0 means every matching memory. Export is for doctrine injection,
+	// so a silent cap would quietly drop claims.
+	Limit int
+}
+
+// ExportClaims returns claim-keyed memories in a stable, ranking-free order:
+// claim_key ASC, then created_at DESC, then id DESC. The id tiebreak matters
+// because created_at is second-granularity RFC3339, so two claims written in the
+// same second would otherwise order nondeterministically. Memories with no
+// claim_key are excluded: export is family-addressed by definition.
+func (s *Store) ExportClaims(ctx context.Context, p ExportParams) ([]Memory, error) {
+	where, args, err := scopedFilter("", memoryQueryFilter{
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		ClaimKey:       strings.TrimSpace(p.ClaimKey),
+		ClaimKeyPrefix: strings.TrimSpace(p.ClaimKeyPrefix),
+		Lifecycle:      p.Lifecycle,
+	})
+	if err != nil {
+		return nil, err
+	}
+	query := `
+			SELECT id, hash, COALESCE(role, ''), content,
+				COALESCE(source_kind, 'direct'), COALESCE(source_agent, ''), COALESCE(source_path, ''), COALESCE(source_ref, ''),
+				scope_kind, scope_id, COALESCE(project_id, ''), COALESCE(session_id, ''),
+				COALESCE(room, ''), COALESCE(metadata_json, ''),
+				COALESCE(validity, 'unknown'), COALESCE(claim_key, ''), COALESCE(supersedes, ''), COALESCE(superseded_by, ''),
+				created_at, COALESCE(tombstoned_at, '')
+			FROM memories
+		WHERE COALESCE(claim_key, '') != ''` + where + `
+		ORDER BY claim_key ASC, created_at DESC, id DESC`
+	if p.Limit > 0 {
+		query += "\n\t\tLIMIT ?"
+		args = append(args, p.Limit)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -670,6 +879,31 @@ func (s *Store) UpsertEmbedding(ctx context.Context, mem Memory, provider, model
 		mem.ID, provider, model, len(vector), string(vectorJSON), EmbeddingContentHash(mem), now,
 	)
 	return err
+}
+
+func (s *Store) EmbeddingIndexInfo(ctx context.Context, scopeKind, scopeID string) (count int, provider string, model string, err error) {
+	where := "m.tombstoned_at IS NULL"
+	args := []any{}
+	if strings.TrimSpace(scopeKind) != "" {
+		where += " AND m.scope_kind = ?"
+		args = append(args, strings.TrimSpace(scopeKind))
+	}
+	if strings.TrimSpace(scopeID) != "" {
+		where += " AND m.scope_id = ?"
+		args = append(args, strings.TrimSpace(scopeID))
+	}
+	err = s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) AS n, e.provider, e.model
+		FROM memory_embeddings e
+		JOIN memories m ON m.id = e.memory_id
+		WHERE `+where+`
+		GROUP BY e.provider, e.model
+		ORDER BY n DESC
+		LIMIT 1`, args...).Scan(&count, &provider, &model)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, "", "", nil
+	}
+	return count, provider, model, err
 }
 
 func (s *Store) SemanticSearch(ctx context.Context, p SemanticSearchParams) ([]Memory, error) {
@@ -977,6 +1211,61 @@ func (s *Store) GetMemory(ctx context.Context, idOrPrefix string) (*Memory, erro
 		return nil, err
 	}
 	return s.GetMemoryByID(ctx, id, false)
+}
+
+func (s *Store) ClaimSummaries(ctx context.Context, p ClaimSummaryParams) ([]ClaimSummary, error) {
+	where, args, err := scopedFilter("", memoryQueryFilter{
+		ScopeKind:      p.ScopeKind,
+		ScopeID:        p.ScopeID,
+		ClaimKey:       strings.TrimSpace(p.ClaimKey),
+		ClaimKeyPrefix: strings.TrimSpace(p.ClaimKeyPrefix),
+		IncludeDeleted: false,
+	})
+	if err != nil {
+		return nil, err
+	}
+	lifecycleCurrent, err := lifecycleFilter("validity", LifecycleCurrent)
+	if err != nil {
+		return nil, err
+	}
+	currentExpr := "CASE WHEN tombstoned_at IS NULL" + lifecycleCurrent + " THEN 1 ELSE 0 END"
+	query := `
+		SELECT
+			claim_key,
+			COUNT(*) AS family_count,
+			SUM(` + currentExpr + `) AS current_count,
+			COALESCE(MAX(CASE WHEN ` + currentExpr + ` = 1 THEN validity END), '') AS current_validity,
+			COALESCE(MAX(CASE WHEN ` + currentExpr + ` = 1 THEN id END), '') AS current_id
+		FROM memories
+		WHERE COALESCE(claim_key, '') != ''` + where + `
+		GROUP BY claim_key
+		ORDER BY claim_key`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ClaimSummary
+	for rows.Next() {
+		var summary ClaimSummary
+		var currentCount int
+		if err := rows.Scan(&summary.ClaimKey, &summary.Count, &currentCount, &summary.CurrentValidity, &summary.CurrentID); err != nil {
+			return nil, err
+		}
+		switch {
+		case currentCount == 0:
+			summary.CurrentValidity = "none"
+			summary.CurrentID = ""
+		case currentCount > 1:
+			summary.CurrentValidity = "multiple"
+			summary.CurrentID = ""
+		}
+		out = append(out, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s *Store) Counts(ctx context.Context) (Counts, error) {
@@ -1360,11 +1649,35 @@ type memoryQueryFilter struct {
 	SourcePath     string
 	Role           string
 	ClaimKey       string
+	ClaimKeyPrefix string
 	Validity       string
 	Since          string
 	Before         string
 	IncludeDeleted bool
 	Lifecycle      string
+}
+
+// likeEscapeChar is the ESCAPE character used for every LIKE pattern recoil
+// builds from user input. SQLite string literals do not treat backslash
+// specially, so the emitted ESCAPE clause carries a single backslash through to
+// the SQL parser unchanged.
+const likeEscapeChar = `\`
+
+// EscapeLikePrefix makes a claim-key prefix match literally under a
+// backslash-escaped claim_key LIKE. SQL LIKE treats % and _ as wildcards, so
+// an unescaped prefix of "voice_" would also match "voice.pillars". Escaping
+// the escape character itself keeps a literal backslash in a claim key exact.
+func EscapeLikePrefix(prefix string) string {
+	var b strings.Builder
+	b.Grow(len(prefix))
+	for _, r := range prefix {
+		switch r {
+		case '\\', '%', '_':
+			b.WriteString(likeEscapeChar)
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func scopedFilter(alias string, filter memoryQueryFilter) (string, []any, error) {
@@ -1407,6 +1720,10 @@ func scopedFilter(alias string, filter memoryQueryFilter) (string, []any, error)
 		fmt.Fprintf(&where, "\n\t\t\tAND %s = ?", col("claim_key"))
 		args = append(args, filter.ClaimKey)
 	}
+	if filter.ClaimKeyPrefix != "" {
+		fmt.Fprintf(&where, "\n\t\t\tAND %s LIKE ? ESCAPE '%s'", col("claim_key"), likeEscapeChar)
+		args = append(args, EscapeLikePrefix(filter.ClaimKeyPrefix)+"%")
+	}
 	if filter.Validity != "" {
 		fmt.Fprintf(&where, "\n\t\t\tAND COALESCE(%s, 'unknown') = ?", col("validity"))
 		args = append(args, filter.Validity)
@@ -1440,7 +1757,45 @@ func lifecycleFilter(validityColumn, lifecycle string) (string, error) {
 	}
 }
 
+// migrate brings the store up to SchemaVersion, then stamps user_version.
+//
+// The version gate is a large win, not a micro-optimisation: before it, EVERY
+// open re-ran the DDL, the metadata backfills, the trigger recreation, and an
+// unconditional `INSERT INTO memories_fts VALUES('rebuild')`. On a 24MB FTS index
+// that rebuild ran on every single recoil invocation.
+//
+// ForceMigrate resets user_version to 0 to re-run this deliberately.
 func (s *Store) migrate() error {
+	version, err := s.schemaVersion()
+	if err != nil {
+		return err
+	}
+	if version == SchemaVersion {
+		return nil
+	}
+	if err := s.runMigrations(); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
+		return err
+	}
+	s.migrated = true
+	return nil
+}
+
+// ForceMigrate re-runs every migration step regardless of the stamped version,
+// including the full FTS rebuild. This is what `recoil migrate --force` calls.
+func (s *Store) ForceMigrate() error {
+	if s.readOnly {
+		return fmt.Errorf("cannot migrate a read-only store handle")
+	}
+	if _, err := s.db.Exec(`PRAGMA user_version = 0`); err != nil {
+		return err
+	}
+	return s.migrate()
+}
+
+func (s *Store) runMigrations() error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS memories (
 			pk INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1944,19 +2299,63 @@ func publicID(hash string) string {
 var ftsTermRE = regexp.MustCompile(`[A-Za-z0-9_]+`)
 
 func FTSQuery(query string) string {
+	return FTSQueryWithOperator(query, " OR ")
+}
+
+func FTSQueryWithOperator(query, op string) string {
+	out := ftsTokens(query)
+	if len(out) == 0 {
+		return ""
+	}
+	// Future structural fix: migrate the FTS index to porter tokenization (requires rebuild migration).
+	return strings.Join(out, op)
+}
+
+func ftsTokens(query string) []string {
 	terms := ftsTermRE.FindAllString(query, -1)
 	if len(terms) == 0 {
-		return ""
+		return nil
 	}
 	seen := make(map[string]bool, len(terms))
 	out := make([]string, 0, len(terms))
 	for _, term := range terms {
 		term = strings.ToLower(term)
-		if seen[term] {
+		if seen[term] || retrieval.Stopword(term) {
 			continue
 		}
 		seen[term] = true
 		out = append(out, term)
+		if len(out) == 32 {
+			break
+		}
 	}
-	return strings.Join(out, " OR ")
+	if len(out) == 0 {
+		seen = make(map[string]bool, len(terms))
+		for _, term := range terms {
+			term = strings.ToLower(term)
+			if seen[term] {
+				continue
+			}
+			seen[term] = true
+			out = append(out, term)
+			if len(out) == 32 {
+				break
+			}
+		}
+	}
+	return out
+}
+
+func strictTokenCoverageScore(tokens []string, mem Memory) float64 {
+	if len(tokens) == 0 {
+		return 0
+	}
+	text := strings.ToLower(strings.Join([]string{mem.Content, mem.SourcePath, mem.SourceRef, mem.Role, mem.ClaimKey}, " "))
+	hits := 0
+	for _, token := range tokens {
+		if strings.Contains(text, token) {
+			hits++
+		}
+	}
+	return float64(hits) / float64(len(tokens))
 }

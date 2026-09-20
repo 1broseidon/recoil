@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/1broseidon/recoil/internal/config"
-	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -164,7 +163,7 @@ func buildSwarmResult(ctx context.Context, st *store.Store, refresh bool) (swarm
 }
 
 func currentTree() (tree, scopeKind, scopeID string) {
-	sc, err := scope.ProjectScope(".")
+	sc, err := envAimedProjectScope()
 	if err == nil && sc.Initialized {
 		return "project", sc.Kind, sc.ID
 	}

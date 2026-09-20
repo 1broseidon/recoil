@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -26,13 +27,17 @@ const (
 )
 
 type Options struct {
-	StateDir    string
-	ScopeKind   string
-	ScopeID     string
-	SourceAgent string
-	SessionID   string
-	MinChars    int
-	Now         time.Time
+	StateDir             string
+	ScopeKind            string
+	ScopeID              string
+	SourceAgent          string
+	SessionID            string
+	NativeSessionID      string
+	Branch               string
+	RepoRoot             string
+	MinChars             int
+	Now                  time.Time
+	ExcludePersonalFacts bool
 }
 
 type Turn struct {
@@ -44,19 +49,22 @@ type Turn struct {
 }
 
 type Record struct {
-	Version        int      `json:"version"`
-	SessionID      string   `json:"session_id"`
-	SourceAgent    string   `json:"source_agent"`
-	ScopeKind      string   `json:"scope_kind"`
-	ScopeID        string   `json:"scope_id"`
-	TurnStart      int      `json:"turn_start"`
-	TurnEnd        int      `json:"turn_end"`
-	EvidenceType   string   `json:"evidence_type"`
-	EvidenceTypes  []string `json:"evidence_types,omitempty"`
-	SelectorReason string   `json:"selector_reason"`
-	Timestamp      string   `json:"timestamp"`
-	Redacted       bool     `json:"redacted"`
-	Content        string   `json:"content"`
+	Version         int      `json:"version"`
+	SessionID       string   `json:"session_id"`
+	NativeSessionID string   `json:"native_session_id,omitempty"`
+	SourceAgent     string   `json:"source_agent"`
+	Branch          string   `json:"branch,omitempty"`
+	ScopeKind       string   `json:"scope_kind"`
+	ScopeID         string   `json:"scope_id"`
+	TurnStart       int      `json:"turn_start"`
+	TurnEnd         int      `json:"turn_end"`
+	EvidenceType    string   `json:"evidence_type"`
+	EvidenceTypes   []string `json:"evidence_types,omitempty"`
+	TouchedPaths    []string `json:"touched_paths,omitempty"`
+	SelectorReason  string   `json:"selector_reason"`
+	Timestamp       string   `json:"timestamp"`
+	Redacted        bool     `json:"redacted"`
+	Content         string   `json:"content"`
 }
 
 type File struct {
@@ -105,13 +113,14 @@ type rawMessage struct {
 }
 
 var (
-	directiveRE    = regexp.MustCompile(`(?i)\b(use|skip|avoid|defer|prefer|do not|don't|go with|keep|switch to|change|rename|must|should)\b`)
-	choiceRE       = regexp.MustCompile(`(?i)\b(we decided|decided|chosen|choose|settled on|go with|use .{0,48} for now)\b`)
-	rejectedRE     = regexp.MustCompile(`(?i)\b(rejected|do not use|don't use|rolled back|not using|tried .{0,80} but|avoid)\b`)
-	handoffRE      = regexp.MustCompile(`(?i)\b(handoff|next step|next active task|blocker|unresolved|follow[- ]?up)\b`)
-	completionRE   = regexp.MustCompile(`(?i)\b(done|completed|implemented|updated|changed|added|fixed|tests? passed|make test passed)\b`)
-	personalFactRE = regexp.MustCompile(`(?i)\b(i (?:am|was|have|had|got|bought|visited|attended|graduated|work|prefer|like|love|enjoy|remember|recently)|my (?:doctor|physician|dermatologist|ent|sibling|brother|sister|family|role|job|setup|preference)|dr\.?\s+[A-Z][a-z]+|prescribed|appointment|biopsy|diagnosed|degree|university|college)\b`)
-	pathishRE      = regexp.MustCompile(`\b([A-Za-z0-9_./-]+\.(go|ts|tsx|js|jsx|py|md|json|yaml|yml|toml|rs|swift|kt|java|rb|php|css|html))\b`)
+	directiveRE          = regexp.MustCompile(`(?i)\b(use|skip|avoid|defer|prefer|do not|don't|go with|keep|switch to|change|rename|must|should)\b`)
+	choiceRE             = regexp.MustCompile(`(?i)\b(we decided|decided|chosen|choose|settled on|go with|use .{0,48} for now)\b`)
+	rejectedRE           = regexp.MustCompile(`(?i)\b(rejected|do not use|don't use|rolled back|not using|tried .{0,80} but|avoid)\b`)
+	handoffRE            = regexp.MustCompile(`(?i)\b(handoff|next step|next active task|blocker|unresolved|follow[- ]?up)\b`)
+	completionRE         = regexp.MustCompile(`(?i)\b(done|completed|implemented|updated|changed|added|fixed|tests? passed|make test passed)\b`)
+	personalFactRE       = regexp.MustCompile(`(?i)\b(i (?:am|was|have|had|got|bought|visited|attended|graduated|work|prefer|like|love|enjoy|remember|recently)|my (?:doctor|physician|dermatologist|ent|sibling|brother|sister|family|role|job|setup|preference)|dr\.?\s+[A-Z][a-z]+|prescribed|appointment|biopsy|diagnosed|degree|university|college)\b`)
+	pathishRE            = regexp.MustCompile(`(?:^|[^A-Za-z0-9_./\\-])((?:[A-Za-z]:)?[A-Za-z0-9_./\\-]*[A-Za-z0-9_-]\.(?:go|ts|tsx|js|jsx|py|md|json|yaml|yml|toml|rs|swift|kt|java|rb|php|css|html))\b`)
+	localCommandCaveatRE = regexp.MustCompile(`(?is)<local-command-caveat\b[^>]*>.*?</local-command-caveat>`)
 )
 
 func Ingest(data []byte, opts Options) (IngestResult, error) {
@@ -126,6 +135,29 @@ func Ingest(data []byte, opts Options) (IngestResult, error) {
 	if opts.SessionID == "" {
 		opts.SessionID = "sess_" + hashString(data)[:12]
 	}
+	if opts.NativeSessionID == "" {
+		opts.NativeSessionID = opts.SessionID
+	}
+	return ingestTurns(turns, opts)
+}
+
+// IngestTurns runs selection and persistence on turns that a per-agent
+// session adapter has already normalized. It is the seam the cross-agent
+// backfill path uses instead of ParseTurns, since each agent stores its
+// transcripts in a different on-disk schema. The caller is expected to set
+// opts.SessionID and opts.SourceAgent from the adapter's SessionRef.
+func IngestTurns(turns []Turn, opts Options) (IngestResult, error) {
+	opts = normalizeOptions(opts)
+	if opts.SessionID == "" {
+		opts.SessionID = "sess_" + hashTurns(turns)[:12]
+	}
+	if opts.NativeSessionID == "" {
+		opts.NativeSessionID = opts.SessionID
+	}
+	return ingestTurns(turns, opts)
+}
+
+func ingestTurns(turns []Turn, opts Options) (IngestResult, error) {
 	records := Select(turns, opts)
 	result := IngestResult{
 		SessionID: opts.SessionID,
@@ -145,6 +177,19 @@ func Ingest(data []byte, opts Options) (IngestResult, error) {
 	result.Path = path
 	result.SourcePath = sourcePath
 	return result, nil
+}
+
+// ContentString flattens an arbitrary transcript content value (a plain
+// string, an array of content blocks, or a single typed block) into text,
+// dropping tool_use / thinking / image blocks. Exported for per-agent
+// session adapters that parse on-disk transcripts directly.
+func ContentString(value any) string { return stripRuntimeWrapperNoise(contentString(value)) }
+
+// ScopeDir returns the on-disk directory that holds compact session evidence
+// for a scope. Adapters co-locate their backfill cursor file here so it is
+// purged with the rest of a scope's evidence.
+func ScopeDir(stateDir, scopeID string) (string, error) {
+	return evidenceScopeDir(stateDir, scopeID)
 }
 
 func ParseTurns(data []byte) ([]Turn, string, error) {
@@ -190,6 +235,7 @@ func ParseTurns(data []byte) ([]Turn, string, error) {
 
 func Select(turns []Turn, opts Options) []Record {
 	opts = normalizeOptions(opts)
+	turns = sanitizeTurns(turns)
 	var records []Record
 	spanIndexes := map[string]int{}
 	for i, turn := range turns {
@@ -197,6 +243,9 @@ func Select(turns []Turn, opts Options) []Record {
 		switch role {
 		case "user":
 			evidenceType, reason := classifyUser(turn.Content)
+			if opts.ExcludePersonalFacts && evidenceType == "personal_fact" {
+				continue
+			}
 			if evidenceType == "" {
 				continue
 			}
@@ -298,9 +347,42 @@ func FindBySession(stateDir, scopeID, sessionID string) ([]File, error) {
 	for _, file := range files {
 		if file.SessionID == sessionID || strings.Contains(filepath.Base(file.Path), sanitize(sessionID)) {
 			matches = append(matches, file)
+			continue
+		}
+		for _, record := range file.Records {
+			if record.SessionID == sessionID || record.NativeSessionID == sessionID {
+				matches = append(matches, file)
+				break
+			}
 		}
 	}
 	return matches, nil
+}
+
+func CapturedNativeSessions(stateDir, scopeID string) (map[string]bool, error) {
+	files, err := List(stateDir, scopeID)
+	if err != nil {
+		return nil, err
+	}
+	captured := map[string]bool{}
+	for _, file := range files {
+		for _, record := range file.Records {
+			key := NativeSessionKey(record.SourceAgent, firstNonEmpty(record.NativeSessionID, record.SessionID, file.SessionID))
+			if key != "" {
+				captured[key] = true
+			}
+		}
+	}
+	return captured, nil
+}
+
+func NativeSessionKey(agent, nativeSessionID string) string {
+	agent = strings.ToLower(strings.TrimSpace(agent))
+	nativeSessionID = strings.TrimSpace(nativeSessionID)
+	if agent == "" || nativeSessionID == "" {
+		return ""
+	}
+	return agent + "|" + nativeSessionID
 }
 
 func normalizeOptions(opts Options) Options {
@@ -308,6 +390,17 @@ func normalizeOptions(opts Options) Options {
 	opts.ScopeID = strings.TrimSpace(opts.ScopeID)
 	opts.SourceAgent = strings.TrimSpace(opts.SourceAgent)
 	opts.SessionID = strings.TrimSpace(opts.SessionID)
+	opts.NativeSessionID = strings.TrimSpace(opts.NativeSessionID)
+	opts.Branch = strings.TrimSpace(opts.Branch)
+	opts.RepoRoot = strings.TrimSpace(opts.RepoRoot)
+	if opts.RepoRoot != "" {
+		if abs, err := filepath.Abs(opts.RepoRoot); err == nil {
+			opts.RepoRoot = abs
+		}
+	}
+	if opts.NativeSessionID == "" {
+		opts.NativeSessionID = opts.SessionID
+	}
 	if opts.MinChars <= 0 {
 		opts.MinChars = DefaultMinChars
 	}
@@ -348,7 +441,7 @@ func normalizeTurns(raw []rawTurn) []Turn {
 		if role == "" {
 			role = strings.ToLower(strings.TrimSpace(item.Type))
 		}
-		content := strings.TrimSpace(contentString(contentValue))
+		content := strings.TrimSpace(ContentString(contentValue))
 		if content == "" {
 			continue
 		}
@@ -372,6 +465,18 @@ func normalizeTurns(raw []rawTurn) []Turn {
 		})
 	}
 	return turns
+}
+
+func sanitizeTurns(turns []Turn) []Turn {
+	out := make([]Turn, 0, len(turns))
+	for _, turn := range turns {
+		turn.Content = strings.TrimSpace(stripRuntimeWrapperNoise(turn.Content))
+		if turn.Content == "" {
+			continue
+		}
+		out = append(out, turn)
+	}
+	return out
 }
 
 func classifyUser(content string) (string, string) {
@@ -458,19 +563,22 @@ func buildRecord(turns []Turn, opts Options, start, end int, evidenceType, reaso
 		timestamp = opts.Now.Format(time.RFC3339)
 	}
 	return Record{
-		Version:        1,
-		SessionID:      opts.SessionID,
-		SourceAgent:    opts.SourceAgent,
-		ScopeKind:      opts.ScopeKind,
-		ScopeID:        opts.ScopeID,
-		TurnStart:      start,
-		TurnEnd:        end,
-		EvidenceType:   evidenceType,
-		EvidenceTypes:  []string{evidenceType},
-		SelectorReason: reason,
-		Timestamp:      timestamp,
-		Redacted:       true,
-		Content:        redact.Content(content),
+		Version:         1,
+		SessionID:       opts.SessionID,
+		NativeSessionID: opts.NativeSessionID,
+		SourceAgent:     opts.SourceAgent,
+		Branch:          opts.Branch,
+		ScopeKind:       opts.ScopeKind,
+		ScopeID:         opts.ScopeID,
+		TurnStart:       start,
+		TurnEnd:         end,
+		EvidenceType:    evidenceType,
+		EvidenceTypes:   []string{evidenceType},
+		SelectorReason:  reason,
+		Timestamp:       timestamp,
+		Redacted:        true,
+		Content:         redact.Content(content),
+		TouchedPaths:    ExtractTouchedPaths(content, opts.RepoRoot, 8),
 	}
 }
 
@@ -478,6 +586,7 @@ func addOrMergeRecord(records []Record, spanIndexes map[string]int, next Record)
 	key := fmt.Sprintf("%d:%d", next.TurnStart, next.TurnEnd)
 	if idx, ok := spanIndexes[key]; ok {
 		records[idx].EvidenceTypes = appendUniqueString(records[idx].EvidenceTypes, next.EvidenceType)
+		records[idx].TouchedPaths = appendUniqueStrings(records[idx].TouchedPaths, next.TouchedPaths...)
 		if !strings.Contains(records[idx].SelectorReason, next.SelectorReason) {
 			records[idx].SelectorReason = records[idx].SelectorReason + "; " + next.SelectorReason
 		}
@@ -488,16 +597,27 @@ func addOrMergeRecord(records []Record, spanIndexes map[string]int, next Record)
 }
 
 func appendUniqueString(values []string, value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return values
-	}
-	for _, existing := range values {
-		if existing == value {
-			return values
+	return appendUniqueStrings(values, value)
+}
+
+func appendUniqueStrings(values []string, next ...string) []string {
+	for _, value := range next {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		exists := false
+		for _, existing := range values {
+			if existing == value {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			values = append(values, value)
 		}
 	}
-	return append(values, value)
+	return values
 }
 
 func meetsFloor(evidenceType, content string, minChars int) bool {
@@ -600,6 +720,44 @@ func contentString(value any) string {
 	}
 }
 
+func stripRuntimeWrapperNoise(s string) string {
+	if s == "" {
+		return ""
+	}
+	for {
+		cleaned := localCommandCaveatRE.ReplaceAllString(s, " ")
+		if cleaned == s {
+			break
+		}
+		s = cleaned
+	}
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	inLocalCaveat := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "<local-command-caveat") {
+			inLocalCaveat = true
+			if strings.Contains(lower, "</local-command-caveat>") {
+				inLocalCaveat = false
+			}
+			continue
+		}
+		if inLocalCaveat {
+			if strings.Contains(lower, "</local-command-caveat>") {
+				inLocalCaveat = false
+			}
+			continue
+		}
+		if strings.Contains(lower, "do not respond") && (strings.Contains(lower, "local command") || strings.Contains(lower, "command caveat")) {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.TrimSpace(strings.Join(out, "\n"))
+}
+
 func oneLine(s string) string {
 	fields := strings.Fields(strings.ReplaceAll(s, "\x00", " "))
 	return strings.Join(fields, " ")
@@ -645,6 +803,79 @@ func sanitize(value string) string {
 	return out
 }
 
+func ExtractTouchedPaths(content, repoRoot string, limit int) []string {
+	counts := map[string]int{}
+	firstSeen := map[string]int{}
+	matches := pathishRE.FindAllStringSubmatch(content, -1)
+	for i, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		path := normalizeTouchedPath(match[1], repoRoot)
+		if path == "" {
+			continue
+		}
+		counts[path]++
+		if _, ok := firstSeen[path]; !ok {
+			firstSeen[path] = i
+		}
+	}
+	paths := make([]string, 0, len(counts))
+	for path := range counts {
+		paths = append(paths, path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		if counts[paths[i]] == counts[paths[j]] {
+			return firstSeen[paths[i]] < firstSeen[paths[j]]
+		}
+		return counts[paths[i]] > counts[paths[j]]
+	})
+	if limit <= 0 {
+		limit = 8
+	}
+	if len(paths) > limit {
+		paths = paths[:limit]
+	}
+	return paths
+}
+
+func normalizeTouchedPath(value, repoRoot string) string {
+	value = strings.Trim(strings.TrimSpace(value), "`'\"“”‘’.,;:!?)]}>")
+	value = strings.TrimLeft(value, "([{<")
+	if value == "" || strings.Contains(value, "://") {
+		return ""
+	}
+	value = strings.ReplaceAll(value, "\\", "/")
+	for strings.Contains(value, "//") {
+		value = strings.ReplaceAll(value, "//", "/")
+	}
+	if repoRoot != "" {
+		repo := filepath.ToSlash(strings.TrimSpace(repoRoot))
+		if repo != "" {
+			fromSlash := filepath.FromSlash(value)
+			if filepath.IsAbs(fromSlash) {
+				if rel, err := filepath.Rel(repoRoot, fromSlash); err == nil && rel != ".." && !strings.HasPrefix(rel, "../") {
+					value = rel
+				}
+			} else if strings.HasPrefix(value, repo+"/") {
+				value = strings.TrimPrefix(value, repo+"/")
+			}
+		}
+	}
+	if vol := filepath.VolumeName(value); vol != "" {
+		return ""
+	}
+	value = strings.TrimPrefix(value, "./")
+	if strings.HasPrefix(value, "/") {
+		return ""
+	}
+	clean := pathpkg.Clean(value)
+	if clean == "." || clean == "" || clean == ".." || strings.HasPrefix(clean, "../") {
+		return ""
+	}
+	return clean
+}
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -657,4 +888,15 @@ func firstNonEmpty(values ...string) string {
 func hashString(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+func hashTurns(turns []Turn) string {
+	var b strings.Builder
+	for _, turn := range turns {
+		b.WriteString(turn.Role)
+		b.WriteByte('\n')
+		b.WriteString(turn.Content)
+		b.WriteByte('\n')
+	}
+	return hashString([]byte(b.String()))
 }

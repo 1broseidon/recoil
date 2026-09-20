@@ -71,6 +71,23 @@ func TestSessionEvidenceIngestMineAndForget(t *testing.T) {
 	if strings.Contains(results[0].Content, "tool") {
 		t.Fatalf("did not expect tool payload in evidence content: %q", results[0].Content)
 	}
+	if !strings.Contains(results[0].MetadataJSON, `"native_session_id":"sess-auth"`) {
+		t.Fatalf("expected native session provenance in metadata, got %s", results[0].MetadataJSON)
+	}
+
+	show := newSessionEvidenceCommand()
+	out.Reset()
+	show.SetOut(&out)
+	show.SetErr(&bytes.Buffer{})
+	show.SetArgs([]string{"show", "sess-auth"})
+	if err := show.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"source_kind: session_evidence", "agent: codex", "session_id: sess-auth", "source_ref: turn 42-43"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in show output:\n%s", want, out.String())
+		}
+	}
 
 	forget := newSessionEvidenceCommand()
 	out.Reset()
@@ -143,14 +160,14 @@ func TestSessionEvidenceIngestAddsSearchableProfileTrace(t *testing.T) {
 		Query:     "publications conferences medical imaging",
 		ScopeKind: sc.Kind,
 		ScopeID:   sc.ID,
-		Role:      "preference",
+		Role:      "trace",
 		Limit:     5,
 		Lifecycle: store.LifecycleCurrent,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(results) != 1 || results[0].SessionID != "sess-profile" || !strings.Contains(results[0].Content, "Derived user profile trace") {
+	if len(results) != 1 || results[0].SessionID != "sess-profile" || results[0].Role != "trace" || !strings.Contains(results[0].Content, "Derived user profile trace") {
 		t.Fatalf("expected searchable derived profile trace, got %+v", results)
 	}
 }
@@ -199,14 +216,14 @@ func TestSessionEvidenceIngestAddsSearchableUpdateTrace(t *testing.T) {
 		Query:     "current SQLite driver modernc no longer",
 		ScopeKind: sc.Kind,
 		ScopeID:   sc.ID,
-		Role:      "decision",
+		Role:      "trace",
 		Limit:     5,
 		Lifecycle: store.LifecycleCurrent,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(results) != 1 || results[0].SessionID != "sess-update" || !strings.Contains(results[0].Content, "Derived update trace") {
+	if len(results) != 1 || results[0].SessionID != "sess-update" || results[0].Role != "trace" || !strings.Contains(results[0].Content, "Derived update trace") {
 		t.Fatalf("expected searchable derived update trace, got %+v", results)
 	}
 }

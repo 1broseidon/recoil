@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sourcequality"
@@ -20,6 +21,7 @@ type wakeOptions struct {
 	maxChars  int
 	minimal   bool
 	decisions bool
+	explain   bool
 }
 
 type wakeResult struct {
@@ -53,6 +55,11 @@ type wakeRender struct {
 	Truncated  bool
 }
 
+type wakeExecution struct {
+	Result wakeResult
+	Layers []wakeLayer
+}
+
 func newWakeCommand() *cobra.Command {
 	var wakeOpts wakeOptions
 	c := &cobra.Command{
@@ -70,101 +77,23 @@ func newWakeCommand() *cobra.Command {
 				return err
 			}
 			defer st.Close()
-
-			_, settings, err := loadProjectSettings()
-			if err != nil {
-				return err
-			}
-			qualityOpts := effectiveSourceQualityOptions(settings)
 			ctx := context.Background()
-			refresh, err := refreshTrackedProjectSources(ctx, st, sc)
+			exec, err := runWake(ctx, st, sc, query, wakeOpts)
 			if err != nil {
 				return err
 			}
-			channelFreshness := ensureFreshContext(ctx, st, "wake")
-			channelRefresh := channelFreshness.Refresh
-			fetchLimit := wakeFetchLimit(wakeOpts.limit)
-			var queryResults []store.Memory
-			if query != "" {
-				params, err := searchParams(query, sc, wakeOpts.filters, fetchLimit)
-				if err != nil {
-					return err
-				}
-				if params.Validity == "" && params.Lifecycle == store.LifecycleAny {
-					params.Lifecycle = store.LifecycleCurrent
-				}
-				params.SourceQuality = qualityOpts
-				found, err := runRetriever(ctx, st, params, retrieverOptions{
-					mode:  retrievalFTS,
-					limit: fetchLimit,
-				})
-				if err != nil {
-					return err
-				}
-				queryResults = found
-			}
-
-			recent, err := wakeRecentMemories(ctx, st, sc, wakeOpts.filters, fetchLimit, wakeOpts.limit, qualityOpts)
-			if err != nil {
-				return err
-			}
-			layers := buildWakeLayers(query, queryResults, recent, wakeOpts.limit, qualityOpts)
-			results := flattenWakeLayers(layers)
-
 			w := cmd.OutOrStdout()
-			var trail []decisionTrailItem
-			if wakeOpts.decisions {
-				trail, err = decisionTrail(ctx, st, sc, wakeOpts.limit)
-				if err != nil {
-					return err
-				}
-			}
-			result := wakeResult{
-				Query:            query,
-				Scope:            sc.Kind,
-				ScopeID:          sc.ID,
-				SelectedCount:    len(results),
-				Refresh:          refresh,
-				ChannelRefresh:   channelRefresh,
-				ChannelFreshness: channelFreshness,
-				Layers:           wakeLayerResults(layers),
-				Results:          results,
-				DecisionTrail:    trail,
-			}
 			if opts.json {
-				return writeJSON(w, "wake_result", result)
+				return writeJSON(w, "wake_result", exec.Result)
 			}
 			if wakeOpts.minimal {
-				for _, mem := range results {
+				for _, mem := range exec.Result.Results {
 					writeMinimalMemory(w, mem, mem.Score > 0)
 				}
 				return nil
 			}
-			rendered := layeredMemoryBlocks(layers, wakeOpts.maxChars, true)
-			body := rendered.Body
-			if presence := swarmPresenceLine(ctx, st, channelFreshness); presence != "" {
-				body = presence + "\n\n" + body
-			}
-			if wakeOpts.decisions {
-				body = combineWakeDecisionTrail(renderDecisionTrail(trail), body)
-			}
-			meta := []kv{
-				{k: "query", v: query},
-				{k: "scope", v: sc.Kind},
-				{k: "scope_id", v: sc.ID},
-				{k: "result_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
-				{k: "selected_count", v: fmt.Sprintf("%d", len(results))},
-				{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
-				{k: "refreshed_sources", v: fmt.Sprintf("%d", refresh.RefreshedSources)},
-				{k: "staled_memories", v: fmt.Sprintf("%d", refresh.StaledMemories)},
-				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(channelFreshness))},
-				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(channelFreshness))},
-				{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
-				{k: "max_chars", v: fmt.Sprintf("%d", wakeOpts.maxChars)},
-			}
-			meta = append(meta, channelFriendlyFrontmatter(channelFreshness)...)
-			meta = append(meta, channelOutboxFrontmatter("channel_", channelFreshness.Outbox)...)
-			return frontmatter(w, meta, body)
+			body, rendered := renderWakeExecution(ctx, st, exec, wakeOpts.maxChars, true)
+			return frontmatter(w, wakeFrontmatter(exec.Result, rendered, wakeOpts.maxChars), body)
 		},
 	}
 	addScopeFlags(c, &wakeOpts.scope)
@@ -173,7 +102,108 @@ func newWakeCommand() *cobra.Command {
 	c.Flags().IntVar(&wakeOpts.maxChars, "max-chars", 1600, "maximum characters of memory content to print")
 	c.Flags().BoolVar(&wakeOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().BoolVar(&wakeOpts.decisions, "include-decisions", false, "include a claim-keyed decision trail")
+	c.Flags().BoolVar(&wakeOpts.explain, "explain", false, "include per-result score component diagnostics")
 	return c
+}
+
+func runWake(ctx context.Context, st *store.Store, sc scope.Scope, query string, opts wakeOptions) (wakeExecution, error) {
+	_, settings, err := loadProjectSettings()
+	if err != nil {
+		return wakeExecution{}, err
+	}
+	qualityOpts := effectiveSourceQualityOptions(settings)
+	ageWindow := effectiveAgingWindowDays(settings)
+	refresh, err := refreshTrackedProjectSources(ctx, st, sc)
+	if err != nil {
+		return wakeExecution{}, err
+	}
+	channelFreshness := ensureFreshContext(ctx, st, "wake")
+	channelRefresh := channelFreshness.Refresh
+	fetchLimit := wakeFetchLimit(opts.limit)
+	var queryResults []store.Memory
+	if query != "" {
+		params, err := searchParams(query, sc, opts.filters, fetchLimit)
+		if err != nil {
+			return wakeExecution{}, err
+		}
+		if params.Validity == "" && params.Lifecycle == store.LifecycleAny {
+			params.Lifecycle = store.LifecycleCurrent
+		}
+		params.SourceQuality = qualityOpts
+		// Wake remains FTS-only: its recency/layering surface gains little from embeddings.
+		found, err := runRetriever(ctx, st, params, retrieverOptions{
+			mode:  retrievalFTS,
+			limit: fetchLimit,
+		})
+		if err != nil {
+			return wakeExecution{}, err
+		}
+		queryResults = found
+	}
+
+	recent, err := wakeRecentMemories(ctx, st, sc, opts.filters, fetchLimit, opts.limit, qualityOpts)
+	if err != nil {
+		return wakeExecution{}, err
+	}
+	layers := buildWakeLayers(query, queryResults, recent, opts.limit, qualityOpts, ageWindow)
+	if opts.explain {
+		layers = explainWakeLayers(layers, query, qualityOpts, ageWindow)
+	}
+	results := flattenWakeLayers(layers)
+	var trail []decisionTrailItem
+	if opts.decisions {
+		trail, err = decisionTrail(ctx, st, sc, opts.limit)
+		if err != nil {
+			return wakeExecution{}, err
+		}
+	}
+	result := wakeResult{
+		Query:            query,
+		Scope:            sc.Kind,
+		ScopeID:          sc.ID,
+		SelectedCount:    len(results),
+		Refresh:          refresh,
+		ChannelRefresh:   channelRefresh,
+		ChannelFreshness: channelFreshness,
+		Layers:           wakeLayerResults(layers),
+		Results:          results,
+		DecisionTrail:    trail,
+	}
+	return wakeExecution{Result: result, Layers: layers}, nil
+}
+
+func renderWakeExecution(ctx context.Context, st *store.Store, exec wakeExecution, maxChars int, includePresence bool) (string, wakeRender) {
+	rendered := layeredMemoryBlocks(exec.Layers, maxChars, true)
+	body := rendered.Body
+	if includePresence {
+		if presence := swarmPresenceLine(ctx, st, exec.Result.ChannelFreshness); presence != "" {
+			body = presence + "\n\n" + body
+		}
+	}
+	if len(exec.Result.DecisionTrail) > 0 {
+		body = combineWakeDecisionTrail(renderDecisionTrail(exec.Result.DecisionTrail), body)
+	}
+	return body, rendered
+}
+
+func wakeFrontmatter(result wakeResult, rendered wakeRender, maxChars int) []kv {
+	meta := []kv{
+		{k: "query", v: result.Query},
+		{k: "scope", v: result.Scope},
+		{k: "scope_id", v: result.ScopeID},
+		{k: "result_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
+		{k: "selected_count", v: fmt.Sprintf("%d", result.SelectedCount)},
+		{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
+		{k: "refreshed_sources", v: fmt.Sprintf("%d", result.Refresh.RefreshedSources)},
+		{k: "staled_memories", v: fmt.Sprintf("%d", result.Refresh.StaledMemories)},
+		{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
+		{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
+		{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
+		{k: "max_chars", v: fmt.Sprintf("%d", maxChars)},
+	}
+	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
+	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
+	return meta
 }
 
 func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, filters memoryFilterOptions, fetchLimit, displayLimit int, qualityOpts ...sourcequality.Options) ([]store.Memory, error) {
@@ -222,6 +252,12 @@ func wakeRecentMemories(ctx context.Context, st *store.Store, sc scope.Scope, fi
 	}
 
 	if err := list(func(p *store.ListParams) { p.SourcePath = "HANDOFF.md" }, 2); err != nil {
+		return nil, err
+	}
+	if err := list(func(p *store.ListParams) {
+		p.Role = "handoff"
+		p.SourceKind = "direct"
+	}, 2); err != nil {
 		return nil, err
 	}
 	for _, sourcePath := range sourcequality.OperationalSourcePaths() {
@@ -291,13 +327,12 @@ func channelRefreshErrors(results []channelRefreshResult) int {
 	return total
 }
 
-func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, qualityOpts ...sourcequality.Options) []wakeLayer {
+func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, quality sourcequality.Options, ageWindow float64) []wakeLayer {
 	if limit <= 0 {
 		limit = 8
 	}
-	var quality sourcequality.Options
-	if len(qualityOpts) > 0 {
-		quality = qualityOpts[0]
+	if ageWindow <= 0 {
+		ageWindow = defaultAgingWindowDays
 	}
 	queryResults = rankWakeCandidates(queryResults, query, quality)
 	recent = rankWakeCandidates(recent, wakePolicyQuery(query), quality)
@@ -310,47 +345,94 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	seen := make(map[string]bool)
 	sessionEvidenceByLayer := map[int]int{}
 	total := 0
-	add := func(mem store.Memory, fromQuery bool) {
+	newestDirectHandoff := newestDirectHandoffID(append(append([]store.Memory(nil), queryResults...), recent...))
+	layerCaps := []int{max(2, limit/3), limit, (limit + 1) / 2, 2}
+	type wakeCandidate struct {
+		memory    store.Memory
+		fromQuery bool
+	}
+	candidates := make([]wakeCandidate, 0, len(queryResults)+len(recent))
+	for _, mem := range queryResults {
+		candidates = append(candidates, wakeCandidate{memory: mem, fromQuery: true})
+	}
+	for _, mem := range recent {
+		candidates = append(candidates, wakeCandidate{memory: mem})
+	}
+	add := func(mem store.Memory, fromQuery bool, enforceLayerCap bool) (bool, bool) {
 		if total >= limit || seen[mem.ID] {
-			return
+			return false, false
 		}
-		if isHistoricalMemory(mem) {
-			return
-		}
-		if isNegativeEvidence(mem) && !queryAsksForNegativeEvidence(query) {
-			return
+		if !wakeEligibleMemory(mem, query, newestDirectHandoff) {
+			return false, false
 		}
 		layerIndex := classifyWakeMemory(mem, query, fromQuery)
+		if isSessionEvidence(mem) {
+			if sessionEvidenceByLayer[layerIndex] >= 2 {
+				return false, false
+			}
+		}
+		if enforceLayerCap && layerIndex >= 0 && layerIndex < len(layerCaps) && len(layers[layerIndex].Memories) >= layerCaps[layerIndex] {
+			return false, true
+		}
 		mem.Why = whyMemorySurfaced(mem, query, fromQuery, false)
-		if isSessionEvidence(mem) && !fromQuery {
-			if layerIndex == 0 {
-				layerIndex = 3
-			}
-			if layerIndex == 3 && sessionEvidenceByLayer[layerIndex] >= 2 {
-				return
-			}
+		if suffix := agingWhySuffix(mem, time.Now().UTC(), ageWindow); suffix != "" && !strings.Contains(mem.Why, "aging —") {
+			mem.Why += suffix
+		}
+		if isSessionEvidence(mem) {
 			sessionEvidenceByLayer[layerIndex]++
 		}
 		layers[layerIndex].Memories = append(layers[layerIndex].Memories, mem)
 		seen[mem.ID] = true
 		total++
+		return true, false
 	}
-	for _, mem := range queryResults {
-		add(mem, true)
+	var skipped []wakeCandidate
+	for _, candidate := range candidates {
+		if total >= limit {
+			break
+		}
+		if _, quotaSkipped := add(candidate.memory, candidate.fromQuery, true); quotaSkipped {
+			skipped = append(skipped, candidate)
+		}
 	}
-	for _, mem := range recent {
-		add(mem, false)
+	for _, candidate := range skipped {
+		if total >= limit {
+			break
+		}
+		if classifyWakeMemory(candidate.memory, query, candidate.fromQuery) == 2 && total > len(layers[2].Memories) {
+			continue
+		}
+		add(candidate.memory, candidate.fromQuery, false)
 	}
 	return layers
 }
 
+func wakeEligibleMemory(mem store.Memory, query, newestDirectHandoff string) bool {
+	if isHistoricalMemory(mem) {
+		return false
+	}
+	if broken, _ := deterministicPredicateBroken(mem); broken {
+		return false
+	}
+	if isDirectHandoff(mem) && newestDirectHandoff != "" && mem.ID != newestDirectHandoff {
+		return false
+	}
+	if isNegativeEvidence(mem) && !queryAsksForNegativeEvidence(query) {
+		return false
+	}
+	return true
+}
+
 func rankWakeCandidates(memories []store.Memory, query string, quality sourcequality.Options) []store.Memory {
 	if len(memories) <= 1 {
-		return memories
+		return append([]store.Memory(nil), memories...)
 	}
 	ranked := append([]store.Memory(nil), memories...)
+	now := time.Now().UTC()
 	for i := range ranked {
 		ranked[i].Score += sourcequality.ScorePriorWithOptions(query, ranked[i].SourcePath, ranked[i].MetadataJSON, sourcequality.ModeWake, quality)
+		ranked[i].Score += recencyPrior(ranked[i], now)
+		ranked[i].Score -= agingPenalty(ranked[i], now, defaultAgingWindowDays)
 	}
 	sort.SliceStable(ranked, func(i, j int) bool {
 		if math.Abs(ranked[i].Score-ranked[j].Score) < 1e-9 {
@@ -368,7 +450,29 @@ func wakePolicyQuery(query string) string {
 	return "agent onboarding before editing contribute security tests work in this repo"
 }
 
-func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
+func isDirectHandoff(mem store.Memory) bool {
+	return strings.EqualFold(strings.TrimSpace(mem.Role), "handoff") && strings.EqualFold(strings.TrimSpace(mem.SourceKind), "direct")
+}
+
+func newestDirectHandoffID(memories []store.Memory) string {
+	newestID := ""
+	newestCreated := ""
+	for _, mem := range memories {
+		if !isDirectHandoff(mem) || isHistoricalMemory(mem) {
+			continue
+		}
+		if broken, _ := deterministicPredicateBroken(mem); broken {
+			continue
+		}
+		if newestID == "" || mem.CreatedAt > newestCreated || (mem.CreatedAt == newestCreated && mem.ID > newestID) {
+			newestID = mem.ID
+			newestCreated = mem.CreatedAt
+		}
+	}
+	return newestID
+}
+
+func classifyWakeMemory(mem store.Memory, _ string, _ bool) int {
 	role := strings.ToLower(mem.Role)
 	sourcePath := strings.ToLower(mem.SourcePath)
 	content := strings.ToLower(mem.Content)
@@ -377,6 +481,9 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 	}
 	if strings.EqualFold(mem.SourceKind, "file") {
 		return 2
+	}
+	if isSessionEvidence(mem) {
+		return 3
 	}
 	if strings.Contains(sourcePath, "handoff") ||
 		strings.Contains(content, "handoff") ||
@@ -394,9 +501,6 @@ func classifyWakeMemory(mem store.Memory, query string, fromQuery bool) int {
 		strings.Contains(content, "non-goal") ||
 		strings.Contains(content, "settled decision") {
 		return 0
-	}
-	if fromQuery && strings.TrimSpace(query) != "" {
-		return 3
 	}
 	return 3
 }
@@ -432,6 +536,10 @@ func layeredMemoryBlocks(layers []wakeLayer, maxChars int, includeScore bool) wa
 	var b strings.Builder
 	remaining := maxChars
 	selectedCount := len(flattenWakeLayers(layers))
+	perMemCap := 0
+	if maxChars > 0 {
+		perMemCap = max(280, maxChars/max(1, selectedCount))
+	}
 	render := wakeRender{}
 	for _, layer := range layers {
 		if len(layer.Memories) == 0 {
@@ -444,14 +552,16 @@ func layeredMemoryBlocks(layers []wakeLayer, maxChars int, includeScore bool) wa
 			return render
 		}
 		for _, mem := range layer.Memories {
-			shown, complete := appendMemoryBlockBounded(&b, mem, &remaining, maxChars, includeScore)
+			shown, complete, exhausted := appendMemoryBlockBounded(&b, mem, &remaining, maxChars, includeScore, perMemCap)
 			if shown {
 				render.ShownCount++
 			}
 			if !complete {
 				render.Truncated = true
-				render.Body = strings.TrimRight(b.String(), "\n")
-				return render
+				if exhausted {
+					render.Body = strings.TrimRight(b.String(), "\n")
+					return render
+				}
 			}
 		}
 	}
@@ -463,7 +573,7 @@ func layeredMemoryBlocks(layers []wakeLayer, maxChars int, includeScore bool) wa
 	return render
 }
 
-func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *int, maxChars int, includeScore bool) (bool, bool) {
+func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *int, maxChars int, includeScore bool, perMemCap int) (bool, bool, bool) {
 	var meta strings.Builder
 	fmt.Fprintf(&meta, "### %s\n", mem.ID)
 	if includeScore && mem.Score > 0 {
@@ -475,6 +585,9 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	}
 	if mem.SourceKind != "" {
 		fmt.Fprintf(&meta, "source_kind: %s\n", mem.SourceKind)
+	}
+	for _, line := range sessionEvidenceProvenanceLines(mem) {
+		fmt.Fprintf(&meta, "%s\n", line)
 	}
 	if mem.Validity != "" {
 		fmt.Fprintf(&meta, "validity: %s\n", mem.Validity)
@@ -494,32 +607,37 @@ func appendMemoryBlockBounded(b *strings.Builder, mem store.Memory, remaining *i
 	if mem.SourcePath != "" {
 		fmt.Fprintf(&meta, "source_path: %s\n", mem.SourcePath)
 	}
-	if mem.SourceRef != "" {
-		fmt.Fprintf(&meta, "source_ref: %s\n", mem.SourceRef)
+	if sourceRef := sessionEvidenceSourceRef(mem); sourceRef != "" {
+		fmt.Fprintf(&meta, "source_ref: %s\n", sourceRef)
 	}
 	if mem.Why != "" {
 		fmt.Fprintf(&meta, "why: %s\n", mem.Why)
 	}
+	renderExplainComponents(&meta, mem.Explain)
 	meta.WriteString("\n")
 
 	if maxChars <= 0 {
 		b.WriteString(meta.String())
 		b.WriteString(mem.Content)
 		b.WriteString("\n\n")
-		return true, true
+		return true, true, false
 	}
 	overhead := meta.Len() + 2
 	if *remaining <= overhead {
-		return false, false
+		return false, false, true
 	}
 	contentLimit := *remaining - overhead
+	if perMemCap > 0 && perMemCap < contentLimit {
+		contentLimit = perMemCap
+	}
 	content := truncateText(mem.Content, contentLimit)
 	block := meta.String() + content + "\n\n"
-	complete := appendBounded(b, block, remaining, maxChars)
+	appendedComplete := appendBounded(b, block, remaining, maxChars)
+	complete := appendedComplete
 	if len(mem.Content) > contentLimit {
 		complete = false
 	}
-	return true, complete
+	return true, complete, !appendedComplete
 }
 
 func appendBounded(b *strings.Builder, s string, remaining *int, maxChars int) bool {

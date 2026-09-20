@@ -16,9 +16,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/1broseidon/recoil/internal/retrieval"
 )
 
 func main() {
+	retrieval.SetPersonalExpansions(true)
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(2)

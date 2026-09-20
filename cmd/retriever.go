@@ -50,6 +50,9 @@ func runRetriever(ctx context.Context, st *store.Store, p store.SearchParams, op
 }
 
 func runHybridRetriever(ctx context.Context, st *store.Store, p store.SearchParams, provider embedding.Provider, pool, fusionK, limit int) ([]store.Memory, error) {
+	if provider == nil {
+		return nil, fmt.Errorf("hybrid retrieval requires an embedding provider")
+	}
 	if limit <= 0 {
 		limit = p.Limit
 	}
@@ -114,11 +117,4 @@ func runHybridRetriever(ctx context.Context, st *store.Store, p store.SearchPara
 	fused = filterStrictEntityResults(p.Query, fused)
 	out := diversifySignalResults(fused, limit, p.Query)
 	return expandDerivedSourceEvidence(ctx, st, p, out, limit)
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

@@ -51,7 +51,7 @@ workflows more reliable in coding and non-coding projects.
 
 1. Add a minimal stdio MCP server, built on the official
    `github.com/modelcontextprotocol/go-sdk/mcp` Go SDK, exposing read-only
-   `recoil_search` and `recoil_wake`.
+   `recoil_search`, `recoil_wake`, and `recoil_check`.
 2. Gate write-capable MCP tools behind `recoil mcp --allow-write`.
 3. Keep MCP thin: it should wrap the CLI semantics rather than create a second
    memory product.

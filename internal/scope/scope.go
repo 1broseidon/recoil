@@ -29,6 +29,12 @@ type Scope struct {
 	Root        string
 	Initialized bool
 	MarkerPath  string
+	// Unknown marks a project scope that had nothing to anchor to: no
+	// .recoil/project.json marker anywhere above the workspace and no git
+	// repository either, so the ID is just a hash of the directory. Memories
+	// written under such a scope are effectively unaddressable from anywhere
+	// else, which is worth telling the operator about.
+	Unknown bool
 }
 
 type ProjectFile struct {
@@ -74,30 +80,73 @@ func ProjectScope(workspace string) (Scope, error) {
 	if root, marker, ok, err := FindProjectRoot(start); err != nil {
 		return Scope{}, err
 	} else if ok {
-		id := projectIDFromMarker(marker)
-		portable := strings.HasPrefix(id, "git:")
-		if id == "" {
-			id, portable = computedProjectID(root)
-		}
-		return Scope{
-			Kind:        "project",
-			ID:          id,
-			ProjectID:   id,
-			Portable:    portable,
-			Root:        root,
-			Initialized: true,
-			MarkerPath:  marker,
-		}, nil
+		return markerScope(root, marker), nil
 	}
 
-	root := gitOutput(start, "rev-parse", "--show-toplevel")
+	root := mainRepositoryRoot(start)
 	if root == "" {
 		id := "local:" + hashString(start)
-		return Scope{Kind: "project", ID: id, ProjectID: id, Root: start}, nil
+		return Scope{Kind: "project", ID: id, ProjectID: id, Root: start, Unknown: true}, nil
 	}
-	root = strings.TrimSpace(root)
+	// A linked worktree resolves to the main repository root, which can carry a
+	// marker the worktree itself does not. Look again from there so a worktree
+	// lands in exactly the same scope as the repository it belongs to.
+	if root != start {
+		if markerRoot, marker, ok, err := FindProjectRoot(root); err == nil && ok {
+			return markerScope(markerRoot, marker), nil
+		}
+	}
 	id, portable := computedProjectID(root)
 	return Scope{Kind: "project", ID: id, ProjectID: id, Portable: portable, Root: root}, nil
+}
+
+func markerScope(root, marker string) Scope {
+	id := projectIDFromMarker(marker)
+	portable := strings.HasPrefix(id, "git:")
+	if id == "" {
+		id, portable = computedProjectID(root)
+	}
+	return Scope{
+		Kind:        "project",
+		ID:          id,
+		ProjectID:   id,
+		Portable:    portable,
+		Root:        root,
+		Initialized: true,
+		MarkerPath:  marker,
+	}
+}
+
+// mainRepositoryRoot returns the working-tree root of the MAIN repository for
+// dir, or "" when dir is not inside a git repository.
+//
+// --show-toplevel alone would return the *worktree* root, so a git worktree
+// checked out under /tmp would get its own scope and lose sight of the
+// repository's memories. --git-common-dir points at the main repository's .git
+// from inside any worktree, so its parent is the shared root. In a normal
+// checkout the two agree, making this a no-op there.
+func mainRepositoryRoot(dir string) string {
+	top := gitOutput(dir, "rev-parse", "--show-toplevel")
+	if top == "" {
+		return ""
+	}
+	top = strings.TrimSpace(top)
+	// --path-format predates neither worktrees nor any supported git, but if the
+	// local git is too old to accept it the output is empty and we keep top.
+	commonDir := gitOutput(dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if commonDir == "" {
+		return top
+	}
+	mainRoot := filepath.Dir(strings.TrimSpace(commonDir))
+	info, err := os.Stat(mainRoot)
+	if err != nil || !info.IsDir() {
+		// A bare main repository has no working tree to scope to.
+		return top
+	}
+	if real, err := filepath.EvalSymlinks(mainRoot); err == nil {
+		mainRoot = real
+	}
+	return mainRoot
 }
 
 func InitProject(workspace string) (Scope, error) {

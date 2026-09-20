@@ -100,8 +100,8 @@ product truths into ordinary docs or direct Recoil memories:
 - `decision-2`: Product thesis, recall must be cheaper than guessing.
 - `adr-1`: Local SQLite FTS5 with deterministic writes.
 - `decision-3`: CLI default is current initialized project scope.
-- `decision-4`: Hooks and skills before MCP; MCP is now a thin read-only
-  stdio bridge after CLI semantics stabilized.
+- `decision-4`: Hooks and skills before MCP; MCP is now a thin stdio bridge
+  over CLI semantics, read-only by default with writes gated explicitly.
 - `decision-1`: Freshness model, supersession rather than deletion.
 - `decision-5`: Brainfile inspiration, optional typed source not a dependency.
 - `research-2`: Brainfile protocol takeaways for Recoil.
@@ -124,8 +124,9 @@ The executable v0/v0.1 backlog lives as child tasks under `epic-1`:
     `recoil eval --suite workflows`. (done)
 12. `p0-profiles`: Add deterministic entity profiles with an exact-detail
     opt-out router in search. (done)
-13. `p2-mcp`: Add a minimal read-only MCP stdio server using the official Go
-    SDK, with writes gated by `--allow-write`. (done)
+13. `p2-mcp`: Add a minimal MCP stdio server using the official Go SDK, with
+    read-only search/wake/check by default and writes gated by `--allow-write`.
+    (done)
 14. `p1-retriever`: Share retrieval plumbing across search, eval, MCP, hook,
     wake, and profile paths. (done)
 15. `p1-adapters`: Add adapter payload fixtures for Claude Code, Codex, and

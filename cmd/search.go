@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/1broseidon/recoil/internal/config"
 	"github.com/1broseidon/recoil/internal/embedding"
 	"github.com/1broseidon/recoil/internal/retrieval"
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
@@ -21,6 +25,7 @@ type searchOptions struct {
 	limit          int
 	minimal        bool
 	maxChars       int
+	explain        bool
 	hybrid         bool
 	hybridProvider string
 	hybridModel    string
@@ -28,6 +33,11 @@ type searchOptions struct {
 	fusionK        int
 	profiles       string
 }
+
+const (
+	retrievalHybridFallbackFTS = "hybrid_fallback_fts"
+	embeddingIndexFloor        = 10
+)
 
 type searchScoredMemory struct {
 	mem   store.Memory
@@ -49,104 +59,30 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			st, _, err := openStore()
+			// search only writes when channel JIT refresh actually fires, so
+			// openContextStore keeps it read-only whenever it cannot.
+			st, _, err := openContextStore("search")
 			if err != nil {
 				return err
 			}
 			defer st.Close()
 			ctx := context.Background()
-			freshness := ensureFreshContext(ctx, st, "search")
-
-			params, err := searchParams(query, sc, searchOpts.filters, searchOpts.limit)
+			result, err := runSearch(ctx, st, sc, query, searchOpts)
 			if err != nil {
 				return err
-			}
-			_, settings, err := loadProjectSettings()
-			if err != nil {
-				return err
-			}
-			params.SourceQuality = effectiveSourceQualityOptions(settings)
-			explicitLifecycle := params.Lifecycle != store.LifecycleAny || params.Validity != ""
-			if !explicitLifecycle {
-				params.Lifecycle = store.LifecycleCurrent
-			}
-			mode := retrievalFTS
-			if searchOpts.hybrid {
-				mode = retrievalHybrid
-			}
-			current, err := runRetriever(ctx, st, params, retrieverOptions{
-				mode:           mode,
-				hybridProvider: searchOpts.hybridProvider,
-				hybridModel:    searchOpts.hybridModel,
-				hybridPool:     searchOpts.hybridPool,
-				fusionK:        searchOpts.fusionK,
-				limit:          searchOpts.limit,
-			})
-			if err != nil {
-				return err
-			}
-			current, err = augmentProfileSearch(ctx, st, params, current, searchOpts.profiles)
-			if err != nil {
-				return err
-			}
-
-			var historical []store.Memory
-			if !explicitLifecycle {
-				historicalParams := params
-				historicalParams.Lifecycle = store.LifecycleHistorical
-				historical, err = runRetriever(ctx, st, historicalParams, retrieverOptions{
-					mode:           mode,
-					hybridProvider: searchOpts.hybridProvider,
-					hybridModel:    searchOpts.hybridModel,
-					hybridPool:     searchOpts.hybridPool,
-					fusionK:        searchOpts.fusionK,
-					limit:          searchOpts.limit,
-				})
-				if err != nil {
-					return err
-				}
-			}
-			lanes := structuredRetrievalLanes(query, current, historical)
-			currentWithWhy := make([]store.Memory, 0, len(current))
-			for _, lane := range lanes {
-				if lane.Key == "historical" {
-					continue
-				}
-				currentWithWhy = append(currentWithWhy, lane.Results...)
 			}
 
 			w := cmd.OutOrStdout()
 			if opts.json {
-				return writeJSON(w, "search_result", searchResult{
-					Query:            query,
-					Scope:            sc.Kind,
-					ScopeID:          sc.ID,
-					ResultCount:      len(current),
-					HistoryCount:     len(historical),
-					ChannelFreshness: freshness,
-					Lanes:            lanes,
-					Results:          currentWithWhy,
-				})
+				return writeJSON(w, "search_result", result)
 			}
 			if searchOpts.minimal {
-				for _, r := range currentWithWhy {
+				for _, r := range result.Results {
 					writeMinimalMemory(w, r, true)
 				}
 				return nil
 			}
-
-			meta := []kv{
-				{k: "query", v: query},
-				{k: "scope", v: sc.Kind},
-				{k: "scope_id", v: sc.ID},
-				{k: "result_count", v: fmt.Sprintf("%d", len(current))},
-				{k: "history_count", v: fmt.Sprintf("%d", len(historical))},
-				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
-				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(freshness))},
-			}
-			meta = append(meta, channelFriendlyFrontmatter(freshness)...)
-			meta = append(meta, channelOutboxFrontmatter("channel_", freshness.Outbox)...)
-			return frontmatter(w, meta, retrievalLaneBlocks(lanes, searchOpts.maxChars))
+			return frontmatter(w, searchFrontmatter(result), renderSearchResult(result, searchOpts.maxChars))
 		},
 	}
 	addScopeFlags(c, &searchOpts.scope)
@@ -154,6 +90,7 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().IntVar(&searchOpts.limit, "limit", 5, "maximum number of memories to return")
 	c.Flags().BoolVar(&searchOpts.minimal, "minimal", false, "print tab-separated rows")
 	c.Flags().IntVar(&searchOpts.maxChars, "max-chars", 4000, "maximum characters of memory content to print")
+	c.Flags().BoolVar(&searchOpts.explain, "explain", false, "include per-result score component diagnostics")
 	c.Flags().BoolVar(&searchOpts.hybrid, "hybrid", false, "fuse FTS5 and embedding similarity via RRF (requires indexed embeddings)")
 	c.Flags().StringVar(&searchOpts.hybridProvider, "hybrid-provider", embedding.OpenRouterProvider, "embedding provider for --hybrid")
 	c.Flags().StringVar(&searchOpts.hybridModel, "hybrid-model", embedding.DefaultOpenRouterModel, "embedding model for --hybrid")
@@ -161,6 +98,149 @@ func newSearchCommand() *cobra.Command {
 	c.Flags().IntVar(&searchOpts.fusionK, "fusion-k", 60, "RRF fusion constant (standard: 60)")
 	c.Flags().StringVar(&searchOpts.profiles, "profiles", "auto", "profile retrieval mode: auto, on, or off")
 	return c
+}
+
+func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query string, opts searchOptions) (searchResult, error) {
+	freshness := ensureFreshContext(ctx, st, "search")
+	params, err := searchParams(query, sc, opts.filters, opts.limit)
+	if err != nil {
+		return searchResult{}, err
+	}
+	_, settings, err := loadProjectSettings()
+	if err != nil {
+		return searchResult{}, err
+	}
+	params.SourceQuality = effectiveSourceQualityOptions(settings)
+	params.AgingWindow = effectiveAgingWindowDays(settings)
+	explicitLifecycle := params.Lifecycle != store.LifecycleAny || params.Validity != ""
+	if !explicitLifecycle {
+		params.Lifecycle = store.LifecycleCurrent
+	}
+	retrievalMode, provider, autoHybrid, err := resolveRetrievalMode(ctx, st, sc, settings, opts.hybrid, opts.hybridProvider, opts.hybridModel)
+	if err != nil {
+		return searchResult{}, err
+	}
+	runResolved := func(p store.SearchParams) ([]store.Memory, error) {
+		runMode := retrievalMode
+		if runMode == retrievalHybridFallbackFTS {
+			runMode = retrievalFTS
+		}
+		rows, runErr := runRetriever(ctx, st, p, retrieverOptions{
+			mode:           runMode,
+			provider:       provider,
+			hybridProvider: opts.hybridProvider,
+			hybridModel:    opts.hybridModel,
+			hybridPool:     opts.hybridPool,
+			fusionK:        opts.fusionK,
+			limit:          opts.limit,
+		})
+		if runErr != nil && autoHybrid && isQueryEmbeddingError(runErr) {
+			fmt.Fprintf(os.Stderr, "warning: hybrid retrieval unavailable (%v); falling back to fts\n", runErr)
+			retrievalMode = retrievalHybridFallbackFTS
+			return runRetriever(ctx, st, p, retrieverOptions{mode: retrievalFTS, limit: opts.limit})
+		}
+		return rows, runErr
+	}
+	current, err := runResolved(params)
+	if err != nil {
+		return searchResult{}, err
+	}
+	current, err = augmentProfileSearch(ctx, st, params, current, opts.profiles)
+	if err != nil {
+		return searchResult{}, err
+	}
+
+	var historical []store.Memory
+	if !explicitLifecycle {
+		historicalParams := params
+		historicalParams.Lifecycle = store.LifecycleHistorical
+		historical, err = runResolved(historicalParams)
+		if err != nil {
+			return searchResult{}, err
+		}
+	}
+	lanes := structuredRetrievalLanes(query, current, historical)
+	if opts.explain {
+		lanes = explainRetrievalLanes(lanes, query, params.SourceQuality, params.AgingWindow, retrievalMode)
+	}
+	currentWithWhy := make([]store.Memory, 0, len(current))
+	for _, lane := range lanes {
+		if lane.Key == "historical" {
+			continue
+		}
+		currentWithWhy = append(currentWithWhy, lane.Results...)
+	}
+	return searchResult{
+		Query:            query,
+		Scope:            sc.Kind,
+		ScopeID:          sc.ID,
+		RetrievalMode:    retrievalMode,
+		ResultCount:      len(current),
+		HistoryCount:     len(historical),
+		ChannelFreshness: freshness,
+		Lanes:            lanes,
+		Results:          currentWithWhy,
+	}, nil
+}
+
+type searchModeResolver func(ctx context.Context, st *store.Store, sc scope.Scope, settings config.Settings, explicitHybridFlag bool, flagProvider, flagModel string) (string, embedding.Provider, bool, error)
+
+var activeSearchModeResolver searchModeResolver = defaultResolveRetrievalMode
+
+func resolveRetrievalMode(ctx context.Context, st *store.Store, sc scope.Scope, settings config.Settings, explicitHybridFlag bool, flagProvider, flagModel string) (string, embedding.Provider, bool, error) {
+	return activeSearchModeResolver(ctx, st, sc, settings, explicitHybridFlag, flagProvider, flagModel)
+}
+
+func defaultResolveRetrievalMode(ctx context.Context, st *store.Store, sc scope.Scope, settings config.Settings, explicitHybridFlag bool, flagProvider, flagModel string) (string, embedding.Provider, bool, error) {
+	if explicitHybridFlag {
+		provider, err := newEmbeddingProvider(flagProvider, flagModel)
+		if err != nil {
+			return "", nil, false, fmt.Errorf("embedding provider: %w", err)
+		}
+		return retrievalHybrid, provider, false, nil
+	}
+	configured := effectiveRetrievalMode(settings)
+	if configured == retrievalFTS {
+		return retrievalFTS, nil, false, nil
+	}
+	count, providerName, model, err := st.EmbeddingIndexInfo(ctx, sc.Kind, sc.ID)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if count >= embeddingIndexFloor {
+		provider, err := newEmbeddingProvider(providerName, model)
+		if err == nil {
+			return retrievalHybrid, provider, true, nil
+		}
+	}
+	if configured == retrievalHybrid {
+		return "", nil, false, fmt.Errorf("no usable embedding index; run recoil embed index")
+	}
+	return retrievalFTS, nil, false, nil
+}
+
+func isQueryEmbeddingError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "embed query:")
+}
+
+func searchFrontmatter(result searchResult) []kv {
+	meta := []kv{
+		{k: "query", v: result.Query},
+		{k: "scope", v: result.Scope},
+		{k: "scope_id", v: result.ScopeID},
+		{k: "retrieval_mode", v: result.RetrievalMode},
+		{k: "result_count", v: fmt.Sprintf("%d", result.ResultCount)},
+		{k: "history_count", v: fmt.Sprintf("%d", result.HistoryCount)},
+		{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
+		{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
+	}
+	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
+	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
+	return meta
+}
+
+func renderSearchResult(result searchResult, maxChars int) string {
+	return retrievalLaneBlocks(result.Lanes, maxChars)
 }
 
 func augmentProfileSearch(ctx context.Context, st *store.Store, p store.SearchParams, rows []store.Memory, mode string) ([]store.Memory, error) {
@@ -259,16 +339,9 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 	}
 	// Pool must be wide enough that operational docs (root README, CONTRIBUTING,
 	// SECURITY) survive into the candidate set on large repos where short-form
-	// docs lose FTS to deeper, denser docs. We tripped over this on transformers
-	// where root README's FTS rank for broad queries was beyond top-50 in the
-	// >2k-chunk corpus, so the +3 root_readme prior never fired.
-	pool := limit * 20
-	if pool < 100 {
-		pool = 100
-	}
-	if pool > 100 {
-		pool = 100
-	}
+	// docs lose FTS to deeper, denser docs. Scale with limit, but cap the fanout
+	// so broad variant searches stay bounded.
+	pool := min(max(limit*20, 100), 200)
 	byID := map[string]*searchScoredMemory{}
 	k := 60.0
 	for vi, variant := range variants {
@@ -290,11 +363,21 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 			byID[mem.ID].score += weight / (k + float64(ri+1))
 		}
 	}
+	ageWindow := p.AgingWindow
+	if ageWindow <= 0 {
+		ageWindow = defaultAgingWindowDays
+	}
 	fused := make([]searchScoredMemory, 0, len(byID))
 	for _, item := range byID {
 		coverage := signalTokenCoverage(p.Query, item.mem)
+		if weakSignalSearchResult(p.Query, item.mem) {
+			continue
+		}
 		item.score += 0.08 * coverage
 		item.score += sourcequality.ScorePriorWithOptions(p.Query, item.mem.SourcePath, item.mem.MetadataJSON, sourcequality.ModeSearch, p.SourceQuality)
+		now := time.Now().UTC()
+		item.score += recencyPrior(item.mem, now)
+		item.score -= agingPenalty(item.mem, now, ageWindow)
 		if coverage >= 0.5 && (item.mem.SourceKind == "direct" || item.mem.SourceKind == "remote_artifact") && isGuidanceRole(item.mem.Role) {
 			item.score += 0.75
 		}
@@ -308,8 +391,145 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 		return fused[i].score > fused[j].score
 	})
 	fused = filterStrictEntityResults(p.Query, fused)
+	fused = filterAbsentSubjectResults(p.Query, fused)
 	out := diversifySignalResults(fused, limit, p.Query)
 	return expandDerivedSourceEvidence(ctx, st, p, out, limit)
+}
+
+// weakSignalSearchResult filters absent-fact leakage from the fused candidate
+// set: mined file chunks that match too few of the query's significant tokens,
+// or whose only matches are negated mentions ("no redis", "without X"). The
+// gate is general — no query-specific triggers — but deliberately narrow in
+// what it may filter:
+//   - only mined file chunks (source_kind=file) are eligible; direct and
+//     session memories are conversational and legitimately match on partial
+//     overlap (multi-entity questions, person queries).
+//   - guidance-role memories (decisions, ADRs, constraints, ...) are exempt;
+//     surfacing "do not use X" decisions for X queries is core behavior.
+//   - operational docs (README, CONTRIBUTING, SECURITY, AGENTS) are exempt;
+//     paraphrase queries legitimately reach them through intent expansion
+//     even when raw token overlap is low.
+func weakSignalSearchResult(query string, mem store.Memory) bool {
+	if !strings.EqualFold(strings.TrimSpace(mem.SourceKind), "file") {
+		return false
+	}
+	if isGuidanceRole(mem.Role) {
+		return false
+	}
+	if sourcequality.Classify(mem.SourcePath).IsOperationalDoc {
+		return false
+	}
+	tokens := retrieval.SignificantTokens(query)
+	if len(tokens) <= 1 {
+		return false
+	}
+	text := strings.ToLower(strings.Join([]string{
+		mem.Content,
+		mem.Role,
+		mem.ClaimKey,
+		mem.SourceKind,
+		mem.SourceAgent,
+		mem.SourcePath,
+		mem.SourceRef,
+	}, " "))
+	presupposes := queryPresupposesSubject(query)
+	for _, token := range tokens {
+		if !strings.Contains(text, token) {
+			continue
+		}
+		if presupposes && negatesSignalToken(text, token) {
+			// For presupposition-form queries ("what X do we use"), a negated
+			// mention ("There is no Redis") is evidence of absence, not an
+			// answer. For existence questions ("is there a cache"), the
+			// negated doc IS the answer, so the hit counts.
+			continue
+		}
+		return false
+	}
+	// Zero qualifying significant-token hits: the chunk matched only
+	// stopwords or expansion noise.
+	return true
+}
+
+// queryPresupposesSubject detects question forms that presuppose their
+// subject exists: "what X do we use", "which X do we expose". When the
+// subject is absent or only mentioned as negated, the correct answer is
+// empty. Existence/overview/how questions do not presuppose, so negative
+// evidence and paraphrase matches remain valid answers for them.
+func queryPresupposesSubject(query string) bool {
+	lower := " " + strings.ToLower(strings.TrimSpace(query)) + " "
+	if !strings.HasPrefix(lower, " what ") && !strings.HasPrefix(lower, " which ") {
+		return false
+	}
+	for _, cue := range []string{" do we ", " are we ", " did we ", " does the ", " do i "} {
+		if strings.Contains(lower, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+// filterAbsentSubjectResults empties the candidate set when the query's
+// subject is absent from the whole corpus slice under consideration. The
+// subject is taken from the leading significant tokens ("what GRAPHQL schema
+// do we expose", "what REDIS configuration do we use"). If no candidate
+// mentions a subject token non-negated, then no candidate can answer the
+// question — trailing-context matches (schema, clients, configuration) are
+// absent-fact leakage and an empty result is correct. Paraphrase queries are
+// unaffected: their subject terms exist in the corpus, so the filter never
+// fires.
+func filterAbsentSubjectResults(query string, fused []searchScoredMemory) []searchScoredMemory {
+	if !queryPresupposesSubject(query) {
+		return fused
+	}
+	tokens := retrieval.SignificantTokens(query)
+	if len(tokens) < 3 || len(fused) == 0 {
+		return fused
+	}
+	// Only the leading significant token is the subject ("what SQLITE library
+	// do we use", "what GRAPHQL schema do we expose"). Later tokens are
+	// context nouns (library, schema, configuration) that legitimately may be
+	// missing from the answering document.
+	subjects := tokens[:1]
+	for _, subject := range subjects {
+		present := false
+		for _, item := range fused {
+			text := strings.ToLower(strings.Join([]string{
+				item.mem.Content, item.mem.Role, item.mem.ClaimKey,
+				item.mem.SourcePath, item.mem.SourceRef,
+			}, " "))
+			if strings.Contains(text, subject) && !negatesSignalToken(text, subject) {
+				present = true
+				break
+			}
+		}
+		if !present {
+			var kept []searchScoredMemory
+			for _, item := range fused {
+				text := strings.ToLower(strings.Join([]string{
+					item.mem.Content, item.mem.Role, item.mem.ClaimKey,
+					item.mem.SourcePath, item.mem.SourceRef,
+				}, " "))
+				if strings.Contains(text, subject) && !negatesSignalToken(text, subject) {
+					kept = append(kept, item)
+				}
+			}
+			fused = kept
+			if len(fused) == 0 {
+				return nil
+			}
+		}
+	}
+	return fused
+}
+
+func negatesSignalToken(text, token string) bool {
+	for _, pattern := range []string{"no " + token, "not " + token, "not use " + token, "does not use " + token, "do not use " + token, "without " + token} {
+		if strings.Contains(text, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 func signalTokenCoverage(query string, mem store.Memory) float64 {
@@ -335,35 +555,92 @@ func signalTokenCoverage(query string, mem store.Memory) float64 {
 	return float64(hits) / float64(len(tokens))
 }
 
+// filterStrictEntityResults applies entity gating to fused results.
+//
+// Strong signal (explicit "Dr. X" doctor names): hard filter — a sparse
+// search must not satisfy a named-doctor question with another doctor.
+//
+// Weak signal (capitalized bigrams that look like person names): demotion
+// only. Results that don't mention the name take a flat score penalty and
+// re-sort below matching results, but they survive — capitalized bigrams
+// are too often product names ("Visual Studio", "North Star") for a hard
+// drop to be safe.
+const entityDemotionPenalty = 1.0
+
 func filterStrictEntityResults(query string, fused []searchScoredMemory) []searchScoredMemory {
 	doctorNames := retrieval.DoctorNameTerms(query)
 	personNames := explicitPersonNameTerms(query)
 	if len(doctorNames) == 0 && len(personNames) == 0 {
 		return fused
 	}
-	var out []searchScoredMemory
-	for _, item := range fused {
+	containsAnyName := func(item searchScoredMemory, names []string) bool {
 		text := strings.ToLower(item.mem.Content + " " + item.mem.SourceRef + " " + item.mem.SourcePath)
-		for _, name := range doctorNames {
+		for _, name := range names {
 			if strings.Contains(text, name) {
-				out = append(out, item)
-				goto nextItem
+				return true
 			}
 		}
-		for _, name := range personNames {
-			if strings.Contains(text, name) {
-				out = append(out, item)
-				goto nextItem
+		return false
+	}
+	// When no result mentions the cued person at all, answering with someone
+	// else's facts is a wrong-memory hazard — hard-filter to empty just like
+	// the doctor path. Demotion only applies when the person is present and
+	// weaker context results would otherwise outrank them.
+	anyPersonMatch := false
+	if len(personNames) > 0 {
+		for _, item := range fused {
+			if containsAnyName(item, personNames) {
+				anyPersonMatch = true
+				break
 			}
 		}
-	nextItem:
+	}
+	var out []searchScoredMemory
+	demoted := false
+	for _, item := range fused {
+		if len(doctorNames) > 0 {
+			if containsAnyName(item, doctorNames) {
+				out = append(out, item)
+				continue
+			}
+			if len(personNames) == 0 {
+				continue
+			}
+		}
+		if len(personNames) > 0 && !containsAnyName(item, personNames) {
+			if len(doctorNames) > 0 || !anyPersonMatch {
+				// Doctor query, or a person query where nobody in the
+				// candidate set mentions that person: hard-filter.
+				continue
+			}
+			item.score -= entityDemotionPenalty
+			item.mem.Score = item.score
+			demoted = true
+		}
+		out = append(out, item)
+	}
+	if demoted {
+		sort.SliceStable(out, func(i, j int) bool {
+			if math.Abs(out[i].score-out[j].score) < 1e-9 {
+				return out[i].mem.CreatedAt > out[j].mem.CreatedAt
+			}
+			return out[i].score > out[j].score
+		})
 	}
 	return out
 }
 
 var explicitPersonNameRE = regexp.MustCompile(`\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\b`)
 
+// explicitPersonNameTerms extracts likely person names from a query. A
+// capitalized bigram alone is a weak signal (product names match the same
+// shape), so a bigram only counts when a person-ish cue appears in the query:
+// a personal lead-in word directly before the name, or person-question
+// context anywhere in the query.
 func explicitPersonNameTerms(query string) []string {
+	if !queryHasPersonContext(query) {
+		return nil
+	}
 	var names []string
 	for _, match := range explicitPersonNameRE.FindAllStringSubmatch(query, -1) {
 		if len(match) < 3 {
@@ -377,6 +654,22 @@ func explicitPersonNameTerms(query string) []string {
 		names = append(names, first+" "+last, last, first)
 	}
 	return uniqueSearchStrings(names)
+}
+
+func queryHasPersonContext(query string) bool {
+	lower := " " + strings.ToLower(query) + " "
+	for _, cue := range []string{
+		" dr ", " dr. ", " doctor ", " my ", " with ", " named ", " called ",
+		" friend ", " brother ", " sister ", " cousin ", " coworker ",
+		" colleague ", " who ", " whom ", " person ", " people ", " met ",
+		" ask ", " asked ", " said ", " say ", " told ", " tell ",
+		" recommend ", " recommended ", " mentioned ",
+	} {
+		if strings.Contains(lower, cue) {
+			return true
+		}
+	}
+	return false
 }
 
 func commonNonPersonName(first, last string) bool {
@@ -440,6 +733,8 @@ func diversifySignalResults(fused []searchScoredMemory, limit int, query string)
 	for _, item := range fused {
 		appendItem(item)
 	}
+	// The desperate fallback re-adds from fused, which has already been
+	// weak-filtered upstream, so it cannot resurrect absent-fact leakage.
 	if len(out) == 0 && !allowNegative {
 		for _, item := range fused {
 			if len(out) >= limit || seenID[item.mem.ID] {
@@ -462,6 +757,10 @@ func queryAsksForNegativeEvidence(query string) bool {
 }
 
 func isNegativeEvidence(mem store.Memory) bool {
+	metadata := strings.ToLower(strings.Join(strings.Fields(mem.MetadataJSON), ""))
+	if strings.Contains(metadata, `"noise":true`) {
+		return true
+	}
 	text := strings.ToLower(mem.Content)
 	normalized := strings.Join(strings.Fields(text), " ")
 	for _, marker := range []string{
@@ -472,12 +771,8 @@ func isNegativeEvidence(mem store.Memory) bool {
 		"not the user's facts",
 		"not my own",
 		"not what i am",
-		"not the current product direction",
 		"not the answer",
 		"only background discussion",
-		"hosted sync service",
-		"hosted sync",
-		"should prefer the",
 		"do not treat",
 		"should not be used",
 		"should not override",

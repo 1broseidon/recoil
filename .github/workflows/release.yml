@@ -1,0 +1,216 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - runner: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - runner: macos-latest
+            goos: darwin
+            goarch: arm64
+          - runner: macos-latest
+            goos: darwin
+            goarch: amd64
+            cross: true
+          - runner: windows-latest
+            goos: windows
+            goarch: amd64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Resolve release ref
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        if: ${{ !matrix.cross }}
+        run: CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go test ./...
+
+      - name: Build
+        run: |
+          EXT=""
+          TAG="${{ steps.ref.outputs.ref }}"
+          TAG="${TAG#refs/tags/}"
+          COMMIT="$(git rev-parse HEAD)"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          VERSION_PKG="github.com/1broseidon/recoil/cmd"
+          LDFLAGS="-s -w -X ${VERSION_PKG}.version=${TAG} -X ${VERSION_PKG}.commit=${COMMIT} -X ${VERSION_PKG}.date=${DATE}"
+          CGO_FLAGS="-DSQLITE_ENABLE_FTS5"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+            LDFLAGS="$LDFLAGS -extldflags -static"
+          fi
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            CGO_FLAGS="$CGO_FLAGS -arch x86_64"
+            export CGO_LDFLAGS="-arch x86_64"
+          fi
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            CGO_CFLAGS="$CGO_FLAGS" \
+            go build -trimpath -ldflags="$LDFLAGS" -o "recoil${EXT}" .
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            7z a "recoil_${{ matrix.goos }}_${{ matrix.goarch }}.zip" "recoil${EXT}"
+          else
+            tar czf "recoil_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" recoil
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recoil_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: |
+            recoil_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
+            recoil_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out release sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Rename and checksum
+        run: |
+          cd dist
+          TAG=${{ steps.tag.outputs.tag }}
+          for f in recoil_*.tar.gz; do
+            [ -e "$f" ] || continue
+            arch=$(echo "$f" | sed 's/recoil_\(.*\)\.tar\.gz/\1/' | sed 's/amd64/x86_64/')
+            mv "$f" "recoil_${TAG}_${arch}.tar.gz"
+          done
+          for f in recoil_*.zip; do
+            [ -e "$f" ] || continue
+            arch=$(echo "$f" | sed 's/recoil_\(.*\)\.zip/\1/' | sed 's/amd64/x86_64/')
+            mv "$f" "recoil_${TAG}_${arch}.zip"
+          done
+          sha256sum recoil_${TAG}_*.tar.gz recoil_${TAG}_*.zip > checksums.txt
+          ls -la
+
+      - name: Extract release notes from changelog
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          VERSION="${TAG#v}"
+          awk -v version="$VERSION" '
+            /^## \[/ {
+              if (in_section) exit
+              if (index($0, "## [" version "]") == 1) {
+                in_section = 1
+                next
+              }
+            }
+            in_section { print }
+          ' CHANGELOG.md > dist/release_notes.md
+
+          sed -i '/./,$!d' dist/release_notes.md
+
+          if ! awk 'NF { found = 1 } END { exit found ? 0 : 1 }' dist/release_notes.md; then
+            echo "Missing CHANGELOG entry for ${TAG}. Add a ## [${VERSION}] section before tagging." >&2
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          body_path: dist/release_notes.md
+          files: |
+            dist/recoil_*.tar.gz
+            dist/recoil_*.zip
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release ref
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/1broseidon/recoil:${{ steps.ref.outputs.tag }}
+            ghcr.io/1broseidon/recoil:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

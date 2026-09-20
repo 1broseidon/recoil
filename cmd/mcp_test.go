@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -23,10 +24,10 @@ func TestMCPToolsListReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	names := mcpToolNames(result.Tools)
-	if !names["recoil_search"] || !names["recoil_wake"] {
+	if !names["recoil_search"] || !names["recoil_wake"] || !names["recoil_check"] {
 		t.Fatalf("expected read tools, got %+v", names)
 	}
-	if names["recoil_add"] {
+	if names["recoil_add"] || names["recoil_remember"] || names["recoil_handoff"] {
 		t.Fatalf("did not expect write tool without --allow-write, got %+v", names)
 	}
 }
@@ -40,8 +41,10 @@ func TestMCPAllowWriteListsAddTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	names := mcpToolNames(result.Tools)
-	if !names["recoil_add"] {
-		t.Fatalf("expected recoil_add in tools: %+v", names)
+	for _, name := range []string{"recoil_add", "recoil_remember", "recoil_handoff"} {
+		if !names[name] {
+			t.Fatalf("expected %s in tools: %+v", name, names)
+		}
 	}
 }
 
@@ -59,6 +62,9 @@ func TestMCPSearchMatchesCLITopResultAndEmptyMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	mcpText := mcpToolText(t, mcpSearch)
+	if got := mcpToolEnvelopeKind(t, mcpSearch); got != "search_result" {
+		t.Fatalf("expected structured search_result, got %q", got)
+	}
 
 	searchCmd := newSearchCommand()
 	var cliOut bytes.Buffer
@@ -81,6 +87,9 @@ func TestMCPSearchMatchesCLITopResultAndEmptyMessage(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got := mcpToolEnvelopeKind(t, mcpEmpty); got != "search_result" {
+		t.Fatalf("expected structured empty search_result, got %q", got)
 	}
 	emptyCmd := newSearchCommand()
 	var emptyCLI bytes.Buffer
@@ -108,6 +117,9 @@ func TestMCPWakeMatchesCLIBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := mcpToolEnvelopeKind(t, mcpWake); got != "wake_result" {
+		t.Fatalf("expected structured wake_result, got %q", got)
+	}
 
 	wakeCmd := newWakeCommand()
 	var cliOut bytes.Buffer
@@ -120,6 +132,76 @@ func TestMCPWakeMatchesCLIBody(t *testing.T) {
 
 	if got, want := strings.TrimSpace(mcpToolText(t, mcpWake)), strings.TrimSpace(stripFrontmatter(cliOut.String())); got != want {
 		t.Fatalf("MCP/CLI wake body mismatch\nMCP:\n%s\nCLI:\n%s", got, want)
+	}
+}
+
+func TestMCPToolErrorsAreStructured(t *testing.T) {
+	setupMCPParityProject(t)
+	session, cleanup := connectMCPTestServer(t, mcpOptions{})
+	defer cleanup()
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "recoil_search",
+		Arguments: map[string]any{"query": ""},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatalf("expected tool error")
+	}
+	if got := mcpToolEnvelopeKind(t, result); got != "error" {
+		t.Fatalf("expected structured error envelope, got %q", got)
+	}
+}
+
+func TestMCPWorkflowToolsRememberCheckHandoff(t *testing.T) {
+	setupMCPParityProject(t)
+	session, cleanup := connectMCPTestServer(t, mcpOptions{allowWrite: true})
+	defer cleanup()
+
+	remembered, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "recoil_remember",
+		Arguments: map[string]any{
+			"content":   "Decision: use structured MCP workflow tools for agent memory.",
+			"agent":     "codex",
+			"claim_key": "mcp.workflow",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := mcpToolEnvelopeKind(t, remembered); got != "remember_result" {
+		t.Fatalf("expected structured remember_result, got %q", got)
+	}
+
+	checked, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "recoil_check",
+		Arguments: map[string]any{"claim_key": "mcp.workflow", "limit": 5},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := mcpToolEnvelopeKind(t, checked); got != "check_result" {
+		t.Fatalf("expected structured check_result, got %q", got)
+	}
+	if !strings.Contains(mcpToolText(t, checked), "mcp.workflow") {
+		t.Fatalf("expected check text to mention claim key, got:\n%s", mcpToolText(t, checked))
+	}
+
+	handoff, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "recoil_handoff",
+		Arguments: map[string]any{
+			"summary":    "MCP workflow tools were exercised.",
+			"agent":      "codex",
+			"next_steps": []string{"Keep MCP and CLI contracts aligned."},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := mcpToolEnvelopeKind(t, handoff); got != "handoff_result" {
+		t.Fatalf("expected structured handoff_result, got %q", got)
 	}
 }
 
@@ -214,6 +296,24 @@ func mcpToolText(t *testing.T, result *mcp.CallToolResult) string {
 		t.Fatalf("expected text content, got %T", result.Content[0])
 	}
 	return text.Text
+}
+
+func mcpToolEnvelopeKind(t *testing.T, result *mcp.CallToolResult) string {
+	t.Helper()
+	if result.StructuredContent == nil {
+		t.Fatalf("expected structured content")
+	}
+	data, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("structured content is not an envelope: %v\n%s", err, data)
+	}
+	return got.Kind
 }
 
 func stripFrontmatter(text string) string {

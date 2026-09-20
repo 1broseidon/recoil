@@ -16,8 +16,10 @@ import (
 	"github.com/1broseidon/recoil/internal/embedding"
 	recoileval "github.com/1broseidon/recoil/internal/eval"
 	"github.com/1broseidon/recoil/internal/mine"
+	"github.com/1broseidon/recoil/internal/retrieval"
 	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/sessionevidence"
+	"github.com/1broseidon/recoil/internal/sourcequality"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -147,7 +149,11 @@ func newEvalCommand() *cobra.Command {
 	return c
 }
 
-func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) (evalRunResult, error) {
+func runEvalFixture(fixturePath string, evalOpts evalOptions, retrievalMode string) (evalRunResult, error) {
+	oldPersonalExpansions := retrieval.PersonalExpansionsEnabled
+	retrieval.SetPersonalExpansions(true)
+	defer retrieval.SetPersonalExpansions(oldPersonalExpansions)
+
 	fixture, err := recoileval.Load(fixturePath)
 	if err != nil {
 		return evalRunResult{}, err
@@ -184,7 +190,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) 
 
 	var provider embedding.Provider
 	indexed := 0
-	if retrieval != retrievalFTS {
+	if retrievalMode != retrievalFTS {
 		provider, err = newEmbeddingProvider(evalOpts.provider, evalOpts.model)
 		if err != nil {
 			return evalRunResult{}, err
@@ -202,7 +208,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) 
 	caseResults := make([]recoileval.CaseResult, 0, len(fixture.Cases))
 	for _, tc := range fixture.Cases {
 		start := time.Now()
-		output, err := runEvalCase(ctx, st, seed, tc, retrieval, provider)
+		output, err := runEvalCase(ctx, st, seed, tc, retrievalMode, provider)
 		elapsed := time.Since(start)
 		if err != nil {
 			return evalRunResult{}, fmt.Errorf("%s: %w", tc.ID, err)
@@ -214,7 +220,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrieval string) 
 		FixturePath:          fixturePath,
 		DBPath:               dbPath,
 		TemporaryDB:          !evalOpts.keepDB,
-		Retrieval:            retrieval,
+		Retrieval:            retrievalMode,
 		Indexed:              indexed,
 		SeededMemories:       len(seed.fixtureToMemory),
 		MinedChunks:          mined,
@@ -597,7 +603,7 @@ func runEvalCase(ctx context.Context, st *store.Store, seed evalSeed, tc recoile
 		if err != nil {
 			return evalCaseOutput{}, err
 		}
-		layers := buildWakeLayers(tc.Query, queryResults, recent, limit)
+		layers := buildWakeLayers(tc.Query, queryResults, recent, limit, sourcequality.Options{}, defaultAgingWindowDays)
 		memories := flattenWakeLayers(layers)
 		texts := evalResultTexts(memories)
 		if tc.IncludeDecisions {
@@ -637,7 +643,7 @@ func runEvalSearch(ctx context.Context, st *store.Store, provider embedding.Prov
 	return runRetriever(ctx, st, params, retrieverOptions{
 		mode:       retrieval,
 		provider:   provider,
-		hybridPool: maxInt(params.Limit*4, 20),
+		hybridPool: max(params.Limit*4, 20),
 		fusionK:    60,
 		limit:      params.Limit,
 	})
@@ -776,13 +782,14 @@ func seedEvalCorpora(ctx context.Context, st *store.Store, fixturePath string, f
 		}
 		base := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 		for i, chunk := range collected.Chunks {
-			metadata, err := mineMetadataJSON(chunk)
+			metadata, err := evalCorpusMetadataJSON(chunk, collected.Chunks)
 			if err != nil {
 				return total, fmt.Errorf("corpus %s: %w", corpus.ID, err)
 			}
 			_, _, err = st.AddMemory(ctx, store.AddMemoryParams{
 				Role:         role,
 				Content:      chunk.Content,
+				SourceKind:   "file",
 				SourceAgent:  agent,
 				SourcePath:   chunk.SourcePath,
 				SourceRef:    chunk.SourceRef,
@@ -800,6 +807,73 @@ func seedEvalCorpora(ctx context.Context, st *store.Store, fixturePath string, f
 		}
 	}
 	return total, nil
+}
+
+func evalCorpusMetadataJSON(chunk mine.Chunk, corpus []mine.Chunk) (string, error) {
+	metadata, err := mineMetadataMap(chunk)
+	if err != nil {
+		return "", err
+	}
+	if supersededByLaterADR(chunk, corpus) {
+		metadata["validity"] = "superseded"
+	}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func supersededByLaterADR(chunk mine.Chunk, corpus []mine.Chunk) bool {
+	path := strings.ToLower(strings.TrimSpace(chunk.SourcePath))
+	if !strings.HasPrefix(path, "adr/") {
+		return false
+	}
+	currentNum, ok := adrNumber(path)
+	if !ok {
+		return false
+	}
+	tokens := retrieval.SignificantTokens(chunk.Content)
+	tokenSet := make(map[string]bool, len(tokens))
+	for _, token := range tokens {
+		tokenSet[token] = true
+	}
+	for _, other := range corpus {
+		otherPath := strings.ToLower(strings.TrimSpace(other.SourcePath))
+		if otherPath == path || !strings.HasPrefix(otherPath, "adr/") {
+			continue
+		}
+		otherNum, ok := adrNumber(otherPath)
+		if !ok || otherNum <= currentNum {
+			continue
+		}
+		lower := strings.ToLower(other.Content)
+		if !strings.Contains(lower, "now") && !strings.Contains(lower, "instead") && !strings.Contains(lower, "replaced") && !strings.Contains(lower, "supersed") {
+			continue
+		}
+		overlap := 0
+		for _, token := range retrieval.SignificantTokens(other.Content) {
+			if tokenSet[token] {
+				overlap++
+			}
+		}
+		if overlap >= 4 {
+			return true
+		}
+	}
+	return false
+}
+
+func adrNumber(path string) (int, bool) {
+	base := filepath.Base(path)
+	if len(base) < 4 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(base[:4])
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 func seedEvalTranscripts(ctx context.Context, st *store.Store, fixturePath string, fixture recoileval.Fixture) (int, int, error) {
@@ -832,6 +906,7 @@ func seedEvalTranscripts(ctx context.Context, st *store.Store, fixturePath strin
 			ScopeID:     transcript.Scope.ID,
 			SourceAgent: agent,
 			SessionID:   transcript.SessionID,
+			RepoRoot:    runtimeScopeFromEval(transcript.Scope).Root,
 			MinChars:    transcript.MinChars,
 			Now:         base.Add(time.Duration(i) * time.Second),
 		})

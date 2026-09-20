@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/1broseidon/recoil/internal/scope"
 	"github.com/1broseidon/recoil/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -21,12 +22,14 @@ type handoffOptions struct {
 	claimKey     string
 	publish      bool
 	noPublish    bool
+	noSupersede  bool
 }
 
 type handoffResult struct {
 	Memory           *store.Memory            `json:"memory"`
 	Publish          channelAutoPublishResult `json:"publish"`
 	ChannelFreshness channelFreshnessResult   `json:"channel_freshness"`
+	AutoSuperseded   []string                 `json:"auto_superseded,omitempty"`
 }
 
 func newHandoffCommand() *cobra.Command {
@@ -57,32 +60,14 @@ func newHandoffCommand() *cobra.Command {
 			}
 			defer st.Close()
 			ctx := context.Background()
-			freshness := ensureFreshContext(ctx, st, "handoff")
-			mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
-				Role:        "handoff",
-				Content:     content,
-				SourceKind:  "direct",
-				SourceAgent: handoffOpts.agent,
-				ScopeKind:   sc.Kind,
-				ScopeID:     sc.ID,
-				ProjectID:   sc.ProjectID,
-				SessionID:   sc.SessionID,
-				Validity:    "active",
-				ClaimKey:    firstNonEmpty(strings.TrimSpace(handoffOpts.claimKey), "handoff.latest"),
-				Supersedes:  handoffOpts.supersedes,
-			})
+			result, err := runHandoff(ctx, st, sc, content, handoffOpts)
 			if err != nil {
 				return err
 			}
-			publish := autoPublishMemory(ctx, st, mem, channelAutoPublishOptions{
-				Command:   "handoff",
-				Force:     handoffOpts.publish,
-				Disabled:  handoffOpts.noPublish,
-				Duplicate: duplicate,
-			})
 			if opts.json {
-				return writeJSON(cmd.OutOrStdout(), "handoff_result", handoffResult{Memory: mem, Publish: publish, ChannelFreshness: freshness})
+				return writeJSON(cmd.OutOrStdout(), "handoff_result", result)
 			}
+			mem := result.Memory
 			meta := []kv{
 				{k: "id", v: mem.ID},
 				{k: "scope", v: mem.ScopeKind},
@@ -90,12 +75,13 @@ func newHandoffCommand() *cobra.Command {
 				{k: "role", v: mem.Role},
 				{k: "claim_key", v: mem.ClaimKey},
 				{k: "supersedes", v: mem.Supersedes},
-				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(freshness))},
-				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(freshness))},
+				{k: "auto_superseded", v: strings.Join(result.AutoSuperseded, ",")},
+				{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
+				{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
 			}
-			meta = append(meta, channelFriendlyFrontmatter(freshness)...)
-			meta = append(meta, channelOutboxFrontmatter("channel_", freshness.Outbox)...)
-			meta = append(meta, autoPublishFrontmatter(publish)...)
+			meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
+			meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
+			meta = append(meta, autoPublishFrontmatter(result.Publish)...)
 			return frontmatter(cmd.OutOrStdout(), meta, mem.Content)
 		},
 	}
@@ -110,7 +96,50 @@ func newHandoffCommand() *cobra.Command {
 	c.Flags().StringVar(&handoffOpts.claimKey, "claim-key", "handoff.latest", "claim key for the handoff memory")
 	c.Flags().BoolVar(&handoffOpts.publish, "publish", false, "force automatic channel publish for this handoff")
 	c.Flags().BoolVar(&handoffOpts.noPublish, "no-publish", false, "skip automatic channel publish for this handoff")
+	c.Flags().BoolVar(&handoffOpts.noSupersede, "no-supersede", false, "skip automatic supersession of prior active handoffs in the claim family")
 	return c
+}
+
+func runHandoff(ctx context.Context, st *store.Store, sc scope.Scope, content string, opts handoffOptions) (handoffResult, error) {
+	freshness := ensureFreshContext(ctx, st, "handoff")
+	mem, duplicate, err := st.AddMemory(ctx, store.AddMemoryParams{
+		Role:        "handoff",
+		Content:     content,
+		SourceKind:  "direct",
+		SourceAgent: opts.agent,
+		ScopeKind:   sc.Kind,
+		ScopeID:     sc.ID,
+		ProjectID:   sc.ProjectID,
+		SessionID:   sc.SessionID,
+		Validity:    "active",
+		ClaimKey:    firstNonEmpty(strings.TrimSpace(opts.claimKey), "handoff.latest"),
+		Supersedes:  opts.supersedes,
+	})
+	if err != nil {
+		return handoffResult{}, err
+	}
+	var autoSuperseded []string
+	if !duplicate && !opts.noSupersede && strings.TrimSpace(opts.supersedes) == "" {
+		autoSuperseded, err = autoSupersedeClaimFamily(ctx, st, sc, mem.ClaimKey, mem.ID)
+		if err != nil {
+			return handoffResult{}, err
+		}
+		if len(autoSuperseded) == 1 {
+			params := lifecycleParamsFromMemory(*mem)
+			params.Supersedes = autoSuperseded[0]
+			mem, err = st.UpdateLifecycle(ctx, params)
+			if err != nil {
+				return handoffResult{}, err
+			}
+		}
+	}
+	publish := autoPublishMemory(ctx, st, mem, channelAutoPublishOptions{
+		Command:   "handoff",
+		Force:     opts.publish,
+		Disabled:  opts.noPublish,
+		Duplicate: duplicate,
+	})
+	return handoffResult{Memory: mem, Publish: publish, ChannelFreshness: freshness, AutoSuperseded: autoSuperseded}, nil
 }
 
 func readAddInputAllowEmpty(file string, args []string) (string, error) {
