@@ -45,6 +45,28 @@ Use it when you need:
 
 ## Install
 
+Prebuilt binaries are attached to every release, with a `checksums.txt` covering each archive. FTS5 is compiled in.
+
+**macOS / Linux** — download the archive for your platform from the [releases page](https://github.com/1broseidon/recoil/releases/latest), verify it, and put `recoil` on your `PATH`:
+
+```sh
+TAG=$(curl -fsSL https://api.github.com/repos/1broseidon/recoil/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && ARCH=arm64
+curl -fsSLO "https://github.com/1broseidon/recoil/releases/download/${TAG}/recoil_${TAG}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "https://github.com/1broseidon/recoil/releases/download/${TAG}/checksums.txt"
+grep "recoil_${TAG}_${OS}_${ARCH}.tar.gz" checksums.txt | shasum -a 256 -c -
+tar xzf "recoil_${TAG}_${OS}_${ARCH}.tar.gz" && install -m755 recoil ~/.local/bin/recoil
+```
+
+**Windows**:
+
+```powershell
+irm https://raw.githubusercontent.com/1broseidon/recoil/main/install.ps1 | iex
+```
+
+To uninstall, run `uninstall.ps1` the same way. It keeps your memories by default; pass `-Purge` to also delete the database.
+
 **Go** (requires CGO for SQLite FTS5):
 
 ```sh
