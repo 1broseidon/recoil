@@ -209,6 +209,12 @@ jobs:
         with:
           ref: ${{ steps.ref.outputs.ref }}
 
+      - name: Resolve build stamp
+        id: stamp
+        run: |
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
@@ -224,6 +230,10 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            VERSION=${{ steps.ref.outputs.tag }}
+            COMMIT=${{ steps.stamp.outputs.commit }}
+            DATE=${{ steps.stamp.outputs.date }}
           tags: |
             ghcr.io/1broseidon/recoil:${{ steps.ref.outputs.tag }}
             ghcr.io/1broseidon/recoil:latest

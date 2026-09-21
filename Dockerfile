@@ -9,8 +9,15 @@ RUN go mod download
 COPY main.go ./
 COPY cmd ./cmd
 COPY internal ./internal
+
+# Stamped by the release workflow; a plain `docker build` reports dev.
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG DATE=unknown
 RUN CGO_ENABLED=1 CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" \
-    go build -trimpath -ldflags="-s -w" -o /out/recoil .
+    go build -trimpath \
+      -ldflags="-s -w -X github.com/1broseidon/recoil/cmd.version=${VERSION} -X github.com/1broseidon/recoil/cmd.commit=${COMMIT} -X github.com/1broseidon/recoil/cmd.date=${DATE}" \
+      -o /out/recoil .
 
 FROM alpine:3.22
 

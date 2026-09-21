@@ -4,6 +4,10 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The `ghcr.io/1broseidon/recoil` image reports the release version, commit and build date from `recoil version`, the same as the published binaries, instead of `dev (unknown, unknown)`.
+
 ## [0.2.0] - 2026-09-21
 
 The repository now ships the way the other chain.sh tools do: CI on every push, lint and vulnerability gates, contributor docs, and a grouped `--help`. The MCP SDK and Go toolchain move past four SDK advisories and ten standard-library ones.
