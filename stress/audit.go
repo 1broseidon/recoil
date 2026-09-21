@@ -23,13 +23,13 @@ func cmdAudit(args []string) {
 	must(os.MkdirAll(outDir, 0o755), "mkdir reports")
 
 	type audited struct {
-		Key         string              `json:"key"`
-		URL         string              `json:"url"`
-		Ref         string              `json:"ref"`
-		SHA         string              `json:"sha"`
-		Archetype   string              `json:"archetype"`
-		ExpectedClasses []string        `json:"expected_classes"`
-		GroundTruth map[string][]string `json:"ground_truth"`
+		Key             string              `json:"key"`
+		URL             string              `json:"url"`
+		Ref             string              `json:"ref"`
+		SHA             string              `json:"sha"`
+		Archetype       string              `json:"archetype"`
+		ExpectedClasses []string            `json:"expected_classes"`
+		GroundTruth     map[string][]string `json:"ground_truth"`
 	}
 
 	var allAudited []audited

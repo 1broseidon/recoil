@@ -4,16 +4,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+// gitEnv is the process environment minus the variables git exports to hooks
+// (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE). A child git running in a temp
+// repository would otherwise inherit them and read this repository's index,
+// which is how these tests failed under .githooks/pre-commit.
+func gitEnv() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "GIT_DIR=") || strings.HasPrefix(kv, "GIT_WORK_TREE=") || strings.HasPrefix(kv, "GIT_INDEX_FILE=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env,
+		"GIT_AUTHOR_NAME=recoil-test", "GIT_AUTHOR_EMAIL=recoil@test.invalid",
+		"GIT_COMMITTER_NAME=recoil-test", "GIT_COMMITTER_EMAIL=recoil@test.invalid",
+	)
+}
 
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(cmd.Environ(),
-		"GIT_AUTHOR_NAME=recoil-test", "GIT_AUTHOR_EMAIL=recoil@test.invalid",
-		"GIT_COMMITTER_NAME=recoil-test", "GIT_COMMITTER_EMAIL=recoil@test.invalid",
-	)
+	cmd.Env = gitEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v failed: %v\n%s", args, err, out)
 	}
@@ -27,7 +43,9 @@ func tempRepoWithWorktree(t *testing.T) (repo, worktree string) {
 	}
 	base := t.TempDir()
 	repo = filepath.Join(base, "repo")
-	if err := exec.Command("git", "init", "-q", repo).Run(); err != nil {
+	initCmd := exec.Command("git", "init", "-q", repo)
+	initCmd.Env = gitEnv()
+	if err := initCmd.Run(); err != nil {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(repo, "README.md"), "seed\n")

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -87,7 +86,7 @@ func newRelayServeCommand() *cobra.Command {
 				Handler:           newRelayHandler(serveOpts.data),
 				ReadHeaderTimeout: 5 * time.Second,
 			}
-			fmt.Fprintf(cmd.ErrOrStderr(), "recoil relay listening on %s with data %s\n", serveOpts.addr, serveOpts.data)
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "recoil relay listening on %s with data %s\n", serveOpts.addr, serveOpts.data)
 			err := srv.ListenAndServe()
 			if err == http.ErrServerClosed {
 				return nil
@@ -561,11 +560,4 @@ func safeRelayName(name string) string {
 		return "default"
 	}
 	return out
-}
-
-func shutdownRelayServer(ctx context.Context, srv *http.Server) error {
-	if srv == nil {
-		return nil
-	}
-	return srv.Shutdown(ctx)
 }

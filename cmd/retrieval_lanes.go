@@ -78,14 +78,6 @@ func retrievalLaneIndex(mem store.Memory, historical bool) int {
 	return 3
 }
 
-func flattenRetrievalLanes(lanes []retrievalLaneResult) []store.Memory {
-	var out []store.Memory
-	for _, lane := range lanes {
-		out = append(out, lane.Results...)
-	}
-	return out
-}
-
 func retrievalLaneBlocks(lanes []retrievalLaneResult, maxChars int) string {
 	var b strings.Builder
 	if len(lanes) == 0 {

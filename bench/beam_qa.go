@@ -263,10 +263,10 @@ func runBEAMQA(args []string) error {
 
 	// Job queue.
 	type job struct {
-		idx     int
-		prep    *prepared
-		cat     string
-		qa      beamQuestion
+		idx  int
+		prep *prepared
+		cat  string
+		qa   beamQuestion
 	}
 	jobs := make(chan job, concurrency*2)
 	var allJobs []job

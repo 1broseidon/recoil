@@ -981,28 +981,3 @@ func sourceEvidenceNeighbors(ctx context.Context, st *store.Store, p store.Searc
 // validity, source kind, etc. — by reusing the same store.SearchParams for
 // both legs, only swapping Query for the embedding vector on the semantic
 // side. Result: identical filter semantics across both rankings.
-func runHybridSearch(ctx context.Context, st *store.Store, p store.SearchParams, opts searchOptions) ([]store.Memory, error) {
-	provider, err := newEmbeddingProvider(opts.hybridProvider, opts.hybridModel)
-	if err != nil {
-		return nil, fmt.Errorf("embedding provider: %w", err)
-	}
-	return runHybridRetriever(ctx, st, p, provider, opts.hybridPool, opts.fusionK, opts.limit)
-}
-
-func searchMemoryBlocks(current, historical []store.Memory, maxChars int) string {
-	var b strings.Builder
-	if len(current) == 0 {
-		b.WriteString("No current memories found.")
-	} else {
-		b.WriteString("## Current Results\n\n")
-		b.WriteString(memoryBlocks(current, maxChars, true))
-	}
-	if len(historical) > 0 {
-		if b.Len() > 0 {
-			b.WriteString("\n\n")
-		}
-		b.WriteString("## Historical Results\n\n")
-		b.WriteString(memoryBlocks(historical, maxChars, true))
-	}
-	return strings.TrimRight(b.String(), "\n")
-}

@@ -11,8 +11,13 @@ func newInstructCommand() *cobra.Command {
 	return newAgentInstructionsCommand("instruct <agent>", "Print the short Recoil agent contract")
 }
 
+// newInstructionsCommand keeps `recoil instructions` working for hooks and
+// skills that already call it. It prints exactly what `instruct` prints, so it
+// stays out of the help listing.
 func newInstructionsCommand() *cobra.Command {
-	return newAgentInstructionsCommand("instructions <agent>", "Print agent integration instructions")
+	c := newAgentInstructionsCommand("instructions <agent>", "Alias of instruct")
+	c.Hidden = true
+	return c
 }
 
 func newAgentInstructionsCommand(use, short string) *cobra.Command {

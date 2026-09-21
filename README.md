@@ -1,5 +1,9 @@
 # recoil
 
+[![GitHub Stars](https://img.shields.io/github/stars/1broseidon/recoil?style=social)](https://github.com/1broseidon/recoil/stargazers)
+[![Go Reference](https://pkg.go.dev/badge/github.com/1broseidon/recoil.svg)](https://pkg.go.dev/github.com/1broseidon/recoil)
+[![Latest Release](https://img.shields.io/github/v/release/1broseidon/recoil)](https://github.com/1broseidon/recoil/releases/latest)
+
 Fast local operational memory for long-running agentic workflows.
 
 > Agents do not manage memory. They author intent. Recoil handles freshness,
@@ -28,6 +32,7 @@ Use it when you need:
 
 ## Contents
 
+- [Documentation](#documentation)
 - [Install](#install)
 - [Quick Start](#quick-start)
 - [Why recoil](#why-recoil)
@@ -42,6 +47,22 @@ Use it when you need:
 - [Embeddings and Hybrid Retrieval](#embeddings-and-hybrid-retrieval)
 - [Status](#status)
 - [License](#license)
+
+## Documentation
+
+**[MANUAL.md](MANUAL.md) is the complete manual in one file** — install, every
+command with its flags, the memory model, sharing, and agent wiring. It is what
+[recoil.sh](https://recoil.sh) renders, so the published manual and the one in
+your clone are the same document. If you are an agent that just cloned this
+repo, read that file, then [AGENTS.md](AGENTS.md) for the code layout.
+
+| For | Start here |
+|---|---|
+| Everyone, offline or online | [MANUAL.md](MANUAL.md) · [recoil.sh](https://recoil.sh) |
+| Operators / CLI users | [Quick Start](#quick-start) · [Commands at a Glance](#commands-at-a-glance) |
+| AI agents / integrations | [Agent Hooks](#agent-hooks) · [Profiles And MCP](#profiles-and-mcp) |
+| Contributors | [AGENTS.md](AGENTS.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) |
+| Maintainers | [RELEASING.md](RELEASING.md) |
 
 ## Install
 

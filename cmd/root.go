@@ -23,13 +23,30 @@ var opts globalOptions
 
 var rootCmd = &cobra.Command{
 	Use:     "recoil",
-	Short:   "Fast local memory recall for agents and humans",
+	Short:   "Local-first memory for coding agents",
 	Version: versionSummary(),
-	Long: `Recoil is a local-first CLI memory tool.
-It stores verbatim memories in SQLite and recalls them through fast FTS search.`,
+	Long: `recoil keeps a local SQLite store of verbatim memories with provenance: who
+wrote each one, from where, in which scope, and whether it still holds. Agents
+start with wake, check before acting against a decision, and close with handoff.
+
+Every command takes -d <path> (or RECOIL_DB) to aim at another store and --json
+for a structured envelope. Memory commands default to the project you are in.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }
+
+// Help groups. The order here is the order `recoil --help` prints them, and it
+// follows the manual: the three calls a session is built on first, then the
+// write and read surfaces, then everything an operator wires up once.
+const (
+	groupSession  = "session"
+	groupWrite    = "write"
+	groupRead     = "read"
+	groupSources  = "sources"
+	groupSharing  = "sharing"
+	groupAgents   = "agents"
+	groupOperator = "operator"
+)
 
 func Execute() error {
 	return rootCmd.Execute()
@@ -39,41 +56,31 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&opts.dbPath, "db", "d", "", "path to recoil database (default: OS app data dir)")
 	rootCmd.PersistentFlags().BoolVar(&opts.json, "json", false, "output as JSON")
 
-	rootCmd.AddCommand(newInitCommand())
-	rootCmd.AddCommand(newSetupCommand())
-	rootCmd.AddCommand(newAddCommand())
-	rootCmd.AddCommand(newDecideCommand())
-	rootCmd.AddCommand(newRememberCommand())
-	rootCmd.AddCommand(newClaimsCommand())
-	rootCmd.AddCommand(newHandoffCommand())
-	rootCmd.AddCommand(newCheckCommand())
-	rootCmd.AddCommand(newSearchCommand())
-	rootCmd.AddCommand(newWakeCommand())
-	rootCmd.AddCommand(newSwarmCommand())
-	rootCmd.AddCommand(newShowCommand())
-	rootCmd.AddCommand(newListCommand())
-	rootCmd.AddCommand(newExportCommand())
-	rootCmd.AddCommand(newForgetCommand())
-	rootCmd.AddCommand(newMarkCommand())
-	rootCmd.AddCommand(newSupersedeCommand())
-	rootCmd.AddCommand(newMineCommand())
-	rootCmd.AddCommand(newSessionEvidenceCommand())
-	rootCmd.AddCommand(newBackupCommand())
-	rootCmd.AddCommand(newEmbedCommand())
-	rootCmd.AddCommand(newProfileCommand())
-	rootCmd.AddCommand(newEvalCommand())
-	rootCmd.AddCommand(newStatusCommand())
-	rootCmd.AddCommand(newTrayCommand())
-	rootCmd.AddCommand(newConfigCommand())
-	rootCmd.AddCommand(newInstructCommand())
-	rootCmd.AddCommand(newInstructionsCommand())
-	rootCmd.AddCommand(newRepairCommand())
-	rootCmd.AddCommand(newMigrateCommand())
-	rootCmd.AddCommand(newHookCommand())
-	rootCmd.AddCommand(newMCPCommand())
-	rootCmd.AddCommand(newChannelCommand())
-	rootCmd.AddCommand(newRelayCommand())
-	rootCmd.AddCommand(newVersionCommand())
+	rootCmd.AddGroup(
+		&cobra.Group{ID: groupSession, Title: "Session:"},
+		&cobra.Group{ID: groupWrite, Title: "Writing memory:"},
+		&cobra.Group{ID: groupRead, Title: "Reading memory:"},
+		&cobra.Group{ID: groupSources, Title: "Sources:"},
+		&cobra.Group{ID: groupSharing, Title: "Sharing:"},
+		&cobra.Group{ID: groupAgents, Title: "For agents:"},
+		&cobra.Group{ID: groupOperator, Title: "Operator:"},
+	)
+	addCommands(groupSession, newSetupCommand(), newWakeCommand(), newHandoffCommand())
+	addCommands(groupWrite, newRememberCommand(), newDecideCommand(), newAddCommand(), newSupersedeCommand(), newMarkCommand(), newForgetCommand())
+	addCommands(groupRead, newSearchCommand(), newCheckCommand(), newListCommand(), newShowCommand(), newClaimsCommand(), newExportCommand(), newProfileCommand())
+	addCommands(groupSources, newMineCommand(), newSessionEvidenceCommand(), newEmbedCommand())
+	addCommands(groupSharing, newSwarmCommand(), newChannelCommand(), newRelayCommand())
+	addCommands(groupAgents, newInstructCommand(), newInstructionsCommand(), newHookCommand(), newMCPCommand())
+	addCommands(groupOperator, newInitCommand(), newStatusCommand(), newConfigCommand(), newBackupCommand(), newRepairCommand(), newMigrateCommand(), newEvalCommand(), newTrayCommand(), newVersionCommand())
+	rootCmd.SetHelpCommandGroupID(groupOperator)
+	rootCmd.SetCompletionCommandGroupID(groupOperator)
+}
+
+func addCommands(group string, cmds ...*cobra.Command) {
+	for _, c := range cmds {
+		c.GroupID = group
+		rootCmd.AddCommand(c)
+	}
 }
 
 func openStore() (*store.Store, string, error) {

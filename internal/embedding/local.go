@@ -64,9 +64,7 @@ func expandedTokens(text string) []string {
 		}
 		base := normalizeToken(token)
 		tokens = append(tokens, base)
-		for _, alias := range aliases(base) {
-			tokens = append(tokens, alias)
-		}
+		tokens = append(tokens, aliases(base)...)
 	}
 	return tokens
 }

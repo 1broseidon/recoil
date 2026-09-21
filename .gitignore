@@ -1,10 +1,12 @@
 # Build output
 /recoil
 /recoil.exe
+/dist/
 
 # Go test artifacts
 *.test
 *.out
+coverage.txt
 coverage.html
 
 # CGO shared objects

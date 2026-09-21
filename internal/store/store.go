@@ -2243,9 +2243,10 @@ func emptyToNull(value string) any {
 }
 
 func (s *Store) tune() {
-	s.db.Exec("PRAGMA cache_size = -64000")
-	s.db.Exec("PRAGMA mmap_size = 268435456")
-	s.db.Exec("PRAGMA temp_store = MEMORY")
+	// Tuning pragmas are best-effort: a store that refuses one still works.
+	_, _ = s.db.Exec("PRAGMA cache_size = -64000")
+	_, _ = s.db.Exec("PRAGMA mmap_size = 268435456")
+	_, _ = s.db.Exec("PRAGMA temp_store = MEMORY")
 }
 
 func tightenStorePermissions(dbPath string) {

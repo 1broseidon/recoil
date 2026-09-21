@@ -141,14 +141,14 @@ func runLoCoMoGrade(args []string) error {
 	}
 
 	summary := map[string]any{
-		"hyp":            hypPath,
-		"grader":         graderModel,
-		"total":          overall.count,
-		"correct":        overall.correct,
-		"accuracy":       safeDiv(overall.correct, overall.count),
-		"grader_cost":    overall.cost,
-		"by_category":    map[string]any{},
-		"out":            resultsPath,
+		"hyp":         hypPath,
+		"grader":      graderModel,
+		"total":       overall.count,
+		"correct":     overall.correct,
+		"accuracy":    safeDiv(overall.correct, overall.count),
+		"grader_cost": overall.cost,
+		"by_category": map[string]any{},
+		"out":         resultsPath,
 	}
 	keys := make([]string, 0, len(cats))
 	for k := range cats {

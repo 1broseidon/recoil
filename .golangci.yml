@@ -1,0 +1,46 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+
+linters:
+  enable:
+    - errcheck
+    - gocyclo
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*database/sql.Tx).Rollback
+        - (*github.com/1broseidon/recoil/internal/store.Store).Close
+    gocyclo:
+      # ketch holds this at 15. recoil's four largest functions sit between 32
+      # and 44 (sourcequality.ClassifyWithOptions, ScorePriorWithOptions,
+      # cmd.newDecideCommand, store.Search) and the bench and stress programs
+      # go higher. The ceiling is set where nothing trips it today and only
+      # ever moves down: lower it as those functions are split.
+      min-complexity: 75
+
+  exclusions:
+    paths:
+      - vendor
+      - docs
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      # bench/ and stress/ are developer programs that print reports and clean
+      # up temp dirs; unchecked writes there are not product bugs.
+      - path: ^(bench|stress)/
+        linters:
+          - errcheck

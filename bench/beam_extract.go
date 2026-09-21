@@ -83,9 +83,9 @@ func runBEAMExtract(args []string) error {
 	var encMu sync.Mutex
 
 	type job struct {
-		convID     string
-		batch      beamBatch
-		convScale  string
+		convID    string
+		batch     beamBatch
+		convScale string
 	}
 	var jobsList []job
 	for _, convDir := range convDirs {

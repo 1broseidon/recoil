@@ -163,7 +163,7 @@ func runEvalFixture(fixturePath string, evalOpts evalOptions, retrievalMode stri
 		return evalRunResult{}, err
 	}
 	if !evalOpts.keepDB {
-		defer os.RemoveAll(dir)
+		defer func() { _ = os.RemoveAll(dir) }()
 	}
 	restoreEnv := isolateEvalStateDir(dir)
 	defer restoreEnv()
@@ -684,10 +684,6 @@ func evalResultKeys(seed evalSeed, tc recoileval.CaseRecord, memories []store.Me
 		return keys
 	}
 	return fixtureIDsFor(seed, memories)
-}
-
-func evalResultText(memories []store.Memory) string {
-	return strings.Join(evalResultTexts(memories), "\n")
 }
 
 func checkResultMemories(result checkResult) []store.Memory {

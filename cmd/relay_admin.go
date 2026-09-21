@@ -37,8 +37,7 @@ type relayDoctorOptions struct {
 }
 
 type relayInviteAdminOptions struct {
-	data  string
-	token string
+	data string
 }
 
 type relayMemberOptions struct {
@@ -49,8 +48,7 @@ type relayMemberOptions struct {
 }
 
 type relayChannelOptions struct {
-	data    string
-	channel string
+	data string
 }
 
 type relayStatusResult struct {

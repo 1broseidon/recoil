@@ -1,0 +1,28 @@
+#!/bin/sh
+# Enable with: git config core.hooksPath .githooks
+set -e
+
+# git hands hooks GIT_DIR and GIT_INDEX_FILE for this repository. Tests that
+# run git in a temp repository would inherit them and fail with
+# ".git/index: index file open failed", so drop them for everything below.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
+export CGO_ENABLED=1
+export CGO_CFLAGS="${CGO_CFLAGS:--DSQLITE_ENABLE_FTS5}"
+
+echo "==> gofmt"
+UNFMT=$(gofmt -l . 2>&1)
+if [ -n "$UNFMT" ]; then
+    echo "gofmt needed on:"
+    echo "$UNFMT"
+    exit 1
+fi
+
+echo "==> go vet"
+go vet ./...
+
+echo "==> golangci-lint"
+golangci-lint run
+
+echo "==> tests"
+go test ./...

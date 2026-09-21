@@ -84,7 +84,7 @@ against the repo root. It writes nothing — it is the dry run for backfill.`,
 			for _, r := range rows {
 				line := fmt.Sprintf("%s\t%s\t%s\t%s", r.agent, r.modtime, r.session, r.path)
 				if o.minimal {
-					fmt.Fprintln(w, line)
+					_, _ = fmt.Fprintln(w, line)
 				} else {
 					lines = append(lines, line)
 				}

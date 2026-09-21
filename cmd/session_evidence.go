@@ -250,7 +250,7 @@ func newSessionEvidenceListCommand() *cobra.Command {
 					line += "\tbranch=" + branch
 				}
 				if seOpts.minimal {
-					fmt.Fprintln(w, line)
+					_, _ = fmt.Fprintln(w, line)
 				} else {
 					lines = append(lines, line)
 				}

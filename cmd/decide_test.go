@@ -110,9 +110,10 @@ func TestDecideCommandAutoSupersedesPreviousDecision(t *testing.T) {
 	}
 	var current, old store.Memory
 	for _, mem := range family {
-		if mem.Validity == "active" {
+		switch mem.Validity {
+		case "active":
 			current = mem
-		} else if mem.Validity == "superseded" {
+		case "superseded":
 			old = mem
 		}
 	}

@@ -262,10 +262,10 @@ func runHookInstall(cmd *cobra.Command, agent, scope string, dryRun, uninstall b
 		})
 	}
 	if dryRun {
-		fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] would update %s\n---\n%s\n", target, summary)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] would update %s\n---\n%s\n", target, summary)
 		return nil
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "recoil hooks %s for %s (%s scope) -> %s\n", verb, agent, scope, target)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "recoil hooks %s for %s (%s scope) -> %s\n", verb, agent, scope, target)
 	return nil
 }
 
