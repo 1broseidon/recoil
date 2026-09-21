@@ -4,23 +4,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-// gitEnv is the process environment minus the variables git exports to hooks
-// (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE). A child git running in a temp
-// repository would otherwise inherit them and read this repository's index,
-// which is how these tests failed under .githooks/pre-commit.
-func gitEnv() []string {
-	var env []string
-	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "GIT_DIR=") || strings.HasPrefix(kv, "GIT_WORK_TREE=") || strings.HasPrefix(kv, "GIT_INDEX_FILE=") {
-			continue
-		}
-		env = append(env, kv)
-	}
-	return append(env,
+// testGitEnv is gitEnv (the process environment minus the variables git
+// exports to hooks) plus a fixed author, so commits in a temp repository do not
+// depend on the developer's git config. Without the scrub a child git running
+// in a temp repository would read this repository's index, which is how these
+// tests failed under .githooks/pre-commit.
+func testGitEnv() []string {
+	return append(gitEnv(),
 		"GIT_AUTHOR_NAME=recoil-test", "GIT_AUTHOR_EMAIL=recoil@test.invalid",
 		"GIT_COMMITTER_NAME=recoil-test", "GIT_COMMITTER_EMAIL=recoil@test.invalid",
 	)
@@ -29,7 +22,7 @@ func gitEnv() []string {
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = gitEnv()
+	cmd.Env = testGitEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v failed: %v\n%s", args, err, out)
 	}
@@ -135,6 +128,29 @@ func TestProjectScopeSubdirectoryStillResolvesToRepositoryRoot(t *testing.T) {
 	}
 	if subScope.ID != repoScope.ID || subScope.Root != repoScope.Root {
 		t.Fatalf("a subdirectory must resolve to the repository root: %+v vs %+v", subScope, repoScope)
+	}
+}
+
+// A git hook exports GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE. recoil run from
+// inside one must still resolve a nested directory to its own repository root.
+func TestProjectScopeIgnoresGitHookEnvironment(t *testing.T) {
+	repo, _ := tempRepoWithWorktree(t)
+	sub := filepath.Join(repo, "nested", "deeper")
+	writeFile(t, filepath.Join(sub, "keep.txt"), "x\n")
+
+	t.Setenv("GIT_DIR", ".git")
+	t.Setenv("GIT_WORK_TREE", ".")
+	t.Setenv("GIT_INDEX_FILE", ".git/index")
+
+	subScope, err := ProjectScope(sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subScope.Unknown {
+		t.Fatalf("a nested directory must be recognised as part of the repository: %+v", subScope)
+	}
+	if subScope.Root != repo {
+		t.Fatalf("a nested directory must resolve to the repository root under a hook's environment: got %s, want %s", subScope.Root, repo)
 	}
 }
 

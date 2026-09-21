@@ -252,9 +252,35 @@ func SessionScope(sessionID string) (Scope, error) {
 	return Scope{Kind: "session", ID: sessionID, SessionID: sessionID, Portable: true}, nil
 }
 
+// hookEnvVars are the variables git exports to a hook. A child git inherits
+// them and answers for the hook's repository instead of dir, so recoil run from
+// a hook would resolve a subdirectory to itself rather than the repository
+// root. GIT_CEILING_DIRECTORIES and every other variable are kept.
+var hookEnvVars = []string{"GIT_DIR=", "GIT_WORK_TREE=", "GIT_INDEX_FILE="}
+
+// gitEnv is the process environment minus hookEnvVars.
+func gitEnv() []string {
+	env := os.Environ()
+	kept := env[:0:0]
+	for _, kv := range env {
+		drop := false
+		for _, prefix := range hookEnvVars {
+			if strings.HasPrefix(kv, prefix) {
+				drop = true
+				break
+			}
+		}
+		if !drop {
+			kept = append(kept, kv)
+		}
+	}
+	return kept
+}
+
 func gitOutput(dir string, args ...string) string {
 	allArgs := append([]string{"-C", dir}, args...)
 	cmd := exec.Command("git", allArgs...)
+	cmd.Env = gitEnv()
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
