@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	OpenRouterProvider    = "openrouter"
+	OpenRouterProvider     = "openrouter"
 	DefaultOpenRouterModel = "openai/text-embedding-3-small"
 
 	openRouterEmbedURL    = "https://openrouter.ai/api/v1/embeddings"

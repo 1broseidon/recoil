@@ -502,11 +502,12 @@ func TestRelayInviteIsSingleUseUnderConcurrentJoins(t *testing.T) {
 
 	ok, fail := 0, 0
 	for _, s := range []int{statusA, statusB} {
-		if s == http.StatusOK {
+		switch s {
+		case http.StatusOK:
 			ok++
-		} else if s == http.StatusForbidden {
+		case http.StatusForbidden:
 			fail++
-		} else {
+		default:
 			t.Fatalf("unexpected status %d (alpha=%d beta=%d)", s, statusA, statusB)
 		}
 	}

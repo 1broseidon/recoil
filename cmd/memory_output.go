@@ -22,10 +22,10 @@ func writeMinimalMemory(w io.Writer, mem store.Memory, includeScore bool) {
 		source = sessionEvidenceDisplaySource(mem)
 	}
 	if includeScore {
-		fmt.Fprintf(w, "%s\t%.4f\t%s\t%s\t%s\n", mem.ID, mem.Score, mem.CreatedAt, source, excerpt)
+		_, _ = fmt.Fprintf(w, "%s\t%.4f\t%s\t%s\t%s\n", mem.ID, mem.Score, mem.CreatedAt, source, excerpt)
 		return
 	}
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", mem.ID, mem.CreatedAt, source, excerpt)
+	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", mem.ID, mem.CreatedAt, source, excerpt)
 }
 
 func memoryBlocks(memories []store.Memory, maxChars int, includeScore bool) string {

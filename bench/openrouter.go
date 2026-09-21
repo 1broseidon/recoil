@@ -53,10 +53,10 @@ type chatResponse struct {
 }
 
 type ChatResult struct {
-	Content      string
-	PromptTok    int
+	Content       string
+	PromptTok     int
 	CompletionTok int
-	CostUSD      float64
+	CostUSD       float64
 }
 
 type OpenRouterClient struct {

@@ -53,7 +53,7 @@ func cmdPhase4(args []string) {
 	editPayload, _ := recoilJSON(db, work, "--json", "search", "--limit", "5", sentinel)
 	editRows := extractRows(editPayload)
 	results = append(results, subResult{
-		Test: "edit-then-remine-finds-new-content",
+		Test:   "edit-then-remine-finds-new-content",
 		Passed: len(editRows) >= 1,
 		Detail: map[string]any{"found_rows": len(editRows)},
 	})

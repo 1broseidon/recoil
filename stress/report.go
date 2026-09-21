@@ -110,7 +110,7 @@ func cmdReport(args []string) {
 		b.WriteString("\n")
 	}
 
-	b.WriteString(fmt.Sprintf("## Repos below %.0f%% floor\n\n", *floor*100))
+	fmt.Fprintf(b, "## Repos below %.0f%% floor\n\n", *floor*100)
 	b.WriteString(renderBlockers(defaultReports, *floor))
 	b.WriteString("\n")
 

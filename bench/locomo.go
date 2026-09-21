@@ -71,17 +71,17 @@ type locomoSession struct {
 }
 
 type locomoQuestionResult struct {
-	SampleID     string `json:"sample_id"`
-	Category     int    `json:"category"`
-	CategoryName string `json:"category_name"`
-	Question     string `json:"question"`
+	SampleID     string  `json:"sample_id"`
+	Category     int     `json:"category"`
+	CategoryName string  `json:"category_name"`
+	Question     string  `json:"question"`
 	Recall5      float64 `json:"recall_at_5"`
 	Recall10     float64 `json:"recall_at_10"`
-	HitRank      int    `json:"hit_rank"`
-	NumEvidence  int    `json:"num_evidence"`
-	RetrievedCt  int    `json:"retrieved_count"`
-	SearchMillis int64  `json:"search_ms"`
-	Abstention   bool   `json:"abstention"`
+	HitRank      int     `json:"hit_rank"`
+	NumEvidence  int     `json:"num_evidence"`
+	RetrievedCt  int     `json:"retrieved_count"`
+	SearchMillis int64   `json:"search_ms"`
+	Abstention   bool    `json:"abstention"`
 	// Session-grain recall: did the top-K include the right session(s)?
 	SessionRecall5  float64 `json:"session_recall_at_5"`
 	SessionRecall10 float64 `json:"session_recall_at_10"`
@@ -96,24 +96,24 @@ type locomoCategorySummary struct {
 }
 
 type locomoSummary struct {
-	Dataset             string                          `json:"dataset"`
-	StartedAt           string                          `json:"started_at"`
-	FinishedAt          string                          `json:"finished_at"`
-	Records             int                             `json:"records"`
-	TotalQuestions      int                             `json:"total_questions"`
-	ScoredQuestions     int                             `json:"scored_questions"`
-	AbstentionCount     int                             `json:"abstention_count"`
-	TopK                int                             `json:"top_k"`
-	OverallRecall5      float64                         `json:"overall_recall_at_5"`
-	OverallRecall10     float64                         `json:"overall_recall_at_10"`
-	SessionRecall5      float64                         `json:"overall_session_recall_at_5"`
-	SessionRecall10     float64                         `json:"overall_session_recall_at_10"`
-	MeanReciprocalRank  float64                         `json:"mean_reciprocal_rank"`
-	ByCategory          map[string]locomoCategorySummary `json:"by_category"`
-	IngestSecondsTotal  float64                         `json:"ingest_seconds_total"`
-	SearchSecondsTotal  float64                         `json:"search_seconds_total"`
-	LatencySecondsP50   float64                         `json:"latency_seconds_p50"`
-	LatencySecondsP95   float64                         `json:"latency_seconds_p95"`
+	Dataset            string                           `json:"dataset"`
+	StartedAt          string                           `json:"started_at"`
+	FinishedAt         string                           `json:"finished_at"`
+	Records            int                              `json:"records"`
+	TotalQuestions     int                              `json:"total_questions"`
+	ScoredQuestions    int                              `json:"scored_questions"`
+	AbstentionCount    int                              `json:"abstention_count"`
+	TopK               int                              `json:"top_k"`
+	OverallRecall5     float64                          `json:"overall_recall_at_5"`
+	OverallRecall10    float64                          `json:"overall_recall_at_10"`
+	SessionRecall5     float64                          `json:"overall_session_recall_at_5"`
+	SessionRecall10    float64                          `json:"overall_session_recall_at_10"`
+	MeanReciprocalRank float64                          `json:"mean_reciprocal_rank"`
+	ByCategory         map[string]locomoCategorySummary `json:"by_category"`
+	IngestSecondsTotal float64                          `json:"ingest_seconds_total"`
+	SearchSecondsTotal float64                          `json:"search_seconds_total"`
+	LatencySecondsP50  float64                          `json:"latency_seconds_p50"`
+	LatencySecondsP95  float64                          `json:"latency_seconds_p95"`
 }
 
 func locomoCategoryName(cat int) string {
@@ -194,13 +194,13 @@ func runLoCoMo(args []string) error {
 	}
 
 	type catAgg struct {
-		count          int
-		hit5           int
-		hit10          int
-		sessHit5       int
-		sessHit10      int
-		rrSum          float64
-		rrCount        int
+		count     int
+		hit5      int
+		hit10     int
+		sessHit5  int
+		sessHit10 int
+		rrSum     float64
+		rrCount   int
 	}
 	overall := &catAgg{}
 	cats := map[string]*catAgg{}
@@ -236,14 +236,14 @@ func runLoCoMo(args []string) error {
 				}
 				content := turn.Speaker + ": " + text
 				_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
-					Role:       "source",
-					Content:    content,
-					SourceKind: "session",
-					SourcePath: "session/" + sess.ID,
-					SourceRef:  turn.DiaID,
-					ScopeKind:  "project",
-					ScopeID:    scopeID,
-					Validity:   "unknown",
+					Role:         "source",
+					Content:      content,
+					SourceKind:   "session",
+					SourcePath:   "session/" + sess.ID,
+					SourceRef:    turn.DiaID,
+					ScopeKind:    "project",
+					ScopeID:      scopeID,
+					Validity:     "unknown",
 					MetadataJSON: fmt.Sprintf(`{"session_date":%q,"speaker":%q}`, sess.Date, turn.Speaker),
 				})
 				if err != nil {

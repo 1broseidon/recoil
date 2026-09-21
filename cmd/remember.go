@@ -165,7 +165,7 @@ func runRemember(ctx context.Context, st *store.Store, sc scope.Scope, content s
 func inferRemember(content, roleOverride, claimOverride string) rememberInference {
 	text := strings.ToLower(strings.TrimSpace(content))
 	role := strings.TrimSpace(roleOverride)
-	confidence := "medium"
+	var confidence string
 	reason := "inferred from content"
 	if role != "" {
 		confidence = "override"

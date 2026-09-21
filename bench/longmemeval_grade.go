@@ -279,22 +279,22 @@ type qaCategorySummary struct {
 }
 
 type qaSummary struct {
-	HypothesisPath    string                       `json:"hypothesis_path"`
-	GradedPath        string                       `json:"graded_path"`
-	GraderModel       string                       `json:"grader_model"`
-	GraderCostUSD     float64                      `json:"grader_cost_usd"`
-	AnswererModel     string                       `json:"answerer_model"`
-	RetrievalMode     string                       `json:"retrieval_mode"`
-	TopK              int                          `json:"top_k"`
-	Total             int                          `json:"total"`
-	Scored            int                          `json:"scored"`
-	AbstentionCount   int                          `json:"abstention_count"`
-	OverallAccuracy   float64                      `json:"overall_accuracy"`
-	IncludingAbstAcc  float64                      `json:"accuracy_incl_abstention"`
-	ByCategory        map[string]qaCategorySummary `json:"by_category"`
-	AnswererCostTotal float64                      `json:"answerer_cost_total"`
-	AnswererLatencyP50 int64                       `json:"answerer_latency_p50_ms"`
-	AnswererLatencyP95 int64                       `json:"answerer_latency_p95_ms"`
+	HypothesisPath     string                       `json:"hypothesis_path"`
+	GradedPath         string                       `json:"graded_path"`
+	GraderModel        string                       `json:"grader_model"`
+	GraderCostUSD      float64                      `json:"grader_cost_usd"`
+	AnswererModel      string                       `json:"answerer_model"`
+	RetrievalMode      string                       `json:"retrieval_mode"`
+	TopK               int                          `json:"top_k"`
+	Total              int                          `json:"total"`
+	Scored             int                          `json:"scored"`
+	AbstentionCount    int                          `json:"abstention_count"`
+	OverallAccuracy    float64                      `json:"overall_accuracy"`
+	IncludingAbstAcc   float64                      `json:"accuracy_incl_abstention"`
+	ByCategory         map[string]qaCategorySummary `json:"by_category"`
+	AnswererCostTotal  float64                      `json:"answerer_cost_total"`
+	AnswererLatencyP50 int64                        `json:"answerer_latency_p50_ms"`
+	AnswererLatencyP95 int64                        `json:"answerer_latency_p95_ms"`
 }
 
 func aggregateGraded(recs []graderRecord) qaSummary {

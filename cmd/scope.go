@@ -123,5 +123,5 @@ func warnUninitializedProject(cmd *cobra.Command, sc scope.Scope, explicit bool)
 		fmt.Fprintf(&b, "; no git repository here either, so scope %s is addressable only from this exact path -- aim it with --project <path> or %s",
 			sc.ID, ProjectEnvVar)
 	}
-	fmt.Fprintln(cmd.ErrOrStderr(), b.String())
+	_, _ = fmt.Fprintln(cmd.ErrOrStderr(), b.String())
 }

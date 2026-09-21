@@ -158,7 +158,7 @@ func template(i int, repoKey string, st repoStrings) []map[string]any {
 		{
 			{"user", fmt.Sprintf("I remember when %s first added %s; I worked on it back then.", project, heading)},
 			{"assistant", fmt.Sprintf("That history is helpful — I'll keep historical context when recommending edits to %s.", fileA)},
-			{"user", fmt.Sprintf("My role here is maintenance; my preference is to defer feature work.")},
+			{"user", "My role here is maintenance; my preference is to defer feature work."},
 		},
 	}
 	chosen := templates[i%len(templates)]

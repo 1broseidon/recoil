@@ -76,16 +76,16 @@ type beamQuestion struct {
 type beamProbing map[string][]beamQuestion
 
 type beamQuestionResult struct {
-	ConversationID  string  `json:"conversation_id"`
-	Category        string  `json:"category"`
-	Question        string  `json:"question"`
-	Recall5         float64 `json:"recall_at_5"`
-	Recall10        float64 `json:"recall_at_10"`
-	HitRank         int     `json:"hit_rank"`
-	NumSourceIDs    int     `json:"num_source_ids"`
-	RetrievedCount  int     `json:"retrieved_count"`
-	SearchMillis    int64   `json:"search_ms"`
-	Abstention      bool    `json:"abstention"`
+	ConversationID string  `json:"conversation_id"`
+	Category       string  `json:"category"`
+	Question       string  `json:"question"`
+	Recall5        float64 `json:"recall_at_5"`
+	Recall10       float64 `json:"recall_at_10"`
+	HitRank        int     `json:"hit_rank"`
+	NumSourceIDs   int     `json:"num_source_ids"`
+	RetrievedCount int     `json:"retrieved_count"`
+	SearchMillis   int64   `json:"search_ms"`
+	Abstention     bool    `json:"abstention"`
 }
 
 type beamCategorySummary struct {
@@ -95,24 +95,24 @@ type beamCategorySummary struct {
 }
 
 type beamSummary struct {
-	Dataset             string                          `json:"dataset"`
-	Scale               string                          `json:"scale"`
-	StartedAt           string                          `json:"started_at"`
-	FinishedAt          string                          `json:"finished_at"`
-	Conversations       int                             `json:"conversations"`
-	TotalQuestions      int                             `json:"total_questions"`
-	ScoredQuestions     int                             `json:"scored_questions"`
-	AbstentionCount     int                             `json:"abstention_count"`
-	TopK                int                             `json:"top_k"`
-	OverallRecall5      float64                         `json:"overall_recall_at_5"`
-	OverallRecall10     float64                         `json:"overall_recall_at_10"`
-	MeanReciprocalRank  float64                         `json:"mean_reciprocal_rank"`
-	ByCategory          map[string]beamCategorySummary  `json:"by_category"`
-	IngestSecondsTotal  float64                         `json:"ingest_seconds_total"`
-	SearchSecondsTotal  float64                         `json:"search_seconds_total"`
-	LatencySecondsP50   float64                         `json:"latency_seconds_p50"`
-	LatencySecondsP95   float64                         `json:"latency_seconds_p95"`
-	TotalTurnsIngested  int                             `json:"total_turns_ingested"`
+	Dataset            string                         `json:"dataset"`
+	Scale              string                         `json:"scale"`
+	StartedAt          string                         `json:"started_at"`
+	FinishedAt         string                         `json:"finished_at"`
+	Conversations      int                            `json:"conversations"`
+	TotalQuestions     int                            `json:"total_questions"`
+	ScoredQuestions    int                            `json:"scored_questions"`
+	AbstentionCount    int                            `json:"abstention_count"`
+	TopK               int                            `json:"top_k"`
+	OverallRecall5     float64                        `json:"overall_recall_at_5"`
+	OverallRecall10    float64                        `json:"overall_recall_at_10"`
+	MeanReciprocalRank float64                        `json:"mean_reciprocal_rank"`
+	ByCategory         map[string]beamCategorySummary `json:"by_category"`
+	IngestSecondsTotal float64                        `json:"ingest_seconds_total"`
+	SearchSecondsTotal float64                        `json:"search_seconds_total"`
+	LatencySecondsP50  float64                        `json:"latency_seconds_p50"`
+	LatencySecondsP95  float64                        `json:"latency_seconds_p95"`
+	TotalTurnsIngested int                            `json:"total_turns_ingested"`
 }
 
 func runBEAM(args []string) error {

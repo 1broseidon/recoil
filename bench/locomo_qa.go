@@ -166,14 +166,14 @@ func runLoCoMoQA(args []string) error {
 				}
 				turnByDiaID[turn.DiaID] = turn
 				_, _, err := st.AddMemory(ctx, store.AddMemoryParams{
-					Role:       "source",
-					Content:    turn.Speaker + ": " + text,
-					SourceKind: "session",
-					SourcePath: "session/" + sess.ID,
-					SourceRef:  turn.DiaID,
-					ScopeKind:  "project",
-					ScopeID:    scopeID,
-					Validity:   "unknown",
+					Role:         "source",
+					Content:      turn.Speaker + ": " + text,
+					SourceKind:   "session",
+					SourcePath:   "session/" + sess.ID,
+					SourceRef:    turn.DiaID,
+					ScopeKind:    "project",
+					ScopeID:      scopeID,
+					Validity:     "unknown",
 					MetadataJSON: fmt.Sprintf(`{"session_date":%q,"speaker":%q}`, sess.Date, turn.Speaker),
 				})
 				if err != nil {

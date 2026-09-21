@@ -276,8 +276,6 @@ func queryIntent(q, typ string) deterministicIntent {
 	}
 }
 
-var tokenREBench = regexp.MustCompile(`[a-z0-9]+`)
-
 func significantTokens(s string) []string {
 	return retrieval.SignificantTokens(s)
 }

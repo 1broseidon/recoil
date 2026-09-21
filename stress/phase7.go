@@ -55,12 +55,12 @@ func cmdPhase7(args []string) {
 	}
 
 	type caseOut struct {
-		ID         string   `json:"id"`
-		Query      string   `json:"query"`
-		Tool       string   `json:"tool"`
-		Passed     bool     `json:"passed"`
-		TopPaths   []string `json:"top_paths"`
-		Suffixes   []string `json:"expects_path_suffixes"`
+		ID       string   `json:"id"`
+		Query    string   `json:"query"`
+		Tool     string   `json:"tool"`
+		Passed   bool     `json:"passed"`
+		TopPaths []string `json:"top_paths"`
+		Suffixes []string `json:"expects_path_suffixes"`
 	}
 
 	// recoil leg.
@@ -186,11 +186,11 @@ func cmdPhase7(args []string) {
 	}
 	writeJSON(out, report)
 	emitJSON(map[string]any{
-		"phase":             7,
-		"status":            mpStatus,
-		"recoil_accuracy":   roundFloat(float64(recoilPassed)/float64(len(subset)), 4),
+		"phase":              7,
+		"status":             mpStatus,
+		"recoil_accuracy":    roundFloat(float64(recoilPassed)/float64(len(subset)), 4),
 		"mempalace_accuracy": roundFloat(mpAcc, 4),
-		"out":               out,
+		"out":                out,
 	})
 }
 

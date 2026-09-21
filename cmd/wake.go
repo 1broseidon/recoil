@@ -658,16 +658,3 @@ func appendBounded(b *strings.Builder, s string, remaining *int, maxChars int) b
 	*remaining -= len(s)
 	return true
 }
-
-func appendUnique(dst *[]store.Memory, seen map[string]bool, src []store.Memory, limit int) {
-	for _, mem := range src {
-		if seen[mem.ID] {
-			continue
-		}
-		seen[mem.ID] = true
-		*dst = append(*dst, mem)
-		if limit > 0 && len(*dst) >= limit {
-			return
-		}
-	}
-}

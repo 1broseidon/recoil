@@ -61,13 +61,13 @@ func (r *Repo) UnmarshalJSON(data []byte) error {
 }
 
 type QueryArchetype struct {
-	ID                   string   `json:"id"`
-	Category             string   `json:"category"`
-	Query                string   `json:"query"`
-	ExpectsGroundTruth   []string `json:"expects_ground_truth"`
-	MustNotContain       []string `json:"must_not_contain"`
-	MustNotContainClass  []string `json:"must_not_contain_class"`
-	SkipIfNoGroundTruth  string   `json:"skip_if_no_ground_truth"`
+	ID                  string   `json:"id"`
+	Category            string   `json:"category"`
+	Query               string   `json:"query"`
+	ExpectsGroundTruth  []string `json:"expects_ground_truth"`
+	MustNotContain      []string `json:"must_not_contain"`
+	MustNotContainClass []string `json:"must_not_contain_class"`
+	SkipIfNoGroundTruth string   `json:"skip_if_no_ground_truth"`
 }
 
 type QueryBattery struct {
@@ -76,19 +76,19 @@ type QueryBattery struct {
 }
 
 type CaseResult struct {
-	ID              string             `json:"id"`
-	Category        string             `json:"category"`
-	Query           string             `json:"query"`
-	Passed          bool               `json:"passed"`
-	Skipped         bool               `json:"skipped"`
-	Error           string             `json:"error,omitempty"`
-	MatchedPath     string             `json:"matched_path"`
-	ExpectedPaths   []string           `json:"expected_paths"`
-	ForbiddenClass  *ForbiddenHit      `json:"forbidden_class_hit,omitempty"`
-	ForbiddenString *ForbiddenHit      `json:"forbidden_string_hit,omitempty"`
-	TopPaths        []TopResult        `json:"top_paths"`
-	ResultCount     int                `json:"result_count"`
-	LatencySeconds  float64            `json:"latency_seconds"`
+	ID              string        `json:"id"`
+	Category        string        `json:"category"`
+	Query           string        `json:"query"`
+	Passed          bool          `json:"passed"`
+	Skipped         bool          `json:"skipped"`
+	Error           string        `json:"error,omitempty"`
+	MatchedPath     string        `json:"matched_path"`
+	ExpectedPaths   []string      `json:"expected_paths"`
+	ForbiddenClass  *ForbiddenHit `json:"forbidden_class_hit,omitempty"`
+	ForbiddenString *ForbiddenHit `json:"forbidden_string_hit,omitempty"`
+	TopPaths        []TopResult   `json:"top_paths"`
+	ResultCount     int           `json:"result_count"`
+	LatencySeconds  float64       `json:"latency_seconds"`
 }
 
 type ForbiddenHit struct {
