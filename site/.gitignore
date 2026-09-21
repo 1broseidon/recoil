@@ -1,6 +1,2 @@
 node_modules
 dist
-public/install
-public/install.sh
-public/install.ps1
-public/uninstall.ps1
