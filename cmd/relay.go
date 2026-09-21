@@ -164,6 +164,15 @@ func handleRelayInvite(w http.ResponseWriter, r *http.Request, dataDir string) {
 	token := parts[0]
 	invite, err := loadRelayInvite(dataDir, token)
 	if err != nil {
+		// A single-use invite is claimed by renaming token.json to
+		// token.used.json (see consumeRelayInvite). A request that arrives
+		// after that rename must be told the invite was used, not that it
+		// never existed — otherwise the loser of two concurrent joins gets
+		// 403 or 404 depending only on timing.
+		if os.IsNotExist(err) && relayInviteConsumed(dataDir, token) {
+			http.Error(w, "invite has already been used", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "invite not found", http.StatusNotFound)
 		return
 	}
@@ -390,6 +399,14 @@ func saveRelayInvite(dataDir string, invite relayInvite) error {
 	}
 	data = append(data, '\n')
 	return os.WriteFile(filepath.Join(relayInvitesDir(dataDir), invite.Token+".json"), data, 0o600)
+}
+
+// relayInviteConsumed reports whether a single-use invite has already been
+// claimed. The claim is the atomic rename in consumeRelayInvite, so the used
+// file exists from the instant the invite stops being loadable.
+func relayInviteConsumed(dataDir, token string) bool {
+	_, err := os.Stat(filepath.Join(relayInvitesDir(dataDir), token+".used.json"))
+	return err == nil
 }
 
 func consumeRelayInvite(dataDir, token string) error {
