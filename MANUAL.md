@@ -121,7 +121,7 @@ $ curl -fsSL https://chain.sh/bootstrap.sh | sh
 Run it inside a repository. `setup` marks the project, indexes its docs, and
 installs hooks for the agents it finds; `--standalone` keeps sharing off.
 
-```console
+```console capture
 $ recoil setup --standalone --agent claude-code
 ---
 tree: project
@@ -148,7 +148,7 @@ next: recoil wake
 Remember what an agent or a person just learned. The role is inferred from the
 text; a plain observation is stored as a note, and the output says why.
 
-```console
+```console capture
 $ recoil remember --agent claude "The parser cache is keyed by file content hash, not mtime: editors rewrite mtimes on save without changing content."
 ---
 id: mem_jtijf5wmyvvdoehp23sbjs3szu
@@ -174,13 +174,13 @@ Decisions get a claim key so the family can be superseded and audited later.
 `--stance` and `--subject` let `check` recognise a request that goes against
 it.
 
-```console
+```console capture
 $ recoil decide --claim-key cache.backend --stance prefers --subject "parser cache backend" --agent claude "Keep the parser cache in SQLite with WAL. Redis was rejected: installs must work offline with no daemon."
 ---
 id: mem_7vda2sxdlkgrurmicljaq5fq6k
 scope: project
 scope_id: local:dbb8165a8ec8e32bfb255a15ecd75d69
-created: 2026-09-21T06:33:07Z
+created: 2026-09-21T18:08:04Z
 role: decision
 validity: active
 claim_key: cache.backend
@@ -205,7 +205,7 @@ Keep the parser cache in SQLite with WAL. Redis was rejected: installs must work
 Every session starts with `wake`: a bounded block in lanes, each result with a
 `why`. The two doc chunks came from `setup`.
 
-```console
+```console capture
 $ recoil wake --max-chars 1600
 ---
 query: ""
@@ -231,7 +231,7 @@ channel_outbox_pending: 0
 ## Current Decisions
 ### mem_7vda2sxdlkgrurmicljaq5fq6k
 score: 0.3500
-created: 2026-09-21T06:33:07Z
+created: 2026-09-21T18:08:04Z
 role: decision
 source_kind: direct
 validity: active
@@ -242,9 +242,9 @@ why: current decision with claim_key cache.backend
 Keep the parser cache in SQLite with WAL. Redis was rejected: installs must work offline with no daemon.
 
 ## Project Docs
-### mem_toqzgisy5ms6ygdwy5c2upqfb2
+### mem_lq7i25mqrldbofqglixja2akx2
 score: 1.8500
-created: 2026-09-21T06:33:07Z
+created: 2026-09-21T18:08:04Z
 role: source
 source_kind: file
 validity: unknown
@@ -257,8 +257,8 @@ why: project document chunk from README.md
 
 A parser for satellite two-line element sets with an on-disk cache.
 
-### mem_nbiasls4rskoavtnivpm6v6p7a
-created: 2026-09-21T06:33:07Z
+### mem_yntgvdgzlkc2gcrl3bii46oesd
+created: 2026-09-21T18:08:04Z
 role: source
 source_kind: file
 validity: unknown
@@ -280,7 +280,7 @@ because installs must work offline with no daemon.
 ## Recent Evidence
 ### mem_jtijf5wmyvvdoehp23sbjs3szu
 score: 0.3500
-created: 2026-09-21T06:33:07Z
+created: 2026-09-21T18:08:04Z
 role: note
 source_kind: direct
 validity: active
@@ -294,7 +294,7 @@ Before an agent acts against something remembered, it asks. The verdict is
 `review`: the request would replace the subject of a decision that prefers it,
 so the recommendation is to ask the operator rather than proceed.
 
-```console
+```console capture
 $ recoil check "replace the parser cache backend with Redis"
 ---
 verdict: review
@@ -333,7 +333,7 @@ current_id: mem_7vda2sxdlkgrurmicljaq5fq6k
 ## Current Decision
 
 ## mem_7vda2sxdlkgrurmicljaq5fq6k
-created: 2026-09-21T06:33:07Z
+created: 2026-09-21T18:08:04Z
 validity: active
 claim_key: cache.backend
 role: decision
