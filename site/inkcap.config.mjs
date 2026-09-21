@@ -11,4 +11,14 @@ export default {
     dark: { accent: '#D18AB5', soft: '#2B1A25' },
     terminal: { prompt: '#C57FA8', key: '#E0A6C7' },
   },
+  /* The Quickstart's console blocks are captures: `inkcap build` re-runs
+   * their `$ recoil …` lines against ./recoil (`make build` first) in a
+   * fresh /tmp/orbit seeded from site/fixture/, with its own HOME, and
+   * rewrites the outputs in MANUAL.md. `git diff` is the review. Pages
+   * builds have no binary and print what is committed. */
+  captures: {
+    cwd: '/tmp/orbit',
+    path: '..',
+    setup: ['git init -q'],
+  },
 }
