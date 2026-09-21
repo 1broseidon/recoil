@@ -1025,9 +1025,9 @@ recoil was built to be called by something that isn't a person.
 
 ### The contract
 
-`instruct <agent>` prints the short contract for an agent's instructions file;
-`instructions <agent>` prints the integration notes. Both name the agent so its
-memories carry the right `source_agent`.
+`instruct <agent>` prints the short contract for an agent's instructions file.
+It names the agent so its memories carry the right `source_agent`.
+(`instructions` is an alias kept for hooks that already call it.)
 
 ```console
 $ recoil instruct claude-code
