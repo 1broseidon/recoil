@@ -3,9 +3,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/1broseidon/recoil/internal/config"
 	"github.com/1broseidon/recoil/internal/scope"
@@ -161,9 +163,18 @@ func initializedProjectDBPath() (string, bool, error) {
 	return filepath.Join(sc.Root, scope.ProjectDirName, "recoil.db"), true, nil
 }
 
+// isDBAccessError reports whether opening the default store failed because
+// its location cannot be created or written, which is what justifies falling
+// back to the project-local store. The error classes cover os errors on every
+// platform (Windows spells them "The system cannot find the path specified",
+// not "no such file or directory"); the strings catch what SQLite itself
+// reports, which is never a wrapped errno.
 func isDBAccessError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) || errors.Is(err, syscall.ENOTDIR) {
+		return true
 	}
 	msg := strings.ToLower(err.Error())
 	for _, needle := range []string{

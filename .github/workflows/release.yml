@@ -63,12 +63,6 @@ jobs:
 
       - name: Run tests
         if: ${{ !matrix.cross }}
-        # The Windows suite has platform-specific failures that don't affect
-        # the shipped binary (open events.jsonl handles during TempDir cleanup,
-        # cwd filtering of agent sessions, the default-DB fallback test, and
-        # the single-use invite race). They stay visible as warnings; Linux and
-        # macOS keep gating the release.
-        continue-on-error: ${{ matrix.goos == 'windows' }}
         run: CGO_CFLAGS="-DSQLITE_ENABLE_FTS5" go test ./...
 
       - name: Build
