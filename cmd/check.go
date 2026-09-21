@@ -18,24 +18,23 @@ type checkOptions struct {
 }
 
 type checkResult struct {
-	Query            string                 `json:"query,omitempty"`
-	ClaimKey         string                 `json:"claim_key,omitempty"`
-	Verdict          string                 `json:"verdict"`
-	PredicateStatus  string                 `json:"predicate_status"`
-	Recommendation   string                 `json:"recommendation"`
-	Reason           string                 `json:"reason"`
-	RecheckPrompt    string                 `json:"recheck_prompt,omitempty"`
-	DecisionStance   string                 `json:"decision_stance,omitempty"`
-	DecisionSubject  string                 `json:"decision_subject,omitempty"`
-	RequestedAction  string                 `json:"requested_action,omitempty"`
-	Advisory         string                 `json:"advisory,omitempty"`
-	MatchedMemory    *store.Memory          `json:"matched_memory,omitempty"`
-	CurrentDecision  *store.Memory          `json:"current_decision,omitempty"`
-	Replacement      *store.Memory          `json:"replacement,omitempty"`
-	Predicate        *decisionPredicate     `json:"predicate,omitempty"`
-	PredicateDetails predicateEvaluation    `json:"predicate_details,omitempty"`
-	Family           []store.Memory         `json:"family,omitempty"`
-	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
+	Query            string              `json:"query,omitempty"`
+	ClaimKey         string              `json:"claim_key,omitempty"`
+	Verdict          string              `json:"verdict"`
+	PredicateStatus  string              `json:"predicate_status"`
+	Recommendation   string              `json:"recommendation"`
+	Reason           string              `json:"reason"`
+	RecheckPrompt    string              `json:"recheck_prompt,omitempty"`
+	DecisionStance   string              `json:"decision_stance,omitempty"`
+	DecisionSubject  string              `json:"decision_subject,omitempty"`
+	RequestedAction  string              `json:"requested_action,omitempty"`
+	Advisory         string              `json:"advisory,omitempty"`
+	MatchedMemory    *store.Memory       `json:"matched_memory,omitempty"`
+	CurrentDecision  *store.Memory       `json:"current_decision,omitempty"`
+	Replacement      *store.Memory       `json:"replacement,omitempty"`
+	Predicate        *decisionPredicate  `json:"predicate,omitempty"`
+	PredicateDetails predicateEvaluation `json:"predicate_details,omitempty"`
+	Family           []store.Memory      `json:"family,omitempty"`
 }
 
 // checkPrefixResult aggregates one per-family verdict for every claim family
@@ -44,14 +43,13 @@ type checkResult struct {
 // top-level verdict is the worst family verdict (see checkVerdictSeverity), so
 // an agent can gate on one field without losing the per-family detail.
 type checkPrefixResult struct {
-	ClaimKeyPrefix   string                 `json:"claim_key_prefix"`
-	Verdict          string                 `json:"verdict"`
-	Recommendation   string                 `json:"recommendation"`
-	Reason           string                 `json:"reason"`
-	DecidingClaimKey string                 `json:"deciding_claim_key,omitempty"`
-	FamilyCount      int                    `json:"family_count"`
-	Families         []checkResult          `json:"families,omitempty"`
-	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
+	ClaimKeyPrefix   string        `json:"claim_key_prefix"`
+	Verdict          string        `json:"verdict"`
+	Recommendation   string        `json:"recommendation"`
+	Reason           string        `json:"reason"`
+	DecidingClaimKey string        `json:"deciding_claim_key,omitempty"`
+	FamilyCount      int           `json:"family_count"`
+	Families         []checkResult `json:"families,omitempty"`
 }
 
 type decisionTrailItem struct {
@@ -83,9 +81,7 @@ func newCheckCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// check is read-only apart from channel JIT refresh, which
-			// openContextStore reopens writable for only when it can fire.
-			st, _, err := openContextStore("check")
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}
@@ -136,21 +132,13 @@ func validateCheckTarget(query, claimKey, claimKeyPrefix string) error {
 }
 
 func runCheck(ctx context.Context, st *store.Store, sc scope.Scope, query, claimKey string, limit int) (checkResult, error) {
-	freshness := ensureFreshContext(ctx, st, "check")
-	result, err := runDecisionCheck(ctx, st, sc, query, claimKey, limit)
-	if err != nil {
-		return checkResult{}, err
-	}
-	result.ChannelFreshness = freshness
-	return result, nil
+	return runDecisionCheck(ctx, st, sc, query, claimKey, limit)
 }
 
 // runCheckPrefix audits every claim family whose key starts with prefix. The
 // family list comes from the claim index (ordered claim_key ASC), so output
-// order is stable; channel freshness is resolved once for the whole run rather
-// than once per family.
+// order is stable.
 func runCheckPrefix(ctx context.Context, st *store.Store, sc scope.Scope, prefix string, limit int) (checkPrefixResult, error) {
-	freshness := ensureFreshContext(ctx, st, "check")
 	summaries, err := st.ClaimSummaries(ctx, store.ClaimSummaryParams{
 		ScopeKind:      sc.Kind,
 		ScopeID:        sc.ID,
@@ -160,12 +148,11 @@ func runCheckPrefix(ctx context.Context, st *store.Store, sc scope.Scope, prefix
 		return checkPrefixResult{}, err
 	}
 	result := checkPrefixResult{
-		ClaimKeyPrefix:   prefix,
-		Verdict:          "no_decision",
-		Recommendation:   "proceed_without_memory",
-		Reason:           "no_claim_key_match",
-		FamilyCount:      len(summaries),
-		ChannelFreshness: freshness,
+		ClaimKeyPrefix: prefix,
+		Verdict:        "no_decision",
+		Recommendation: "proceed_without_memory",
+		Reason:         "no_claim_key_match",
+		FamilyCount:    len(summaries),
 	}
 	for _, summary := range summaries {
 		family, err := runDecisionCheck(ctx, st, sc, "", summary.ClaimKey, limit)
@@ -221,12 +208,6 @@ func checkPrefixFrontmatter(result checkPrefixResult) []kv {
 		{k: "deciding_claim_key", v: result.DecidingClaimKey},
 		{k: "family_count", v: fmt.Sprintf("%d", result.FamilyCount)},
 	}
-	meta = append(meta,
-		kv{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
-		kv{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
-	)
-	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
-	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
 	return meta
 }
 
@@ -469,12 +450,6 @@ func checkFrontmatter(result checkResult) []kv {
 		{k: "advisory", v: result.Advisory},
 		{k: "recheck", v: result.RecheckPrompt},
 	}
-	meta = append(meta,
-		kv{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
-		kv{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
-	)
-	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
-	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
 	return meta
 }
 

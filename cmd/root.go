@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -43,7 +42,6 @@ const (
 	groupWrite    = "write"
 	groupRead     = "read"
 	groupSources  = "sources"
-	groupSharing  = "sharing"
 	groupAgents   = "agents"
 	groupOperator = "operator"
 )
@@ -61,7 +59,6 @@ func init() {
 		&cobra.Group{ID: groupWrite, Title: "Writing memory:"},
 		&cobra.Group{ID: groupRead, Title: "Reading memory:"},
 		&cobra.Group{ID: groupSources, Title: "Sources:"},
-		&cobra.Group{ID: groupSharing, Title: "Sharing:"},
 		&cobra.Group{ID: groupAgents, Title: "For agents:"},
 		&cobra.Group{ID: groupOperator, Title: "Operator:"},
 	)
@@ -69,7 +66,6 @@ func init() {
 	addCommands(groupWrite, newRememberCommand(), newDecideCommand(), newAddCommand(), newSupersedeCommand(), newMarkCommand(), newForgetCommand())
 	addCommands(groupRead, newSearchCommand(), newCheckCommand(), newListCommand(), newShowCommand(), newClaimsCommand(), newExportCommand(), newProfileCommand())
 	addCommands(groupSources, newMineCommand(), newSessionEvidenceCommand(), newEmbedCommand())
-	addCommands(groupSharing, newSwarmCommand(), newChannelCommand(), newRelayCommand())
 	addCommands(groupAgents, newInstructCommand(), newInstructionsCommand(), newHookCommand(), newMCPCommand())
 	addCommands(groupOperator, newInitCommand(), newStatusCommand(), newConfigCommand(), newBackupCommand(), newRepairCommand(), newMigrateCommand(), newEvalCommand(), newTrayCommand(), newVersionCommand())
 	rootCmd.SetHelpCommandGroupID(groupOperator)
@@ -143,27 +139,6 @@ func openReadStore() (*store.Store, string, error) {
 	} else if verboseEnabled() {
 		fmt.Fprintf(os.Stderr, "warning: read-only open failed, falling back to a writable open: %v\n", roErr)
 	}
-	return openStore()
-}
-
-// openContextStore is openReadStore for the commands that MAY write as a side
-// effect of channel just-in-time refresh (search, check). It stays read-only
-// whenever that refresh cannot fire for this command, either because policy
-// disables it or because there are no channel subscriptions to import from.
-func openContextStore(reason string) (*store.Store, string, error) {
-	st, dbPath, err := openReadStore()
-	if err != nil {
-		return nil, "", err
-	}
-	if !st.ReadOnly() || !shouldJITRefresh(loadChannelPolicyOrDefault().JITRefresh, reason) {
-		return st, dbPath, nil
-	}
-	subscriptions, subErr := st.ChannelSubscriptions(context.Background())
-	if subErr == nil && len(subscriptions) == 0 {
-		return st, dbPath, nil
-	}
-	// Channel refresh will run and needs to write; reopen writable.
-	_ = st.Close()
 	return openStore()
 }
 

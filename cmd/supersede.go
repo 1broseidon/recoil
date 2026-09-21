@@ -16,15 +16,12 @@ type supersedeOptions struct {
 	sourceRef  string
 	metadata   string
 	claimKey   string
-	publish    bool
-	noPublish  bool
 }
 
 type supersedeResult struct {
-	OldMemory *store.Memory            `json:"old_memory"`
-	NewMemory *store.Memory            `json:"new_memory"`
-	Duplicate bool                     `json:"duplicate"`
-	Publish   channelAutoPublishResult `json:"publish"`
+	OldMemory *store.Memory `json:"old_memory"`
+	NewMemory *store.Memory `json:"new_memory"`
+	Duplicate bool          `json:"duplicate"`
 }
 
 func newSupersedeCommand() *cobra.Command {
@@ -37,9 +34,6 @@ func newSupersedeCommand() *cobra.Command {
 			content, err := readAddInput(supersedeOpts.file, args[1:])
 			if err != nil {
 				return err
-			}
-			if supersedeOpts.publish && supersedeOpts.noPublish {
-				return fmt.Errorf("--publish and --no-publish cannot both be set")
 			}
 			st, _, err := openStore()
 			if err != nil {
@@ -98,13 +92,6 @@ func newSupersedeCommand() *cobra.Command {
 				NewMemory: newMem,
 				Duplicate: duplicate,
 			}
-			publish := autoPublishMemory(ctx, st, newMem, channelAutoPublishOptions{
-				Command:   "supersede",
-				Force:     supersedeOpts.publish,
-				Disabled:  supersedeOpts.noPublish,
-				Duplicate: duplicate,
-			})
-			result.Publish = publish
 			if opts.json {
 				return writeJSON(w, "supersede_result", result)
 			}
@@ -119,7 +106,6 @@ func newSupersedeCommand() *cobra.Command {
 				{k: "new_validity", v: newMem.Validity},
 				{k: "duplicate", v: fmt.Sprintf("%t", duplicate)},
 			}
-			meta = append(meta, autoPublishFrontmatter(publish)...)
 			return frontmatter(w, meta, newMem.Content)
 		},
 	}
@@ -130,7 +116,5 @@ func newSupersedeCommand() *cobra.Command {
 	c.Flags().StringVar(&supersedeOpts.sourceRef, "source-ref", "", "source reference within the path")
 	c.Flags().StringVar(&supersedeOpts.metadata, "metadata", "", "custom metadata as JSON")
 	c.Flags().StringVar(&supersedeOpts.claimKey, "claim-key", "", "stable claim family for supersession; defaults to old memory claim key")
-	c.Flags().BoolVar(&supersedeOpts.publish, "publish", false, "force automatic channel publish for the replacement memory")
-	c.Flags().BoolVar(&supersedeOpts.noPublish, "no-publish", false, "skip automatic channel publish for the replacement memory")
 	return c
 }

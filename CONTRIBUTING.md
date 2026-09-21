@@ -51,5 +51,5 @@ If a change alters a command's behavior, update `MANUAL.md` (it is what
 ## Reporting a problem
 
 Include the command, expected and actual behavior, and `recoil version`. For
-store problems, `recoil status` and `recoil swarm --json` describe the tree
-without printing memory content.
+store problems, `recoil status --json` describes the store without printing
+memory content.

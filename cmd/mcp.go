@@ -73,8 +73,6 @@ type mcpAddInput struct {
 	ClaimKey     string `json:"claim_key,omitempty" jsonschema:"Optional stable claim key."`
 	Supersedes   string `json:"supersedes,omitempty" jsonschema:"Memory ID this memory supersedes."`
 	SupersededBy string `json:"superseded_by,omitempty" jsonschema:"Memory ID that supersedes this memory."`
-	Publish      bool   `json:"publish,omitempty" jsonschema:"Force automatic channel publish."`
-	NoPublish    bool   `json:"no_publish,omitempty" jsonschema:"Skip automatic channel publish."`
 	User         bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
 	Project      string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
 	Session      string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
@@ -91,8 +89,6 @@ type mcpRememberInput struct {
 	ClaimKey     string `json:"claim_key,omitempty" jsonschema:"Override inferred claim key."`
 	Supersedes   string `json:"supersedes,omitempty" jsonschema:"Memory ID this memory supersedes."`
 	SupersededBy string `json:"superseded_by,omitempty" jsonschema:"Memory ID that supersedes this memory."`
-	Publish      bool   `json:"publish,omitempty" jsonschema:"Force automatic channel publish."`
-	NoPublish    bool   `json:"no_publish,omitempty" jsonschema:"Skip automatic channel publish."`
 	User         bool   `json:"user,omitempty" jsonschema:"Use persistent user scope."`
 	Project      string `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
 	Session      string `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
@@ -107,8 +103,6 @@ type mcpHandoffInput struct {
 	OpenQuestions []string `json:"open_questions,omitempty" jsonschema:"Open questions for the next session."`
 	Supersedes    string   `json:"supersedes,omitempty" jsonschema:"Previous handoff memory this handoff supersedes."`
 	ClaimKey      string   `json:"claim_key,omitempty" jsonschema:"Claim key for the handoff memory."`
-	Publish       bool     `json:"publish,omitempty" jsonschema:"Force automatic channel publish."`
-	NoPublish     bool     `json:"no_publish,omitempty" jsonschema:"Skip automatic channel publish."`
 	User          bool     `json:"user,omitempty" jsonschema:"Use persistent user scope."`
 	Project       string   `json:"project,omitempty" jsonschema:"Use project scope for the given workspace path."`
 	Session       string   `json:"session,omitempty" jsonschema:"Use session scope for the given session ID."`
@@ -199,7 +193,7 @@ func newRecoilMCPServer(opts mcpOptions) *mcp.Server {
 	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "recoil_wake",
-		Description: "Return bounded startup memory context with the same source and channel freshness as the CLI.",
+		Description: "Return bounded startup memory context with the same source freshness as the CLI.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input mcpWakeInput) (*mcp.CallToolResult, envelope, error) {
 		result, text, err := mcpWake(ctx, input)
 		return mcpToolResult("wake_result", result, text, err)
@@ -347,7 +341,7 @@ func mcpWake(ctx context.Context, req mcpWakeInput) (wakeResult, string, error) 
 	if err != nil {
 		return wakeResult{}, "", err
 	}
-	text, _ := renderWakeExecution(ctx, st, exec, req.MaxChars, true)
+	text, _ := renderWakeExecution(exec, req.MaxChars)
 	return exec.Result, text, nil
 }
 
@@ -508,9 +502,6 @@ func mcpAdd(ctx context.Context, req mcpAddInput) (addResult, string, error) {
 	if req.Content == "" {
 		return addResult{}, "", fmt.Errorf("content is required")
 	}
-	if req.Publish && req.NoPublish {
-		return addResult{}, "", fmt.Errorf("publish and no_publish cannot both be set")
-	}
 	sc, err := resolveMCPScope(scopeOptions{user: req.User, project: req.Project, session: req.Session})
 	if err != nil {
 		return addResult{}, "", err
@@ -540,13 +531,7 @@ func mcpAdd(ctx context.Context, req mcpAddInput) (addResult, string, error) {
 	if err != nil {
 		return addResult{}, "", err
 	}
-	publish := autoPublishMemory(ctx, st, mem, channelAutoPublishOptions{
-		Command:   "add",
-		Force:     req.Publish,
-		Disabled:  req.NoPublish,
-		Duplicate: duplicate,
-	})
-	result := addResult{Memory: mem, Duplicate: duplicate, Publish: publish}
+	result := addResult{Memory: mem, Duplicate: duplicate}
 	return result, mem.Content, nil
 }
 
@@ -554,9 +539,6 @@ func mcpRemember(ctx context.Context, req mcpRememberInput) (rememberResult, str
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
 		return rememberResult{}, "", fmt.Errorf("content is required")
-	}
-	if req.Publish && req.NoPublish {
-		return rememberResult{}, "", fmt.Errorf("publish and no_publish cannot both be set")
 	}
 	sc, err := resolveMCPScope(scopeOptions{user: req.User, project: req.Project, session: req.Session})
 	if err != nil {
@@ -577,8 +559,6 @@ func mcpRemember(ctx context.Context, req mcpRememberInput) (rememberResult, str
 		claimKey:     req.ClaimKey,
 		supersedes:   req.Supersedes,
 		supersededBy: req.SupersededBy,
-		publish:      req.Publish,
-		noPublish:    req.NoPublish,
 	})
 	if err != nil {
 		return rememberResult{}, "", err
@@ -587,9 +567,6 @@ func mcpRemember(ctx context.Context, req mcpRememberInput) (rememberResult, str
 }
 
 func mcpHandoff(ctx context.Context, req mcpHandoffInput) (handoffResult, string, error) {
-	if req.Publish && req.NoPublish {
-		return handoffResult{}, "", fmt.Errorf("publish and no_publish cannot both be set")
-	}
 	opts := handoffOptions{
 		agent:        req.Agent,
 		decision:     req.Decisions,
@@ -598,8 +575,6 @@ func mcpHandoff(ctx context.Context, req mcpHandoffInput) (handoffResult, string
 		openQuestion: req.OpenQuestions,
 		supersedes:   req.Supersedes,
 		claimKey:     firstNonEmpty(req.ClaimKey, "handoff.latest"),
-		publish:      req.Publish,
-		noPublish:    req.NoPublish,
 	}
 	content := buildHandoffContent(req.Summary, opts)
 	if strings.TrimSpace(content) == "" {

@@ -15,7 +15,7 @@ cmd/                         Cobra commands, one file per command, plus the help
   errors.go                  Exit-code classification (2 validation, 3 not found, 4 upstream, 5 precondition, 6 cancelled) and the JSON error envelope
   output.go                  {version, kind, data} JSON envelope, frontmatter-plus-content text, --minimal rows
   scope.go                   Scope flags and env aiming: --user, --project, --session, RECOIL_PROJECT, cwd
-  setup.go / init.go         Bootstrap: .recoil/project.json marker, docs mining, hook install, sharing posture
+  setup.go / init.go         Bootstrap: .recoil/project.json marker, docs mining, hook install
   wake.go                    Bounded starter context in lanes (current decisions, project docs, recent evidence)
   search.go / retriever.go   FTS search, optional hybrid retrieval (FTS + embeddings, RRF fusion), --explain
   check.go                   Audit a proposed action against claim families: use / review / use_replacement
@@ -30,13 +30,12 @@ cmd/                         Cobra commands, one file per command, plus the help
   hook.go                    Agent hooks: install / uninstall / remind for claude-code, codex, opencode
   mcp.go                     MCP stdio server (official go-sdk) exposing the recoil_* tools
   instructions.go            instruct <agent>: the short contract an agent's instructions file carries
-  channel*.go / relay*.go / swarm.go   Sharing: channel subscriptions and auto-publish policy, the relay server and its admin, tree health
   embed.go / embedding_provider.go     Optional embedding sidecars (local, Ollama, OpenRouter)
   eval.go                    Offline retrieval eval over fixtures; the ranking is pinned by these
   tray.go                    System tray companion (fyne.io/systray)
   config.go / status.go / backup.go / repair.go / migrate.go / version.go   Operator commands
 internal/
-  store/                     SQLite: schema and migrations (PRAGMA user_version = SchemaVersion), memories / sources / memory_embeddings tables, the memories_fts FTS5 index, channel tables; OpenReadOnly refuses to migrate
+  store/                     SQLite: schema and migrations (PRAGMA user_version = SchemaVersion), memories / sources / memory_embeddings tables, the memories_fts FTS5 index; OpenReadOnly refuses to migrate
   scope/                     Scopes: user, project (marker file, git root, worktree-aware so a worktree maps to its main clone's project), session
   config/                    Store and state paths (os.UserConfigDir, RECOIL_DB) and the typed settings registry behind `recoil config`
   retrieval/                 Query expansion and retrieval signals; personal-domain expansions are behind a default-off flag
@@ -46,7 +45,6 @@ internal/
   redact/                    Strips private keys, bearer tokens, API keys and secret-looking env assignments before anything is stored
   sessionevidence/           Selects load-bearing turns from a session payload and persists them as evidence memories
   agentsessions/             Finds and reads on-disk Claude Code and Codex transcripts for backfill
-  channel/                   Signed channel artifacts, manifests and roster cards exchanged through a relay
   embedding/                 Embedding providers: local hashing, Ollama, OpenRouter
   eval/                      Fixture loading and retrieval metrics
   traystats/ trayautostart/  Tray companion: store statistics and login-item registration per OS
@@ -80,8 +78,8 @@ store schema is free to change behind `SchemaVersion`.
   penalties, pinned by the eval fixtures. Embeddings are an opt-in sidecar and
   hybrid mode falls back to FTS when the provider is unavailable.
 - **Local and standalone.** One store under `os.UserConfigDir()/recoil`, a
-  project marker in `.recoil/project.json`. Sharing between trees is opt-in,
-  moves only signed artifacts through a relay, and never invents memory.
+  project marker in `.recoil/project.json`. Nothing in recoil talks to a
+  network except the optional embedding providers.
 - **Agent-readable output.** Text output is frontmatter plus content; `--json`
   is a stable `{version, kind, data}` envelope; `--minimal` is TSV; errors
   carry a code and map to documented exit statuses.
@@ -93,7 +91,7 @@ tools mirror the CLI and call the same functions. By default only the read
 side is registered: `recoil_search`, `recoil_wake`, `recoil_check`,
 `recoil_list`, `recoil_claims`, `recoil_export`. `recoil mcp --allow-write`
 adds `recoil_add`, `recoil_remember` and `recoil_handoff`. Operator commands
-(`setup`, `config`, `relay`, `forget --destroy`) are deliberately not tools.
+(`setup`, `config`, `forget --destroy`) are deliberately not tools.
 Errors map to the same codes as the CLI.
 
 ## Quality Standards
@@ -127,7 +125,6 @@ recoil export --claim-key-prefix dependency.       # a family verbatim, for prom
 recoil list --role adr --validity active
 recoil show <id>
 recoil mine --dry-run                              # what the miner would index
-recoil swarm                                       # the tree and its sharing health
 recoil instruct claude-code                        # the contract for an instructions file
 recoil hook install claude-code                    # keep an agent on the contract
 recoil mcp                                         # the same tools over stdio
@@ -148,8 +145,8 @@ quiet otherwise. The filter flags (`--current`, `--historical`,
 
 1. One file in `cmd/`, a `newXCommand()` constructor, registered in
    `cmd/root.go` under the help group it belongs to.
-2. Open the store with `openReadStore` for reads, `openContextStore` for
-   reads that may refresh from a channel, `openStore` only for writes.
+2. Open the store with `openReadStore` for reads and `openStore` only for
+   writes.
 3. Resolve scope through the shared scope flags; never read the cwd directly.
 4. Text output through `frontmatter` and the `kv` helpers, JSON through
    `writeJSON(w, "<kind>_result", data)`. Return errors; `HandleError`

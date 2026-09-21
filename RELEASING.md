@@ -36,10 +36,6 @@ tag's section from `CHANGELOG.md` as the release notes, and publishes the
 GitHub release. **It fails without a matching `## [X.Y.Z]` section**, so write
 the changelog before tagging.
 
-The `docker` job builds `ghcr.io/1broseidon/recoil:<tag>` and `:latest` for
-`linux/amd64` and `linux/arm64`. The image's default command is the relay
-server (`recoil relay serve`), not the CLI.
-
 ## Distribution channels
 
 | Channel | How it updates |
@@ -47,7 +43,6 @@ server (`recoil relay serve`), not the CLI.
 | GitHub release | The workflow, from the tag |
 | `curl -fsSL https://recoil.sh/install \| sh` | Resolves `/releases/latest` at run time — nothing to publish |
 | `irm https://recoil.sh/install.ps1 \| iex` | Same, for Windows |
-| `ghcr.io/1broseidon/recoil` | The `docker` job |
 | `go install github.com/1broseidon/recoil@latest` | The Go module proxy; needs `CGO_CFLAGS=-DSQLITE_ENABLE_FTS5` |
 | chain.sh bootstrap | Reads the latest release by platform suffix — nothing to publish |
 | recoil.sh | `docs.yml` reprints the manual on push to `main`; the version chip reads git tags |

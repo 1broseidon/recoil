@@ -35,7 +35,10 @@ var (
 // Bump this whenever migrate() must run again over existing stores. Old binaries
 // never read user_version, so they keep opening a newer store fine as long as
 // the schema stays additive; there is deliberately no downgrade guard.
-const SchemaVersion = 1
+//
+//	1: the user_version gate itself
+//	2: memory sharing removed; the channel tables are dropped
+const SchemaVersion = 2
 
 // SchemaVersionError reports a store whose user_version does not match what this
 // binary expects. Only OpenReadOnly returns it: Open migrates instead.
@@ -1861,8 +1864,15 @@ func (s *Store) runMigrations() error {
 	if err := s.ensureSourceColumns(); err != nil {
 		return err
 	}
-	if err := s.ensureChannelTables(); err != nil {
-		return err
+	// Schema 2 removed memory sharing. Stores written before then carry the
+	// channel tables; nothing reads them any more, so drop them.
+	for _, table := range []string{
+		"channel_identities", "channel_subscriptions", "channel_imports",
+		"channel_peers", "channel_refresh_state", "channel_outbox",
+	} {
+		if _, err := s.db.Exec(`DROP TABLE IF EXISTS ` + table); err != nil {
+			return err
+		}
 	}
 	for _, stmt := range []string{
 		`CREATE INDEX IF NOT EXISTS idx_memories_validity ON memories(validity)`,

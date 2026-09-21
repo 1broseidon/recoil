@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
   actions: write # to dispatch docs.yml after publishing
 
 jobs:
@@ -190,52 +189,3 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  docker:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Resolve release ref
-        id: ref
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.ref.outputs.ref }}
-
-      - name: Resolve build stamp
-        id: stamp
-        run: |
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            VERSION=${{ steps.ref.outputs.tag }}
-            COMMIT=${{ steps.stamp.outputs.commit }}
-            DATE=${{ steps.stamp.outputs.date }}
-          tags: |
-            ghcr.io/1broseidon/recoil:${{ steps.ref.outputs.tag }}
-            ghcr.io/1broseidon/recoil:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

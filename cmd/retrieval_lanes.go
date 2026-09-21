@@ -15,21 +15,19 @@ type retrievalLaneResult struct {
 }
 
 type searchResult struct {
-	Query            string                 `json:"query"`
-	Scope            string                 `json:"scope"`
-	ScopeID          string                 `json:"scope_id"`
-	RetrievalMode    string                 `json:"retrieval_mode"`
-	ResultCount      int                    `json:"result_count"`
-	HistoryCount     int                    `json:"history_count"`
-	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
-	Lanes            []retrievalLaneResult  `json:"lanes"`
-	Results          []store.Memory         `json:"results"`
+	Query         string                `json:"query"`
+	Scope         string                `json:"scope"`
+	ScopeID       string                `json:"scope_id"`
+	RetrievalMode string                `json:"retrieval_mode"`
+	ResultCount   int                   `json:"result_count"`
+	HistoryCount  int                   `json:"history_count"`
+	Lanes         []retrievalLaneResult `json:"lanes"`
+	Results       []store.Memory        `json:"results"`
 }
 
 func structuredRetrievalLanes(query string, current, historical []store.Memory) []retrievalLaneResult {
 	laneDefs := []retrievalLaneResult{
 		{Key: "current_decisions", Title: "Current Decisions"},
-		{Key: "remote_artifacts", Title: "Peer Memory"},
 		{Key: "project_docs", Title: "Project Docs"},
 		{Key: "recent_evidence", Title: "Recent Evidence"},
 		{Key: "historical", Title: "Historical"},
@@ -37,7 +35,7 @@ func structuredRetrievalLanes(query string, current, historical []store.Memory) 
 	add := func(mem store.Memory, historical bool) {
 		if broken, reason := deterministicPredicateBroken(mem); broken {
 			mem.Why = reason
-			laneDefs[4].Results = append(laneDefs[4].Results, mem)
+			laneDefs[3].Results = append(laneDefs[3].Results, mem)
 			return
 		}
 		mem.Why = whyMemorySurfaced(mem, query, strings.TrimSpace(query) != "", historical)
@@ -61,21 +59,18 @@ func structuredRetrievalLanes(query string, current, historical []store.Memory) 
 
 func retrievalLaneIndex(mem store.Memory, historical bool) int {
 	if historical || isHistoricalMemory(mem) {
-		return 4
-	}
-	if strings.EqualFold(mem.SourceKind, "remote_artifact") {
-		return 1
+		return 3
 	}
 	if strings.EqualFold(mem.SourceKind, "file") {
-		return 2
+		return 1
 	}
 	if strings.EqualFold(mem.SourceKind, "session_evidence") {
-		return 3
+		return 2
 	}
 	if isDecisionLaneRole(mem.Role) {
 		return 0
 	}
-	return 3
+	return 2
 }
 
 func retrievalLaneBlocks(lanes []retrievalLaneResult, maxChars int) string {
@@ -111,8 +106,6 @@ func whyMemorySurfaced(mem store.Memory, query string, fromQuery, historical boo
 	base := ""
 	if historical || isHistoricalMemory(mem) {
 		base = "matched query but lifecycle marks it historical, stale, rejected, or superseded"
-	} else if strings.EqualFold(mem.SourceKind, "remote_artifact") {
-		base = "shared by " + firstNonEmpty(mem.SourceAgent, "another agent")
 	} else if strings.EqualFold(mem.SourceKind, "file") {
 		base = "project document chunk from " + firstNonEmpty(mem.SourcePath, "a mined source")
 	} else if strings.EqualFold(mem.SourceKind, "session_evidence") {

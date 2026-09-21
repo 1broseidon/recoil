@@ -4,9 +4,15 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
-### Fixed
+### Removed
 
-- The `ghcr.io/1broseidon/recoil` image reports the release version, commit and build date from `recoil version`, the same as the published binaries, instead of `dev (unknown, unknown)`.
+- Memory sharing. The `swarm`, `channel` and `relay` commands, the relay server and its Docker image, the `--relay`, `--relay-agent`, `--standalone`, `--collaborative` and `--manual-share` flags on `setup`, the `--publish` / `--no-publish` flags on `add`, `remember`, `decide`, `supersede`, `handoff` and the MCP write tools, the seven `channel.*` settings, the Peer Memory lane, and the `channel_*`, `peer_memory_received`, `memory_shared`, `pending_share` and `publish` fields in text and JSON output. Recoil is one local store per machine; nothing in it talks to a network except the optional embedding providers.
+
+### Changed
+
+- Store schema version 2. The first command that opens an older store drops the channel tables it carries; memories, sources and embeddings are untouched.
+- `recoil setup` prints the project, chunk and hook counts and nothing about posture or sharing.
+- The agent contract (`recoil instruct`) describes a memory store, not a memory tree, and no longer promises automatic sharing.
 
 ## [0.2.0] - 2026-09-21
 
