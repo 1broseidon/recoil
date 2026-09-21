@@ -4,6 +4,19 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- A CI workflow: build, golangci-lint, the test suite on Linux and macOS, and govulncheck, on every pull request and push to `main`. `make lint`, `make vulncheck`, `make build-check` and `make ci` run the same checks locally, and `.githooks/pre-commit` runs them before a commit (`git config core.hooksPath .githooks`).
+- `AGENTS.md` (code layout and conventions, with `CLAUDE.md` pointing at it), `CONTRIBUTING.md`, and `RELEASING.md`.
+- `recoil --help` groups the commands the way the manual does: session, writing memory, reading memory, sources, sharing, for agents, operator.
+- `recoil version` reports the module version and VCS stamp for a `go install github.com/1broseidon/recoil@vX.Y.Z` build instead of `dev (unknown, unknown)`.
+
+### Changed
+
+- `modelcontextprotocol/go-sdk` 1.2.0 → 1.8.0, which closes GO-2026-4569, GO-2026-4770, GO-2026-4773 and GO-2026-5771.
+- `recoil instructions` is a hidden alias of `recoil instruct`; the two commands already printed the same text.
+- The `cmd` test suite redirects `HOME` and the XDG and AppData directories to a throwaway directory and unsets `RECOIL_DB` and `RECOIL_PROJECT`, so a test run can no longer open or mine into the developer's real store.
+
 ## [0.1.1] - 2026-09-21
 
 The first release with published binaries. v0.1.0 was tagged, but its release build failed on the macOS runner and never published anything.
