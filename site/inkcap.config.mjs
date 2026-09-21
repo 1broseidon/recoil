@@ -1,0 +1,14 @@
+/* Everything inkcap needs to print this site. The rest of the build is
+ * github.com/1broseidon/inkcap, shared with the other chain.sh manuals. */
+export default {
+  name: 'recoil',
+  url: 'https://recoil.sh',
+  repo: '1broseidon/recoil',
+  tagline: 'local-first memory for coding agents',
+  built: 'Built in Go on SQLite FTS5',
+  accent: {
+    light: { accent: '#7D3A66', soft: '#F2E4EC' },
+    dark: { accent: '#D18AB5', soft: '#2B1A25' },
+    terminal: { prompt: '#C57FA8', key: '#E0A6C7' },
+  },
+}
