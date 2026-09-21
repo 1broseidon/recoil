@@ -36,10 +36,9 @@ old one, and `check` audits a proposed action against the family before an
 agent goes ahead. Project docs are indexed at setup and refreshed by file hash,
 so `wake` also surfaces the README and `docs/` an agent would otherwise re-read.
 
-Everything is local and standalone by default. Sharing between machines or
-agents is an opt-in memory tree behind a relay that only moves signed
-artifacts. Hooks exist for Claude Code, OpenCode and Codex; the same surface is
-available over MCP.
+Everything is local: one store on the machine, nothing on the network. Hooks
+exist for Claude Code, OpenCode and Codex; the same surface is available over
+MCP.
 
 > Durable memory is authored by an agent or operator action. Automation may
 > enrich, connect, publish, and review it. Automation may propose new memory,
@@ -119,26 +118,17 @@ $ curl -fsSL https://chain.sh/bootstrap.sh | sh
 ## Quickstart
 
 Run it inside a repository. `setup` marks the project, indexes its docs, and
-installs hooks for the agents it finds; `--standalone` keeps sharing off.
+installs hooks for the agents it finds.
 
 ```console capture
-$ recoil setup --standalone --agent claude-code
+$ recoil setup --agent claude-code
 ---
-tree: project
-posture: standalone
-sharing: off
-evidence: off
 project_root: /tmp/orbit
 project_id: local:dbb8165a8ec8e32bfb255a15ecd75d69
 chunks: 2
 hooks: 1
 next_command: recoil wake
 ---
-memory tree: project
-posture: standalone
-sharing: off
-evidence: off
-
 indexed 2 chunks from 2 files
 detected agents: claude-code
 hook claude-code: .claude/settings.json
@@ -159,13 +149,6 @@ claim_key: ""
 inference_confidence: low
 inference_reason: no decision, constraint, preference, or handoff signal; stored as note
 duplicate: false
-publish_mode: off
-memory_shared: 0
-publish_published: 0
-publish_queued: 0
-publish_duplicate: 0
-publish_failed: 0
-publish_skipped: policy
 ---
 The parser cache is keyed by file content hash, not mtime: editors rewrite mtimes on save without changing content.
 ```
@@ -180,7 +163,7 @@ $ recoil decide --claim-key cache.backend --stance prefers --subject "parser cac
 id: mem_7vda2sxdlkgrurmicljaq5fq6k
 scope: project
 scope_id: local:dbb8165a8ec8e32bfb255a15ecd75d69
-created: 2026-09-21T18:08:04Z
+created: 2026-09-21T20:17:17Z
 role: decision
 validity: active
 claim_key: cache.backend
@@ -191,13 +174,6 @@ supersedes: ""
 superseded_by: ""
 auto_superseded: ""
 duplicate: false
-publish_mode: off
-memory_shared: 0
-publish_published: 0
-publish_queued: 0
-publish_duplicate: 0
-publish_failed: 0
-publish_skipped: policy
 ---
 Keep the parser cache in SQLite with WAL. Redis was rejected: installs must work offline with no daemon.
 ```
@@ -216,22 +192,13 @@ selected_count: 4
 shown_count: 4
 refreshed_sources: 0
 staled_memories: 0
-channel_imported: 0
-channel_errors: 0
 truncated: false
 max_chars: 1600
-peer_memory_received: 0
-memory_shared: 0
-pending_share: 0
-channel_outbox_published: 0
-channel_outbox_duplicate: 0
-channel_outbox_failed: 0
-channel_outbox_pending: 0
 ---
 ## Current Decisions
 ### mem_7vda2sxdlkgrurmicljaq5fq6k
 score: 0.3500
-created: 2026-09-21T18:08:04Z
+created: 2026-09-21T20:17:17Z
 role: decision
 source_kind: direct
 validity: active
@@ -242,9 +209,9 @@ why: current decision with claim_key cache.backend
 Keep the parser cache in SQLite with WAL. Redis was rejected: installs must work offline with no daemon.
 
 ## Project Docs
-### mem_lq7i25mqrldbofqglixja2akx2
+### mem_okx2nsjxiq4cm6mpr6ziouobru
 score: 1.8500
-created: 2026-09-21T18:08:04Z
+created: 2026-09-21T20:17:17Z
 role: source
 source_kind: file
 validity: unknown
@@ -257,8 +224,8 @@ why: project document chunk from README.md
 
 A parser for satellite two-line element sets with an on-disk cache.
 
-### mem_yntgvdgzlkc2gcrl3bii46oesd
-created: 2026-09-21T18:08:04Z
+### mem_552rvrcwonfryls5juoabgpvyv
+created: 2026-09-21T20:17:17Z
 role: source
 source_kind: file
 validity: unknown
@@ -280,7 +247,7 @@ because installs must work offline with no daemon.
 ## Recent Evidence
 ### mem_jtijf5wmyvvdoehp23sbjs3szu
 score: 0.3500
-created: 2026-09-21T18:08:04Z
+created: 2026-09-21T20:17:17Z
 role: note
 source_kind: direct
 validity: active
@@ -308,15 +275,6 @@ decision_subject: parser cache backend
 requested_action: replace_subject
 advisory: ""
 recheck: ""
-channel_imported: 0
-channel_errors: 0
-peer_memory_received: 0
-memory_shared: 0
-pending_share: 0
-channel_outbox_published: 0
-channel_outbox_duplicate: 0
-channel_outbox_failed: 0
-channel_outbox_pending: 0
 ---
 ## Decision Check
 
@@ -333,7 +291,7 @@ current_id: mem_7vda2sxdlkgrurmicljaq5fq6k
 ## Current Decision
 
 ## mem_7vda2sxdlkgrurmicljaq5fq6k
-created: 2026-09-21T18:08:04Z
+created: 2026-09-21T20:17:17Z
 validity: active
 claim_key: cache.backend
 role: decision
@@ -359,8 +317,6 @@ Keep the parser cache in SQLite with WAL. Redis was rejected: installs must work
 | Retire a memory | `recoil forget <id>` |
 | Change validity or links by hand | `recoil mark <id>` |
 | Index docs without a full setup | `recoil mine` |
-| See the tree, posture and sharing state | `recoil swarm` |
-| Share memory with another tree | `recoil setup --relay <invite>` |
 | Give an agent the contract | `recoil instruct <agent>` |
 | Keep an agent on the contract | `recoil hook install <agent>` |
 | Serve the same tools over MCP | `recoil mcp` |
@@ -376,15 +332,11 @@ workspace, `--session <id>` a session scope.
 
 #### setup — Bootstrap a project in one step
 
-Marks the project (`.recoil/project.json`), indexes its docs, installs agent
-hooks, and sets the sharing posture.
+Marks the project (`.recoil/project.json`), indexes its docs, and installs
+agent hooks.
 
 | Flag | Effect |
 | --- | --- |
-| `--standalone` | Local memory tree only |
-| `--collaborative` | Join sharing with automatic publishing on |
-| `--manual-share` | Join sharing, keep automatic publishing off |
-| `--relay <invite>` | Relay invite URL to join; `--relay-agent <name>` names this node |
 | `--agent <name>` | Hook to install; repeat or comma-separate. Auto-detected by default |
 | `--hook-scope project` | Where hooks land: `project` (default) or `user` |
 | `--no-hooks` | Skip hook installation |
@@ -423,17 +375,7 @@ role: handoff
 claim_key: handoff.latest
 supersedes: ""
 auto_superseded: ""
-channel_imported: 0
-channel_errors: 0
-peer_memory_received: 0
-memory_shared: 0
-pending_share: 0
-channel_outbox_published: 0
-channel_outbox_duplicate: 0
-channel_outbox_failed: 0
-channel_outbox_pending: 0
 publish_mode: off
-memory_shared: 0
 publish_published: 0
 publish_queued: 0
 publish_duplicate: 0
@@ -483,7 +425,6 @@ superseded_by: ""
 auto_superseded: mem_7vda2sxdlkgrurmicljaq5fq6k
 duplicate: false
 publish_mode: off
-memory_shared: 0
 publish_published: 0
 publish_queued: 0
 publish_duplicate: 0
@@ -517,7 +458,6 @@ old_validity: superseded
 new_validity: active
 duplicate: false
 publish_mode: off
-memory_shared: 0
 publish_published: 0
 publish_queued: 0
 publish_duplicate: 0
@@ -557,15 +497,6 @@ scope_id: local:dbb8165a8ec8e32bfb255a15ecd75d69
 retrieval_mode: fts
 result_count: 5
 history_count: 1
-channel_imported: 0
-channel_errors: 0
-peer_memory_received: 0
-memory_shared: 0
-pending_share: 0
-channel_outbox_published: 0
-channel_outbox_duplicate: 0
-channel_outbox_failed: 0
-channel_outbox_pending: 0
 ---
 ## Current Decisions
 
@@ -687,15 +618,6 @@ decision_subject: ""
 requested_action: ""
 advisory: ""
 recheck: ""
-channel_imported: 0
-channel_errors: 0
-peer_memory_received: 0
-memory_shared: 0
-pending_share: 0
-channel_outbox_published: 0
-channel_outbox_duplicate: 0
-channel_outbox_failed: 0
-channel_outbox_pending: 0
 ---
 ## Decision Check
 
@@ -856,7 +778,7 @@ staled: 0
 dry-run	would-add	docs/architecture.md	chunk 1 lines 1-9
 ```
 
-#### status and swarm — Store and tree health
+#### status — Store health
 
 ```console
 $ recoil status
@@ -874,31 +796,6 @@ project_marker: /tmp/orbit/.recoil/project.json
 ready
 ```
 
-```console
-$ recoil swarm
----
-tree: project
-posture: standalone
-sharing: off
-peers: 0
-memory: 7
-peer_memory: 0
-evidence: off
-review: 0
-pending_share: 0
-peer_memory_received: 0
-memory_shared: 0
----
-memory tree: project
-posture: standalone
-sharing: off
-peers: 0
-memory: 7
-peer_memory: 0
-evidence: off
-review: 0
-pending_share: 0
-```
 
 #### config — Effective configuration
 
@@ -916,13 +813,6 @@ count: 17
 aging.window-days=30	default	Freshness window in days before note and handoff memories receive read-side aging demotion.
 backup.dir=	default	Default destination directory for recoil backup snapshots.
 backup.max=3	default	Maximum number of rotating backup snapshots to keep.
-channel.auto_publish=off	project	Automatic channel publish mode: off, guidance, or all-local.
-channel.auto_publish_include_remote=false	default	Allow auto-publishing memories imported from remote artifacts.
-channel.auto_publish_requires_claim_key=true	default	Require a claim_key before auto-publishing guidance memories.
-channel.auto_publish_roles=decision,adr,constraint,preference,rule,handoff	default	Comma-separated roles eligible for channel.auto_publish=guidance.
-channel.jit_refresh=off	project	Implicit channel freshness mode: off, wake, context, or all.
-channel.jit_refresh_timeout=2s	default	Maximum time for implicit channel refresh and outbox flush.
-channel.outbox_flush_timeout=2s	default	Maximum time for automatic channel outbox flush after writes.
 mine.exclude_paths=	default	Comma-separated path globs to exclude from mining even when they otherwise look important.
 mine.follow_repo_symlinks=true	default	Follow symlinks that resolve inside the mined root for supported text files.
 mine.include_hidden_operational=true	default	Include allowlisted hidden operational files such as .github/SECURITY.md without enabling every hidden file.
@@ -958,8 +848,7 @@ tray companion. `version` prints version, commit and build date.
 | session | `--session <id>` | Context for one run |
 
 All scopes live in one store. The project is marked by `.recoil/project.json`
-and its id is derived from the repository, so clones on other machines line up
-when sharing is on.
+and its id is derived from the repository, so clones on other machines line up.
 
 ### Validity
 
@@ -989,35 +878,11 @@ tree of them.
 | Lane | What lands there |
 | --- | --- |
 | Current Decisions | Active decisions, newest first |
-| Peer Memory | Memory received from other trees when sharing is on |
 | Project Docs | Indexed file chunks, root docs first |
 | Recent Evidence | Recent notes, handoffs and session evidence |
 | Historical | Matches that lost their validity; `search` keeps them in their own section |
 
 Every result carries a `why` line.
-
-## Sharing
-
-Sharing is off until you ask for it. `setup --relay <invite>` joins a memory
-tree through a relay: a dumb server that stores signed artifacts and a roster,
-never the database. `--collaborative` publishes eligible memories automatically
-(`channel.auto_publish=guidance` shares decisions, ADRs, constraints,
-preferences, rules and handoffs that carry a claim key; `all-local` shares
-every local memory), while `--manual-share` joins but leaves publishing to
-`channel publish`. `swarm --refresh` sends pending shares and pulls peer memory
-before printing the card.
-
-| Command | What it does |
-| --- | --- |
-| `channel join` / `status` / `roster` | Join a channel, list joined channels, show peers and the artifact index |
-| `channel publish` / `refresh` / `sync` | Push current memories, pull new peer artifacts, replay them as remote evidence |
-| `channel outbox` | Inspect pending automatic publishes |
-| `relay setup` / `serve` | Bootstrap a data directory and serve it (`:8787` by default) |
-| `relay invite` / `member` / `channel` | One-time invites, roster membership, channels |
-| `relay status` / `doctor` | Footprint and health, with likely operator fixes |
-
-The repository's `Dockerfile` builds the relay image; its default command is
-`relay serve --addr :8787 --data /data`.
 
 ## For agents
 
@@ -1033,7 +898,7 @@ It names the agent so its memories carry the right `source_agent`.
 $ recoil instruct claude-code
 # Recoil memory contract for claude-code
 
-Your workspace has a memory tree. Agents leave durable intent. Recoil keeps it fresh, shared, and cleaned up.
+Your workspace has a memory store. Agents leave durable intent. Recoil keeps it fresh and cleaned up.
 
 - Start work with `recoil wake --max-chars 1600`.
 - Before assuming prior context or making a claim about project history, run `recoil search "<topic>"`.
@@ -1043,7 +908,6 @@ Your workspace has a memory tree. Agents leave durable intent. Recoil keeps it f
 - When something previously remembered is now wrong, use `recoil supersede <old-id> "<replacement>"` instead of writing a duplicate memory.
 - End the session or compacting window with `recoil handoff --agent claude-code --next-step "<next action>"`.
 
-Recoil shares eligible memory automatically when this workspace is collaborative. If you find yourself wanting to share something manually, note it in handoff so the rules can be tuned.
 Treat Recoil output as sourced working context with IDs and provenance.
 ```
 
@@ -1154,6 +1018,6 @@ session's evidence with the memories mined from it.
 
 ### Automation proposes, agents and people author
 
-Mining, sharing and refresh never invent memory. Indexed docs are `source`
-memories with `validity: unknown`, imported peer memory is remote evidence, and
-`wake` can mark a memory stale when its file changed but never rewrites it.
+Mining and refresh never invent memory. Indexed docs are `source` memories
+with `validity: unknown`, and `wake` can mark a memory stale when its file
+changed but never rewrites it.

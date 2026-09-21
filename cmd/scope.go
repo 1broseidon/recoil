@@ -44,7 +44,7 @@ func projectFromEnv() string {
 }
 
 // envAimedProjectScope resolves project scope for the internal paths that take
-// no scope flags (hooks, config, the project-local DB fallback, swarm, status).
+// no scope flags (hooks, config, the project-local DB fallback, status).
 // Without this they would keep inferring from the working directory and disagree
 // with the flag-bearing commands about which project is in play.
 func envAimedProjectScope() (scope.Scope, error) {

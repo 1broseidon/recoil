@@ -59,9 +59,7 @@ func newSearchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// search only writes when channel JIT refresh actually fires, so
-			// openContextStore keeps it read-only whenever it cannot.
-			st, _, err := openContextStore("search")
+			st, _, err := openReadStore()
 			if err != nil {
 				return err
 			}
@@ -101,7 +99,6 @@ func newSearchCommand() *cobra.Command {
 }
 
 func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query string, opts searchOptions) (searchResult, error) {
-	freshness := ensureFreshContext(ctx, st, "search")
 	params, err := searchParams(query, sc, opts.filters, opts.limit)
 	if err != nil {
 		return searchResult{}, err
@@ -171,15 +168,14 @@ func runSearch(ctx context.Context, st *store.Store, sc scope.Scope, query strin
 		currentWithWhy = append(currentWithWhy, lane.Results...)
 	}
 	return searchResult{
-		Query:            query,
-		Scope:            sc.Kind,
-		ScopeID:          sc.ID,
-		RetrievalMode:    retrievalMode,
-		ResultCount:      len(current),
-		HistoryCount:     len(historical),
-		ChannelFreshness: freshness,
-		Lanes:            lanes,
-		Results:          currentWithWhy,
+		Query:         query,
+		Scope:         sc.Kind,
+		ScopeID:       sc.ID,
+		RetrievalMode: retrievalMode,
+		ResultCount:   len(current),
+		HistoryCount:  len(historical),
+		Lanes:         lanes,
+		Results:       currentWithWhy,
 	}, nil
 }
 
@@ -231,11 +227,7 @@ func searchFrontmatter(result searchResult) []kv {
 		{k: "retrieval_mode", v: result.RetrievalMode},
 		{k: "result_count", v: fmt.Sprintf("%d", result.ResultCount)},
 		{k: "history_count", v: fmt.Sprintf("%d", result.HistoryCount)},
-		{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
-		{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
 	}
-	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
-	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
 	return meta
 }
 
@@ -378,7 +370,7 @@ func runSignalSearch(ctx context.Context, st *store.Store, p store.SearchParams)
 		now := time.Now().UTC()
 		item.score += recencyPrior(item.mem, now)
 		item.score -= agingPenalty(item.mem, now, ageWindow)
-		if coverage >= 0.5 && (item.mem.SourceKind == "direct" || item.mem.SourceKind == "remote_artifact") && isGuidanceRole(item.mem.Role) {
+		if coverage >= 0.5 && item.mem.SourceKind == "direct" && isGuidanceRole(item.mem.Role) {
 			item.score += 0.75
 		}
 		item.mem.Score = item.score

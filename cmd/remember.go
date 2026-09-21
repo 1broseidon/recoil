@@ -24,8 +24,6 @@ type rememberOptions struct {
 	claimKey     string
 	supersedes   string
 	supersededBy string
-	publish      bool
-	noPublish    bool
 }
 
 type rememberInference struct {
@@ -36,11 +34,10 @@ type rememberInference struct {
 }
 
 type rememberResult struct {
-	Memory        *store.Memory            `json:"memory"`
-	Duplicate     bool                     `json:"duplicate"`
-	Inference     rememberInference        `json:"inference"`
-	Publish       channelAutoPublishResult `json:"publish"`
-	RelatedClaims []relatedClaim           `json:"related_claims,omitempty"`
+	Memory        *store.Memory     `json:"memory"`
+	Duplicate     bool              `json:"duplicate"`
+	Inference     rememberInference `json:"inference"`
+	RelatedClaims []relatedClaim    `json:"related_claims,omitempty"`
 }
 
 func newRememberCommand() *cobra.Command {
@@ -56,9 +53,6 @@ func newRememberCommand() *cobra.Command {
 			}
 			if strings.TrimSpace(content) == "" {
 				return fmt.Errorf("memory content is empty")
-			}
-			if rememberOpts.publish && rememberOpts.noPublish {
-				return fmt.Errorf("--publish and --no-publish cannot both be set")
 			}
 			sc, err := resolveScope(cmd, rememberOpts.scope)
 			if err != nil {
@@ -88,7 +82,6 @@ func newRememberCommand() *cobra.Command {
 				{k: "duplicate", v: fmt.Sprintf("%t", result.Duplicate)},
 			}
 			meta = appendRelatedClaimFrontmatter(meta, "related", result.RelatedClaims)
-			meta = append(meta, autoPublishFrontmatter(result.Publish)...)
 			return frontmatter(cmd.OutOrStdout(), meta, mem.Content)
 		},
 	}
@@ -103,8 +96,6 @@ func newRememberCommand() *cobra.Command {
 	c.Flags().StringVar(&rememberOpts.claimKey, "claim-key", "", "override inferred claim key")
 	c.Flags().StringVar(&rememberOpts.supersedes, "supersedes", "", "memory ID this memory supersedes")
 	c.Flags().StringVar(&rememberOpts.supersededBy, "superseded-by", "", "memory ID that supersedes this memory")
-	c.Flags().BoolVar(&rememberOpts.publish, "publish", false, "force automatic channel publish for this memory")
-	c.Flags().BoolVar(&rememberOpts.noPublish, "no-publish", false, "skip automatic channel publish for this memory")
 	return c
 }
 
@@ -153,13 +144,7 @@ func runRemember(ctx context.Context, st *store.Store, sc scope.Scope, content s
 		}
 		related = relatedClaimsFromMemories(memories)
 	}
-	publish := autoPublishMemory(ctx, st, mem, channelAutoPublishOptions{
-		Command:   "remember",
-		Force:     opts.publish,
-		Disabled:  opts.noPublish,
-		Duplicate: duplicate,
-	})
-	return rememberResult{Memory: mem, Duplicate: duplicate, Inference: inference, Publish: publish, RelatedClaims: related}, nil
+	return rememberResult{Memory: mem, Duplicate: duplicate, Inference: inference, RelatedClaims: related}, nil
 }
 
 func inferRemember(content, roleOverride, claimOverride string) rememberInference {

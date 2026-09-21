@@ -25,16 +25,14 @@ type wakeOptions struct {
 }
 
 type wakeResult struct {
-	Query            string                 `json:"query,omitempty"`
-	Scope            string                 `json:"scope"`
-	ScopeID          string                 `json:"scope_id"`
-	SelectedCount    int                    `json:"selected_count"`
-	Refresh          sourceRefreshSummary   `json:"refresh"`
-	ChannelRefresh   []channelRefreshResult `json:"channel_refresh,omitempty"`
-	ChannelFreshness channelFreshnessResult `json:"channel_freshness"`
-	Layers           []wakeLayerResult      `json:"layers"`
-	Results          []store.Memory         `json:"results"`
-	DecisionTrail    []decisionTrailItem    `json:"decision_trail,omitempty"`
+	Query         string               `json:"query,omitempty"`
+	Scope         string               `json:"scope"`
+	ScopeID       string               `json:"scope_id"`
+	SelectedCount int                  `json:"selected_count"`
+	Refresh       sourceRefreshSummary `json:"refresh"`
+	Layers        []wakeLayerResult    `json:"layers"`
+	Results       []store.Memory       `json:"results"`
+	DecisionTrail []decisionTrailItem  `json:"decision_trail,omitempty"`
 }
 
 type wakeLayerResult struct {
@@ -92,7 +90,7 @@ func newWakeCommand() *cobra.Command {
 				}
 				return nil
 			}
-			body, rendered := renderWakeExecution(ctx, st, exec, wakeOpts.maxChars, true)
+			body, rendered := renderWakeExecution(exec, wakeOpts.maxChars)
 			return frontmatter(w, wakeFrontmatter(exec.Result, rendered, wakeOpts.maxChars), body)
 		},
 	}
@@ -117,8 +115,6 @@ func runWake(ctx context.Context, st *store.Store, sc scope.Scope, query string,
 	if err != nil {
 		return wakeExecution{}, err
 	}
-	channelFreshness := ensureFreshContext(ctx, st, "wake")
-	channelRefresh := channelFreshness.Refresh
 	fetchLimit := wakeFetchLimit(opts.limit)
 	var queryResults []store.Memory
 	if query != "" {
@@ -158,28 +154,21 @@ func runWake(ctx context.Context, st *store.Store, sc scope.Scope, query string,
 		}
 	}
 	result := wakeResult{
-		Query:            query,
-		Scope:            sc.Kind,
-		ScopeID:          sc.ID,
-		SelectedCount:    len(results),
-		Refresh:          refresh,
-		ChannelRefresh:   channelRefresh,
-		ChannelFreshness: channelFreshness,
-		Layers:           wakeLayerResults(layers),
-		Results:          results,
-		DecisionTrail:    trail,
+		Query:         query,
+		Scope:         sc.Kind,
+		ScopeID:       sc.ID,
+		SelectedCount: len(results),
+		Refresh:       refresh,
+		Layers:        wakeLayerResults(layers),
+		Results:       results,
+		DecisionTrail: trail,
 	}
 	return wakeExecution{Result: result, Layers: layers}, nil
 }
 
-func renderWakeExecution(ctx context.Context, st *store.Store, exec wakeExecution, maxChars int, includePresence bool) (string, wakeRender) {
+func renderWakeExecution(exec wakeExecution, maxChars int) (string, wakeRender) {
 	rendered := layeredMemoryBlocks(exec.Layers, maxChars, true)
 	body := rendered.Body
-	if includePresence {
-		if presence := swarmPresenceLine(ctx, st, exec.Result.ChannelFreshness); presence != "" {
-			body = presence + "\n\n" + body
-		}
-	}
 	if len(exec.Result.DecisionTrail) > 0 {
 		body = combineWakeDecisionTrail(renderDecisionTrail(exec.Result.DecisionTrail), body)
 	}
@@ -196,13 +185,9 @@ func wakeFrontmatter(result wakeResult, rendered wakeRender, maxChars int) []kv 
 		{k: "shown_count", v: fmt.Sprintf("%d", rendered.ShownCount)},
 		{k: "refreshed_sources", v: fmt.Sprintf("%d", result.Refresh.RefreshedSources)},
 		{k: "staled_memories", v: fmt.Sprintf("%d", result.Refresh.StaledMemories)},
-		{k: "channel_imported", v: fmt.Sprintf("%d", channelFreshnessImported(result.ChannelFreshness))},
-		{k: "channel_errors", v: fmt.Sprintf("%d", channelFreshnessErrors(result.ChannelFreshness))},
 		{k: "truncated", v: fmt.Sprintf("%t", rendered.Truncated)},
 		{k: "max_chars", v: fmt.Sprintf("%d", maxChars)},
 	}
-	meta = append(meta, channelFriendlyFrontmatter(result.ChannelFreshness)...)
-	meta = append(meta, channelOutboxFrontmatter("channel_", result.ChannelFreshness.Outbox)...)
 	return meta
 }
 
@@ -309,24 +294,6 @@ func wakeFetchLimit(limit int) int {
 	return fetchLimit
 }
 
-func channelRefreshImported(results []channelRefreshResult) int {
-	total := 0
-	for _, result := range results {
-		total += result.Imported
-	}
-	return total
-}
-
-func channelRefreshErrors(results []channelRefreshResult) int {
-	total := 0
-	for _, result := range results {
-		if result.Error != "" {
-			total++
-		}
-	}
-	return total
-}
-
 func buildWakeLayers(query string, queryResults, recent []store.Memory, limit int, quality sourcequality.Options, ageWindow float64) []wakeLayer {
 	if limit <= 0 {
 		limit = 8
@@ -338,7 +305,6 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	recent = rankWakeCandidates(recent, wakePolicyQuery(query), quality)
 	layers := []wakeLayer{
 		{Key: "current_decisions", Title: "Current Decisions"},
-		{Key: "remote_artifacts", Title: "Peer Memory"},
 		{Key: "project_docs", Title: "Project Docs"},
 		{Key: "recent_evidence", Title: "Recent Evidence"},
 	}
@@ -346,7 +312,7 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 	sessionEvidenceByLayer := map[int]int{}
 	total := 0
 	newestDirectHandoff := newestDirectHandoffID(append(append([]store.Memory(nil), queryResults...), recent...))
-	layerCaps := []int{max(2, limit/3), limit, (limit + 1) / 2, 2}
+	layerCaps := []int{max(2, limit/3), (limit + 1) / 2, 2}
 	type wakeCandidate struct {
 		memory    store.Memory
 		fromQuery bool
@@ -399,7 +365,7 @@ func buildWakeLayers(query string, queryResults, recent []store.Memory, limit in
 		if total >= limit {
 			break
 		}
-		if classifyWakeMemory(candidate.memory, query, candidate.fromQuery) == 2 && total > len(layers[2].Memories) {
+		if classifyWakeMemory(candidate.memory, query, candidate.fromQuery) == 1 && total > len(layers[1].Memories) {
 			continue
 		}
 		add(candidate.memory, candidate.fromQuery, false)
@@ -476,21 +442,18 @@ func classifyWakeMemory(mem store.Memory, _ string, _ bool) int {
 	role := strings.ToLower(mem.Role)
 	sourcePath := strings.ToLower(mem.SourcePath)
 	content := strings.ToLower(mem.Content)
-	if strings.EqualFold(mem.SourceKind, "remote_artifact") {
+	if strings.EqualFold(mem.SourceKind, "file") {
 		return 1
 	}
-	if strings.EqualFold(mem.SourceKind, "file") {
-		return 2
-	}
 	if isSessionEvidence(mem) {
-		return 3
+		return 2
 	}
 	if strings.Contains(sourcePath, "handoff") ||
 		strings.Contains(content, "handoff") ||
 		strings.Contains(content, "next active task") ||
 		strings.Contains(content, "next build step") ||
 		strings.Contains(content, "current task") {
-		return 3
+		return 2
 	}
 	switch role {
 	case "decision", "adr", "constraint", "preference", "rule":
@@ -502,7 +465,7 @@ func classifyWakeMemory(mem store.Memory, _ string, _ bool) int {
 		strings.Contains(content, "settled decision") {
 		return 0
 	}
-	return 3
+	return 2
 }
 
 func isSessionEvidence(mem store.Memory) bool {

@@ -122,9 +122,6 @@ func ScorePrior(query, sourcePath, metadataJSON string) float64 {
 }
 
 func ScorePriorWithOptions(query, sourcePath, metadataJSON, mode string, opts Options) float64 {
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(sourcePath)), "channel://") {
-		return 0
-	}
 	info := ClassifyWithOptions(sourcePath, opts)
 	q := strings.ToLower(query)
 	score := 0.0

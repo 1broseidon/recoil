@@ -36,7 +36,7 @@ func newExportCommand() *cobra.Command {
 		Long: `Export claim-keyed memories with no ranking and no truncation.
 
 Export is the deterministic counterpart to wake and search. It does not rank,
-does not synthesize a query, does not refresh sources or channels, does not
+does not synthesize a query, does not refresh sources, does not
 truncate bodies, and applies no time-dependent priors. Output order is
 claim_key ascending, then created_at descending within a key, so two runs over
 unchanged store contents are byte-for-byte identical.
