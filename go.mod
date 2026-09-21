@@ -1,6 +1,6 @@
 module github.com/1broseidon/recoil
 
-go 1.26.2
+go 1.26.7
 
 require (
 	fyne.io/systray v1.12.1

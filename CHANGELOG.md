@@ -14,6 +14,7 @@ All notable changes to recoil are documented here.
 ### Changed
 
 - `modelcontextprotocol/go-sdk` 1.2.0 → 1.8.0, which closes GO-2026-4569, GO-2026-4770, GO-2026-4773 and GO-2026-5771.
+- Go toolchain floor raised from 1.26.2 to 1.26.7: govulncheck flagged ten standard-library findings against 1.26.2 (`net/http`, `crypto/tls`, `crypto/x509`, `net/url`, `net/textproto`, `encoding/asn1`, `net`), all fixed by 1.26.6. CI builds with `go-version-file: go.mod`; local builds with Go 1.21+ fetch the toolchain automatically.
 - `recoil instructions` is a hidden alias of `recoil instruct`; the two commands already printed the same text.
 - The `cmd` test suite redirects `HOME` and the XDG and AppData directories to a throwaway directory and unsets `RECOIL_DB` and `RECOIL_PROJECT`, so a test run can no longer open or mine into the developer's real store.
 
