@@ -4,6 +4,10 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-21
+
+The repository now ships the way the other chain.sh tools do: CI on every push, lint and vulnerability gates, contributor docs, and a grouped `--help`. The MCP SDK and Go toolchain move past four SDK advisories and ten standard-library ones.
+
 ### Added
 
 - A CI workflow: build, golangci-lint, the test suite on Linux and macOS, and govulncheck, on every pull request and push to `main`. `make lint`, `make vulncheck`, `make build-check` and `make ci` run the same checks locally, and `.githooks/pre-commit` runs them before a commit (`git config core.hooksPath .githooks`).
