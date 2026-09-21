@@ -4,6 +4,10 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-21
+
+Recoil is one local store per machine again. The sharing experiment, its relay server and the Docker image are gone; nothing in the binary talks to a network except the optional embedding providers.
+
 ### Removed
 
 - Memory sharing. The `swarm`, `channel` and `relay` commands, the relay server and its Docker image, the `--relay`, `--relay-agent`, `--standalone`, `--collaborative` and `--manual-share` flags on `setup`, the `--publish` / `--no-publish` flags on `add`, `remember`, `decide`, `supersede`, `handoff` and the MCP write tools, the seven `channel.*` settings, the Peer Memory lane, and the `channel_*`, `peer_memory_received`, `memory_shared`, `pending_share` and `publish` fields in text and JSON output. Recoil is one local store per machine; nothing in it talks to a network except the optional embedding providers.
