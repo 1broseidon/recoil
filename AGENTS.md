@@ -89,11 +89,12 @@ store schema is free to change behind `SchemaVersion`.
 ## MCP Server
 
 `recoil mcp` runs an MCP server over stdio through the official go-sdk. The
-tools mirror the CLI and call the same functions: `recoil_search`,
-`recoil_wake`, `recoil_check`, `recoil_list`, `recoil_claims`, `recoil_export`
-on the read side, `recoil_add`, `recoil_remember`, `recoil_handoff` on the
-write side. Operator commands (`setup`, `config`, `relay`, `forget --destroy`)
-are deliberately not tools. Errors map to the same codes as the CLI.
+tools mirror the CLI and call the same functions. By default only the read
+side is registered: `recoil_search`, `recoil_wake`, `recoil_check`,
+`recoil_list`, `recoil_claims`, `recoil_export`. `recoil mcp --allow-write`
+adds `recoil_add`, `recoil_remember` and `recoil_handoff`. Operator commands
+(`setup`, `config`, `relay`, `forget --destroy`) are deliberately not tools.
+Errors map to the same codes as the CLI.
 
 ## Quality Standards
 
