@@ -4,6 +4,10 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The test suite passes on Windows. The agent-session discovery tests and the project-DB fallback test assumed `HOME`, forward-slash paths and an XDG config directory; they now isolate `USERPROFILE` and `%AppData%` too and JSON-encode fixture paths. CI runs the suite on `windows-latest`, and the release workflow no longer lets a Windows test failure through as a warning.
+
 ## [0.3.0] - 2026-09-21
 
 Recoil is one local store per machine again. The sharing experiment, its relay server and the Docker image are gone; nothing in the binary talks to a network except the optional embedding providers.

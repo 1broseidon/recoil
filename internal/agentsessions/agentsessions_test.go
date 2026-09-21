@@ -1,11 +1,31 @@
 package agentsessions
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+// setTestHome points os.UserHomeDir at dir: HOME on Unix, USERPROFILE on
+// Windows. Setting only HOME leaves Windows discovery reading the real profile.
+func setTestHome(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
+}
+
+// jsonString encodes s as a JSON string literal, quotes included, so a Windows
+// path with backslashes survives inside a fixture line.
+func jsonString(t *testing.T, s string) string {
+	t.Helper()
+	data, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
 
 // writeLines writes JSONL fixture content to path, creating parent dirs.
 func writeLines(t *testing.T, path string, lines ...string) {
@@ -24,18 +44,18 @@ func writeLines(t *testing.T, path string, lines ...string) {
 
 func TestClaudeDiscoverFiltersByCwd(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	repo := t.TempDir()
 	foreign := t.TempDir()
 
 	// In-repo session and a foreign one share an encoding-agnostic layout;
 	// the cwd recorded inside each file is the only authority.
 	writeLines(t, filepath.Join(home, ".claude", "projects", "enc-a", "mine.jsonl"),
-		`{"type":"user","timestamp":"2026-05-01T00:00:00Z","cwd":"`+repo+`","sessionId":"s-mine","message":{"role":"user","content":"We should use net/http, do not add a third-party client."}}`,
-		`{"type":"assistant","timestamp":"2026-05-01T00:01:00Z","cwd":"`+repo+`","message":{"role":"assistant","content":[{"type":"text","text":"Done. Next step: add timeout tests around the gateway."},{"type":"tool_use","name":"Edit"}]}}`,
+		`{"type":"user","timestamp":"2026-05-01T00:00:00Z","cwd":`+jsonString(t, repo)+`,"sessionId":"s-mine","message":{"role":"user","content":"We should use net/http, do not add a third-party client."}}`,
+		`{"type":"assistant","timestamp":"2026-05-01T00:01:00Z","cwd":`+jsonString(t, repo)+`,"message":{"role":"assistant","content":[{"type":"text","text":"Done. Next step: add timeout tests around the gateway."},{"type":"tool_use","name":"Edit"}]}}`,
 	)
 	writeLines(t, filepath.Join(home, ".claude", "projects", "enc-b", "other.jsonl"),
-		`{"type":"user","timestamp":"2026-05-01T00:00:00Z","cwd":"`+foreign+`","sessionId":"s-other","message":{"role":"user","content":"Switch this other repo to Redis for caching."}}`,
+		`{"type":"user","timestamp":"2026-05-01T00:00:00Z","cwd":`+jsonString(t, foreign)+`,"sessionId":"s-other","message":{"role":"user","content":"Switch this other repo to Redis for caching."}}`,
 	)
 
 	refs, err := claudeAdapter{}.Discover(repo)
@@ -67,17 +87,17 @@ func TestClaudeDiscoverFiltersByCwd(t *testing.T) {
 
 func TestCodexDiscoverFiltersByCwdAndReads(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 	repo := t.TempDir()
 	foreign := t.TempDir()
 
 	writeLines(t, filepath.Join(home, ".codex", "sessions", "2026", "05", "14", "rollout-mine.jsonl"),
-		`{"type":"session_meta","timestamp":"2026-05-14T00:00:00Z","payload":{"id":"c-mine","cwd":"`+repo+`","git":{"branch":"main"}}}`,
+		`{"type":"session_meta","timestamp":"2026-05-14T00:00:00Z","payload":{"id":"c-mine","cwd":`+jsonString(t, repo)+`,"git":{"branch":"main"}}}`,
 		`{"type":"response_item","timestamp":"2026-05-14T00:01:00Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Decided: keep mattn/go-sqlite3 for FTS5; do not switch drivers."}]}}`,
 		`{"type":"response_item","timestamp":"2026-05-14T00:01:30Z","payload":{"type":"reasoning","content":"ignored"}}`,
 	)
 	writeLines(t, filepath.Join(home, ".codex", "sessions", "2026", "05", "14", "rollout-other.jsonl"),
-		`{"type":"session_meta","timestamp":"2026-05-14T00:00:00Z","payload":{"id":"c-other","cwd":"`+foreign+`"}}`,
+		`{"type":"session_meta","timestamp":"2026-05-14T00:00:00Z","payload":{"id":"c-other","cwd":`+jsonString(t, foreign)+`}}`,
 		`{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"unrelated repo work"}]}}`,
 	)
 

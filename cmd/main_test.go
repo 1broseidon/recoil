@@ -9,7 +9,8 @@ import (
 // TestMain points every HOME-derived path at a throwaway directory before any
 // test runs, so the suite can never open, migrate, or mine into the developer's
 // real store under os.UserConfigDir (~/.config/recoil on Linux, Library/
-// Application Support on macOS, %AppData% on Windows). Worktree-aware scoping
+// Application Support on macOS, %AppData% on Windows) or find the developer's
+// agent transcripts under os.UserHomeDir (HOME, or USERPROFILE on Windows). Worktree-aware scoping
 // maps a checkout of this repo to its own project, which is exactly how a test
 // run once re-mined the README into a live store. Tests that need a specific
 // HOME still set their own with t.Setenv.
@@ -20,6 +21,7 @@ func TestMain(m *testing.M) {
 	}
 	for key, value := range map[string]string{
 		"HOME":            home,
+		"USERPROFILE":     home,
 		"XDG_CONFIG_HOME": filepath.Join(home, ".config"),
 		"XDG_DATA_HOME":   filepath.Join(home, ".local", "share"),
 		"APPDATA":         filepath.Join(home, "AppData", "Roaming"),

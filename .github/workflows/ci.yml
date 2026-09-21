@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -53,6 +54,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-26
+          - windows-latest
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -64,7 +66,15 @@ jobs:
           cache: true
 
       - name: Test
+        if: runner.os != 'Windows'
         run: make test
+
+      # windows-latest has no GNU make; CGO_ENABLED and CGO_CFLAGS come from
+      # the workflow env, and mingw gcc is on the runner already.
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: go test ./...
 
   security:
     runs-on: ubuntu-latest

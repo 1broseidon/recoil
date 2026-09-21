@@ -12,11 +12,17 @@ func TestOpenStoreFallsBackToProjectDBWhenDefaultDBIsInaccessible(t *testing.T) 
 	opts = globalOptions{}
 	defer func() { opts = oldOpts }()
 
+	// os.UserConfigDir is XDG_CONFIG_HOME on Linux, ~/Library/Application
+	// Support on macOS and %AppData% on Windows. Make each of them a file so
+	// the default store cannot be created on any of the three.
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("APPDATA", filepath.Join(home, "AppData"))
 	writeCmdTestFile(t, filepath.Join(home, "Library"), "not a directory")
 	writeCmdTestFile(t, filepath.Join(home, ".config"), "not a directory")
+	writeCmdTestFile(t, filepath.Join(home, "AppData"), "not a directory")
 
 	root := t.TempDir()
 	if _, err := scope.InitProject(root); err != nil {
