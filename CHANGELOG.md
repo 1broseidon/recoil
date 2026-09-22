@@ -4,6 +4,8 @@ All notable changes to recoil are documented here.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-21
+
 ### Fixed
 
 - The test suite passes on Windows. The agent-session discovery tests and the project-DB fallback test assumed `HOME`, forward-slash paths and an XDG config directory; they now isolate `USERPROFILE` and `%AppData%` too and JSON-encode fixture paths. CI runs the suite on `windows-latest`, and the release workflow no longer lets a Windows test failure through as a warning.
