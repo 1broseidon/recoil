@@ -11,7 +11,6 @@ tags:
 relatedFiles:
   - cmd/check.go
   - cmd/errors.go
-parentId: epic-3
 createdAt: "2026-09-23T02:59:35.553Z"
 ---
 

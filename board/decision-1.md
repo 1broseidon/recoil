@@ -9,7 +9,6 @@ tags:
   - product
   - staleness
   - v0.1
-parentId: epic-1
 createdAt: "2026-05-11T02:25:43.315Z"
 ---
 

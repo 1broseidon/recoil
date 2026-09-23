@@ -10,7 +10,6 @@ tags:
   - scope
   - cli
   - v0
-parentId: epic-1
 createdAt: "2026-05-11T02:26:37.017Z"
 ---
 

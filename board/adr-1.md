@@ -10,7 +10,6 @@ tags:
   - architecture
   - v0
   - sqlite
-parentId: epic-1
 createdAt: "2026-05-11T02:26:36.801Z"
 ---
 

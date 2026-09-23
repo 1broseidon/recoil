@@ -10,7 +10,6 @@ tags:
   - brainfile
   - operator-memory
   - v0
-parentId: epic-1
 createdAt: "2026-05-11T02:31:23.698Z"
 ---
 

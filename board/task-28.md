@@ -11,7 +11,6 @@ tags:
 relatedFiles:
   - cmd/hook.go
   - cmd/instructions.go
-parentId: epic-3
 createdAt: "2026-09-23T02:59:34.944Z"
 ---
 

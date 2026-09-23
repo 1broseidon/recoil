@@ -13,7 +13,6 @@ relatedFiles:
   - cmd/decide.go
   - cmd/handoff.go
   - internal/store/store.go
-parentId: epic-3
 createdAt: "2026-09-23T02:59:35.951Z"
 ---
 
