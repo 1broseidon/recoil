@@ -1,8 +1,6 @@
 ---
 id: task-20
 title: Track last_retrieved_at + add recoil review queue for memory hygiene
-column: todo
-position: 9
 priority: medium
 tags:
   - audit
@@ -13,6 +11,8 @@ relatedFiles:
   - cmd/repair.go
 parentId: epic-1
 createdAt: "2026-06-10T04:41:02.213Z"
+completedAt: "2026-09-23T20:53:58.563Z"
+updatedAt: "2026-09-23T20:53:58.563Z"
 ---
 
 ## Description
