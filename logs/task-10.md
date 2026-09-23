@@ -1,8 +1,6 @@
 ---
 id: task-10
 title: Add optional Brainfile source adapter
-column: todo
-position: 9
 priority: low
 tags:
   - v0
@@ -26,6 +24,8 @@ contract:
     commands:
       - make test
 createdAt: "2026-05-11T02:31:24.239Z"
+completedAt: "2026-09-23T20:53:58.299Z"
+updatedAt: "2026-09-23T20:53:58.299Z"
 ---
 
 ## Description
