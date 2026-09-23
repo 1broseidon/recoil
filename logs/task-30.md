@@ -1,8 +1,6 @@
 ---
 id: task-30
 title: "Executable external predicate: run a command, compare its output hash"
-column: todo
-position: 6
 priority: medium
 tags:
   - decisions
@@ -14,6 +12,8 @@ relatedFiles:
   - cmd/decide.go
 parentId: epic-3
 createdAt: "2026-09-23T02:59:35.349Z"
+completedAt: "2026-09-23T20:53:58.830Z"
+updatedAt: "2026-09-23T20:53:58.830Z"
 ---
 
 ## Description
