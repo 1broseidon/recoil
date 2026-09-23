@@ -2,8 +2,6 @@
 id: epic-1
 title: v0 Local-Only Recoil Core
 type: epic
-column: roadmap
-position: 0
 description: "Build Recoil as a fast local-first memory CLI: deterministic append-only writes, SQLite FTS5 recall, explicit scopes, agent-readable output, and no network dependency. This is the Cymbal-for-memory foundation and should stay boring, sharp, and inspectable."
 priority: high
 tags:
@@ -111,6 +109,8 @@ contract:
   metrics:
     readyAt: "2026-05-11T01:00:34.261Z"
     updatedAt: "2026-05-11T03:15:00.000Z"
+completedAt: "2026-09-23T20:54:00.291Z"
+updatedAt: "2026-09-23T20:54:00.291Z"
 ---
 
 ## Description
@@ -122,3 +122,27 @@ decisions and research live in the `reference` column.
 
 ## Log
 - 2026-09-23T20:53:59.730Z: [claude] Closed (2026-09-23): 20/20 subtasks done and v0.3.x shipped. Leftover children task-10 and task-20 closed as won't do; the reference docs stay on the board without a parent.
+
+## Child Tasks
+Summary: 21/21 children completed.
+- task-10: Add optional Brainfile source adapter (completed)
+- task-12: Expand agent contract: instruct/hook text must cover search, check, decide, supersede (completed)
+- task-13: decide/handoff auto-supersede previous active memory in same claim family (completed)
+- task-14: Write-time near-duplicate and conflict surfacing in remember/decide output (completed)
+- task-15: Role-aware aging for handoffs/notes + inline valid_until evaluation in wake/search (completed)
+- task-16: Quarantine benchmark-specific query expansions and content-sniffing noise markers (completed)
+- task-17: FTSQuery: strip stopwords, AND-first with OR fallback; evaluate porter tokenizer (completed)
+- task-18: Hybrid retrieval auto-on when a fresh local embedding index exists (completed)
+- task-19: Strict entity filter: demote instead of hard-drop non-matching results (completed)
+- task-2: Implement eval harness for recall and stale demotion (completed)
+- task-20: Track last_retrieved_at + add recoil review queue for memory hygiene (completed)
+- task-21: search --explain: per-result score component breakdown (completed)
+- task-22: Cleanup: dead pool clamp, dead wake branch, duplicate maxInt (completed)
+- task-23: Mild recency prior for direct and session_evidence memories in default ranking (completed)
+- task-24: Wake layer quotas: handoff and decisions must not be crowded out by doc chunks (completed)
+- task-25: Fix 3 pre-existing docs-heavy corpus failures (absent-graphql, absent-redis, contradiction-auth-current) (completed)
+- task-5: Add validity metadata and supersession links (completed)
+- task-6: Add mark and supersede lifecycle commands (completed)
+- task-7: Make search and wake stale-aware (completed)
+- task-8: Expand project user and session scope tests (completed)
+- task-9: Add 10k local performance benchmark (completed)
