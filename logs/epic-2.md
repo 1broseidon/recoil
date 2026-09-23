@@ -2,8 +2,6 @@
 id: epic-2
 title: v1 Encrypted Peer Sync
 type: epic
-column: roadmap
-position: 1
 description: Extend Recoil from local-only recall to distributed local-first memory by replicating encrypted append-only events between authorized devices. Querying remains local; sync only moves encrypted facts so each device can rebuild its own SQLite/FTS index after decryption. Includes a v1.1 future reference for a dumb cloud relay that stores only encrypted envelopes and never performs search.
 priority: medium
 tags:
@@ -73,6 +71,8 @@ contract:
     - "v1.1 cloud relay remains a future dumb pipe only: no plaintext, no FTS index, no embeddings, no summaries, and no search queries."
   metrics:
     readyAt: "2026-05-11T01:00:34.271Z"
+completedAt: "2026-09-23T20:53:59.109Z"
+updatedAt: "2026-09-23T20:53:59.109Z"
 ---
 
 ## Description
@@ -80,3 +80,13 @@ Extend Recoil from local-only recall to distributed local-first memory by replic
 
 ## Log
 - 2026-09-23T20:53:57.180Z: [claude] Closed, won't do (2026-09-23). Recoil is one local store per machine; v0.3.0 removed sharing, the relay and the Docker image. Encrypted peer sync is the same idea with more machinery and does not fit a stateless CLI.
+
+## Child Tasks
+Summary: 0/7 children completed.
+- epic-2-1: Unknown task reference (missing)
+- epic-2-2: Unknown task reference (missing)
+- epic-2-3: Unknown task reference (missing)
+- epic-2-4: Unknown task reference (missing)
+- epic-2-5: Unknown task reference (missing)
+- epic-2-6: Unknown task reference (missing)
+- epic-2-7: Unknown task reference (missing)
