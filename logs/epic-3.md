@@ -2,8 +2,6 @@
 id: epic-3
 title: "Agent-experience pass: edit-time recall and hook quality"
 type: epic
-column: roadmap
-position: 2
 priority: high
 tags:
   - roadmap
@@ -11,6 +9,8 @@ tags:
   - hooks
   - decisions
 createdAt: "2026-09-23T02:59:02.733Z"
+completedAt: "2026-09-23T20:54:00.015Z"
+updatedAt: "2026-09-23T20:54:00.015Z"
 ---
 
 ## Description
@@ -22,3 +22,7 @@ Biggest opportunity: decisions that surface at edit time, and that go stale when
 
 ## Log
 - 2026-09-23T20:53:59.460Z: [claude] Closed as an epic (2026-09-23). Its bounded children stay on the board as standalone todo tasks; task-30 (executable predicates) is closed as won't do. Scope rule for what remains: plan-1.
+
+## Child Tasks
+Summary: 1/1 children completed.
+- task-30: Executable external predicate: run a command, compare its output hash (completed)
