@@ -1,8 +1,8 @@
 ---
 id: task-29
 title: "source_unchanged: resolve relative paths against the project root, not the cwd"
-column: todo
-position: 5
+column: in-progress
+position: 1
 priority: medium
 tags:
   - bug
@@ -12,6 +12,7 @@ tags:
 relatedFiles:
   - cmd/decision_predicate.go
 createdAt: "2026-09-23T02:59:35.146Z"
+updatedAt: "2026-09-23T21:16:42.560Z"
 ---
 
 ## Description
