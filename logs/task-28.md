@@ -1,8 +1,6 @@
 ---
 id: task-28
 title: Fix literal <agent> placeholder in the SessionStart contract
-column: in-progress
-position: 0
 priority: medium
 tags:
   - bug
@@ -12,7 +10,8 @@ relatedFiles:
   - cmd/hook.go
   - cmd/instructions.go
 createdAt: "2026-09-23T02:59:34.944Z"
-updatedAt: "2026-09-23T21:16:42.280Z"
+updatedAt: "2026-09-23T21:20:50.280Z"
+completedAt: "2026-09-23T21:20:50.280Z"
 ---
 
 ## Description
