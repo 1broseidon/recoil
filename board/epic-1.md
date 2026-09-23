@@ -119,3 +119,6 @@ Build Recoil as a fast local-first memory CLI: deterministic append-only writes,
 Inline subtasks above are retained as migrated history. Active implementation
 work now lives as child board files with `parentId: epic-1`; settled product
 decisions and research live in the `reference` column.
+
+## Log
+- 2026-09-23T20:53:59.730Z: [claude] Closed (2026-09-23): 20/20 subtasks done and v0.3.x shipped. Leftover children task-10 and task-20 closed as won't do; the reference docs stay on the board without a parent.
