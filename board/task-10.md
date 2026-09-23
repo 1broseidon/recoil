@@ -38,44 +38,5 @@ Later, if the generic miner and lifecycle model are solid, import .brainfile
 board records and logs as typed high-signal memories when a project explicitly
 wants that adapter.
 
-## Scope
-
-When `.brainfile/` exists, read Brainfile v2 projects:
-
-- `.brainfile/brainfile.md`
-- `.brainfile/board/*.md`
-- `.brainfile/logs/*.md`
-- `.brainfile/logs/ledger.jsonl`
-
-For each record, preserve:
-
-- Brainfile document ID,
-- document type,
-- column/status,
-- title,
-- description/body,
-- parentId,
-- priority,
-- tags,
-- contract status and validation commands,
-- source path,
-- completed/log provenance.
-
-## Retrieval Meaning
-
-Brainfile records should map into Recoil as high-signal project memory:
-
-- `decision`, `adr`, and `research` become reference evidence.
-- active `task` and `epic` records become current project state.
-- completed logs become historical evidence.
-
-Do not overwrite Brainfile. Recoil indexes it as evidence.
-
-## Non-Dependency Requirements
-
-- Do not build this before the generic file miner, layered wake, and stale
-  lifecycle path are useful without Brainfile.
-- Do not require Brainfile CLI or libraries at runtime.
-- Do not fail generic `recoil mine` when `.brainfile/` is absent.
-- Do not make Brainfile-specific fields required in the core memory schema.
-- Treat Brainfile as one source adapter alongside generic files and transcripts.
+## Log
+- 2026-09-23T20:53:57.456Z: [claude] Closed, won't do (2026-09-23). A brainfile adapter would make recoil name another chain tool, which the epic-3 boundary and decision-5 rule out. Brainfile boards are markdown; plain `recoil mine` already indexes them if a project wants that.
